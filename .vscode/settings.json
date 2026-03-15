@@ -1,5 +1,7 @@
 {
     "chat.tools.terminal.autoApprove": {
         "netstat": true
-    }
+    },
+    "git.path": "C:\\Program Files\\Git\\cmd\\git.exe",
+    "git.enabled": true
 }
