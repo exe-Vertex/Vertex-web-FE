@@ -238,9 +238,9 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: idx * 0.1 }}
-                className={`relative rounded-2xl border p-8 flex h-full flex-col bg-[#0F1A2A]/70 backdrop-blur-xl transition-[border-color,box-shadow] duration-200 ${
+                className={`relative rounded-2xl border p-8 flex h-full flex-col bg-[#0F1A2A]/70 backdrop-blur-xl transition-[border-color,box-shadow,transform] duration-200 ${
                   plan.highlight
-                    ? 'border-[#22C55E]/40 shadow-[0_0_40px_rgba(34,197,94,0.12)] md:-translate-y-3'
+                    ? 'border-[#22C55E]/40 shadow-[0_0_40px_rgba(34,197,94,0.12)] md:-translate-y-3 hover:border-[#22C55E]/70 hover:shadow-[0_0_56px_rgba(34,197,94,0.22)]'
                     : 'border-[#22C55E]/10 hover:border-[#22C55E]/30 hover:shadow-[0_12px_32px_rgba(34,197,94,0.09)]'
                 } ${billingCycle === 'yearly' && plan.price !== '$0' ? 'border-[#EAB308]/35 shadow-[0_0_0_1px_rgba(234,179,8,0.2),0_20px_46px_rgba(234,179,8,0.12)]' : ''}`}
               >
