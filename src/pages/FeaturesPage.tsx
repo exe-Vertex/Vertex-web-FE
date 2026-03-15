@@ -71,8 +71,9 @@ export const FeaturesPage: React.FC<FeaturesPageProps> = ({ onNavigate }) => {
     <div className="min-h-screen flex flex-col bg-[#0A0F1A]">
       <Header onNavigate={onNavigate} currentPage="features" />
       
-      <main className="flex-1 pt-28 pb-20">
-        <div className="container relative mx-auto overflow-hidden px-4 md:px-6">
+      <main className="relative flex-1 overflow-hidden pt-28 pb-20">
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-[#0A0F1A]/5 via-[#0A0F1A]/35 to-transparent" />
+        <div className="container relative mx-auto px-4 md:px-6">
           {/* Ambient moving gradient blobs */}
           <motion.div
             aria-hidden
@@ -94,18 +95,18 @@ export const FeaturesPage: React.FC<FeaturesPageProps> = ({ onNavigate }) => {
           />
 
           {/* Hero section */}
-          <div className="relative z-10 mx-auto mb-16 max-w-5xl text-center">
+          <div className="relative z-10 mx-auto mb-12 max-w-3xl text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#22C55E]/35 bg-gradient-to-r from-[#22C55E]/12 to-[#EAB308]/10 px-4 py-1.5 text-sm font-medium text-[#6EE7B7]">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#22C55E]/35 bg-gradient-to-r from-[#22C55E]/12 to-[#EAB308]/10 px-4 py-1.5 text-sm font-medium text-[#6EE7B7]">
                 <Sparkles size={14} />
                 {t.features.fpBadge}
               </div>
 
-              <h1 className="mx-auto max-w-5xl text-4xl font-display font-bold leading-[1.04] tracking-tight text-white md:text-6xl lg:text-7xl">
+              <h1 className="mx-auto max-w-3xl text-4xl font-display font-bold leading-[1.05] tracking-tight text-white md:text-5xl lg:text-6xl">
                 <span className="block">{t.features.fpHeroHeading1}</span>
                 <span className="block mt-1.5">
                   <span className="bg-gradient-to-r from-[#4ADE80] via-[#A3E635] to-[#EAB308] bg-clip-text text-transparent">{t.features.fpHeroHeading2}</span>
@@ -113,7 +114,7 @@ export const FeaturesPage: React.FC<FeaturesPageProps> = ({ onNavigate }) => {
                 </span>
               </h1>
 
-              <p className="mx-auto mt-7 max-w-3xl text-lg leading-relaxed text-slate-300/90 md:text-[1.35rem]">
+              <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-300/90">
                 {t.features.fpHeroSubtitle}
               </p>
             </motion.div>

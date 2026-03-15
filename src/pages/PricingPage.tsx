@@ -139,94 +139,68 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
     return plan.price;
   };
 
+  const getOriginalMonthlyPrice = (plan: typeof plans[0]) => {
+    if (billingCycle !== 'yearly' || plan.price === '$0') return null;
+    return plan.price;
+  };
+
+  const getYearlySavings = (plan: typeof plans[0]) => {
+    if (billingCycle !== 'yearly') return null;
+    if (plan.price === '$5') return 'Save $12/year';
+    if (plan.price === '$15') return 'Save $36/year';
+    return null;
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#0A0F1A]">
       <Header onNavigate={onNavigate} currentPage="pricing" />
-      <main className="flex-1 pt-24">
+      <main className="relative flex-1 overflow-hidden pt-28">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px]" aria-hidden>
+          <motion.div
+            className="absolute left-[8%] top-12 h-52 w-52 rounded-full bg-[radial-gradient(circle_at_30%_30%,rgba(34,197,94,0.5),rgba(34,197,94,0.08)_62%,transparent_82%)] blur-2xl"
+            animate={{ x: [0, 24, -10, 0], y: [0, 12, 26, 0], scale: [1, 1.08, 0.96, 1] }}
+            transition={{ duration: 18, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute right-[10%] top-20 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_65%_35%,rgba(59,130,246,0.42),rgba(59,130,246,0.08)_60%,transparent_82%)] blur-[58px]"
+            animate={{ x: [0, -28, 12, 0], y: [0, 18, -6, 0], scale: [1, 0.95, 1.1, 1] }}
+            transition={{ duration: 22, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute left-1/2 top-32 h-72 w-72 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_50%_40%,rgba(234,179,8,0.34),rgba(234,179,8,0.06)_64%,transparent_82%)] blur-[70px]"
+            animate={{ x: [0, -12, 18, 0], y: [0, -10, 10, 0], opacity: [0.66, 0.88, 0.68, 0.66] }}
+            transition={{ duration: 24, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0A0F1A]/4 via-[#0A0F1A]/42 to-[#0A0F1A]/76" />
+          <div className="absolute inset-x-0 bottom-[-4.5rem] h-40 bg-gradient-to-b from-transparent via-[#0A0F1A]/62 to-[#0A0F1A] blur-xl" />
+        </div>
         {/* Hero Section */}
-        <div className="relative overflow-hidden px-4 pt-14 pb-10 md:pt-16 md:pb-12">
-          <div className="pointer-events-none absolute inset-x-0 top-1 flex justify-center" aria-hidden>
-            <div className="relative h-[250px] w-[min(980px,95%)]">
-              <div className="absolute inset-0 rounded-[30px] border border-[#22C55E]/15 bg-gradient-to-br from-[#0F1A2A]/70 via-[#11263D]/55 to-[#0A1220]/65 shadow-[0_40px_110px_rgba(34,197,94,0.16)] backdrop-blur-[2px]" />
-              <div className="absolute inset-5 rounded-[22px] border border-[#22C55E]/12 bg-[#0B1728]/70 overflow-hidden">
-                <div className="h-9 border-b border-[#22C55E]/10 bg-[#102236]/60 px-4 flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#22C55E]/60" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308]/50" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-slate-500/60" />
-                  <div className="ml-3 h-2.5 w-36 rounded-full bg-slate-400/20" />
-                </div>
-                <div className="grid grid-cols-[175px_1fr] gap-3 p-3.5 h-[calc(100%-2.25rem)]">
-                  <div className="rounded-xl border border-[#22C55E]/10 bg-[#0F2236]/55 p-3">
-                    <p className="text-[9px] font-semibold text-[#6EE7B7]/80 tracking-wide uppercase">Workspace</p>
-                    <div className="mt-2 h-7 rounded-md bg-[#22C55E]/16" />
-                    <div className="mt-3 space-y-1.5">
-                      <div className="h-6 rounded-md bg-slate-400/14" />
-                      <div className="h-6 rounded-md bg-slate-400/14" />
-                      <div className="h-6 rounded-md bg-slate-400/14" />
-                    </div>
-                    <div className="mt-3 rounded-lg border border-[#22C55E]/12 bg-[#0C1B2D]/70 p-2">
-                      <div className="h-2 w-14 rounded-full bg-slate-300/25" />
-                      <div className="mt-2 h-5 rounded-md bg-[#EAB308]/12" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <div className="rounded-xl border border-[#22C55E]/10 bg-[#11273E]/62 px-3 py-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-semibold text-slate-200">Poster Project</p>
-                        <div className="h-4 w-16 rounded-full bg-[#22C55E]/18" />
-                      </div>
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <div className="h-1.5 w-11 rounded-full bg-[#22C55E]/35" />
-                        <div className="h-1.5 w-11 rounded-full bg-[#22C55E]/18" />
-                        <div className="h-1.5 w-11 rounded-full bg-[#22C55E]/18" />
-                        <div className="h-1.5 w-11 rounded-full bg-[#22C55E]/18" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <div className="rounded-xl border border-[#22C55E]/12 bg-[#12324C]/55 p-2.5">
-                        <div className="h-2 w-10 rounded-full bg-slate-200/35" />
-                        <div className="mt-2 h-5 rounded-md bg-slate-300/18" />
-                        <div className="mt-1.5 h-5 rounded-md bg-slate-300/14" />
-                      </div>
-                      <div className="rounded-xl border border-[#22C55E]/12 bg-[#1A3851]/52 p-2.5">
-                        <div className="h-2 w-14 rounded-full bg-slate-200/35" />
-                        <div className="mt-2 h-5 rounded-md bg-[#22C55E]/18" />
-                        <div className="mt-1.5 h-5 rounded-md bg-slate-300/14" />
-                      </div>
-                      <div className="rounded-xl border border-[#22C55E]/12 bg-[#2B3F53]/48 p-2.5">
-                        <div className="h-2 w-8 rounded-full bg-slate-200/35" />
-                        <div className="mt-2 h-5 rounded-md bg-[#EAB308]/18" />
-                        <div className="mt-1.5 h-5 rounded-md bg-slate-300/14" />
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-[#22C55E]/10 bg-[#10263D]/58 p-2.5">
-                      <p className="text-[9px] uppercase tracking-wide text-slate-400">Timeline</p>
-                      <div className="mt-1.5 h-2 rounded-full bg-slate-400/16 overflow-hidden">
-                        <div className="h-full w-[62%] rounded-full bg-gradient-to-r from-[#22C55E]/70 to-[#EAB308]/65" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute inset-0 rounded-[30px] bg-gradient-to-b from-transparent via-[#0A0F1A]/32 to-[#0A0F1A]/88" />
-              <div className="absolute -inset-x-4 -inset-y-3 rounded-[38px] bg-[#0A0F1A]/45 blur-2xl" />
-            </div>
-          </div>
-
+        <div className="relative pb-10 md:pb-12">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="relative z-10 mx-auto flex w-full max-w-3xl flex-col items-center text-center pt-8 md:pt-10"
+            className="relative z-10 mx-auto flex w-full max-w-3xl flex-col items-center px-4 text-center"
           >
-            <h1 className="mt-6 text-4xl font-bold text-white md:text-5xl">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.08 }}
+              className="inline-flex items-center gap-2 rounded-full border border-[#22C55E]/35 bg-gradient-to-r from-[#22C55E]/12 to-[#EAB308]/10 px-4 py-1.5 backdrop-blur-md"
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#22C55E]/20 text-[#86EFAC]">
+                <Sparkles size={12} />
+              </span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">Simple pricing</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]/70" />
+              <span className="text-xs text-slate-400">No hidden fees</span>
+            </motion.div>
+
+            <h1 className="mt-6 text-4xl font-display font-bold leading-[1.05] tracking-tight text-white md:text-5xl lg:text-6xl">
               Choose your <span className="text-gradient">plan</span>
             </h1>
 
-            <p className="mt-4 max-w-2xl text-lg text-slate-400">
+            <p className="mt-6 max-w-2xl text-lg text-slate-300/90">
               Start free and scale as your team grows. All plans include core features.
             </p>
 
@@ -264,26 +238,47 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: idx * 0.1 }}
-                className={`relative rounded-2xl border p-8 flex flex-col bg-[#0F1A2A]/70 backdrop-blur-xl transition-[border-color,box-shadow] duration-200 ${
+                className={`relative rounded-2xl border p-8 flex h-full flex-col bg-[#0F1A2A]/70 backdrop-blur-xl transition-[border-color,box-shadow] duration-200 ${
                   plan.highlight
                     ? 'border-[#22C55E]/40 shadow-[0_0_40px_rgba(34,197,94,0.12)] md:-translate-y-3'
                     : 'border-[#22C55E]/10 hover:border-[#22C55E]/30 hover:shadow-[0_12px_32px_rgba(34,197,94,0.09)]'
-                }`}
+                } ${billingCycle === 'yearly' && plan.price !== '$0' ? 'border-[#EAB308]/35 shadow-[0_0_0_1px_rgba(234,179,8,0.2),0_20px_46px_rgba(234,179,8,0.12)]' : ''}`}
               >
-                {plan.highlight && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-[#22C55E] to-[#EAB308] text-white text-xs font-bold rounded-full uppercase tracking-wider">
-                    Most Popular
-                  </div>
-                )}
+                <div className="mb-5 flex min-h-6 items-center justify-between gap-2">
+                  {plan.highlight ? (
+                    <div className="rounded-full bg-gradient-to-r from-[#22C55E] to-[#EAB308] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+                      Most Popular
+                    </div>
+                  ) : (
+                    <span className="h-6" />
+                  )}
+                  {billingCycle === 'yearly' && plan.price !== '$0' ? (
+                    <div className="rounded-full border border-[#EAB308]/45 bg-[#EAB308]/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#FDE68A]">
+                      Yearly Deal
+                    </div>
+                  ) : (
+                    <span className="h-6" />
+                  )}
+                </div>
                 <div className="mb-4">
                   <h3 className="text-lg font-bold text-white">{plan.name}</h3>
                   <p className="text-slate-400 text-sm">{plan.description}</p>
                 </div>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold text-white">{getPrice(plan)}</span>
-                  <span className="text-slate-400">{plan.period}</span>
+                <div className={`mb-6 ${billingCycle === 'yearly' ? 'min-h-[92px]' : 'min-h-[72px]'}`}>
+                  <div className="flex items-end gap-2">
+                    <span className="text-4xl font-bold text-white">{getPrice(plan)}</span>
+                    <span className="text-slate-400">{plan.period}</span>
+                    {getOriginalMonthlyPrice(plan) && (
+                      <span className="mb-1 text-sm text-slate-500 line-through">{getOriginalMonthlyPrice(plan)}</span>
+                    )}
+                  </div>
                   {billingCycle === 'yearly' && plan.price !== '$0' && (
-                    <span className="block text-xs text-slate-500 mt-1">billed annually</span>
+                    <div className="mt-2 space-y-1.5">
+                      <span className="inline-flex rounded-full border border-[#22C55E]/35 bg-[#22C55E]/12 px-2.5 py-1 text-[11px] font-semibold text-[#86EFAC]">
+                        {getYearlySavings(plan)}
+                      </span>
+                      <span className="block text-xs text-slate-500">Billed annually</span>
+                    </div>
                   )}
                 </div>
                 <motion.button
@@ -291,7 +286,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                   whileHover={plan.highlight ? { y: -2 } : { y: -2, scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 22, mass: 0.65 }}
-                  className={`transform-gpu will-change-transform w-full py-3 rounded-xl font-semibold transition-all duration-300 ease-out text-sm ${
+                  className={`transform-gpu will-change-transform mt-auto w-full py-3 rounded-xl font-semibold transition-all duration-300 ease-out text-sm ${
                     plan.highlight
                       ? 'pricing-cta-highlight group relative isolate overflow-hidden bg-gradient-to-r from-[#22C55E] to-[#EAB308] text-white shadow-lg shadow-green-500/20 hover:shadow-[0_14px_36px_rgba(245,158,11,0.38)] hover:brightness-105'
                       : 'bg-[#162032] text-slate-300 border border-[#22C55E]/12 hover:text-white hover:bg-gradient-to-r hover:from-[#22C55E] hover:to-[#EAB308] hover:border-[#F0FDF4]/80 hover:brightness-110 hover:saturate-125 hover:shadow-[0_16px_36px_rgba(34,197,94,0.34)]'

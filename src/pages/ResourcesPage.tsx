@@ -524,8 +524,9 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate, initia
   return (
     <div className="min-h-screen flex flex-col bg-[#0A0F1A]">
       <Header onNavigate={onNavigate} currentPage="resources" />
-      <main className="flex-1 pt-28 pb-20">
-        <div className="container relative mx-auto overflow-hidden px-4 md:px-6">
+      <main className="relative flex-1 overflow-hidden pt-28 pb-20">
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-[#0A0F1A]/5 via-[#0A0F1A]/35 to-transparent" />
+        <div className="container relative mx-auto px-4 md:px-6">
           {/* Ambient moving gradient blobs */}
           <motion.div
             aria-hidden
@@ -554,14 +555,14 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate, initia
               transition={{ duration: 0.6 }}
               className="text-center mb-10"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#22C55E]/10 border border-[#22C55E]/30 text-[#22C55E] text-sm font-medium mb-6">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#22C55E]/35 bg-gradient-to-r from-[#22C55E]/12 to-[#EAB308]/10 px-4 py-1.5 text-sm font-medium text-[#6EE7B7]">
                 <BookOpen size={14} />
                 Resources
               </div>
-              <h1 className="text-4xl md:text-5xl font-display font-bold text-white mb-4">
+              <h1 className="mx-auto max-w-3xl text-4xl font-display font-bold leading-[1.05] tracking-tight text-white md:text-5xl lg:text-6xl mb-4">
                 {current.title}
               </h1>
-              <p className="text-lg text-slate-400 max-w-xl mx-auto mb-10">
+              <p className="text-lg text-slate-300/90 max-w-2xl mx-auto mb-10">
                 {current.subtitle}
               </p>
 
