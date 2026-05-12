@@ -12,13 +12,14 @@ A student-focused AI project planning web app designed for design students and c
 ## Design System
 
 ### Colors
-- **Primary**: `#7C3AED` (Purple 600)
-- **Primary Gradient**: `linear-gradient(90deg, #7C3AED 0%, #2563EB 100%)`
-- **Accent**: `#F472B6` (Pink 400)
-- **Dark Background**: `#0B1220`
-- **Text Dark**: `#0F172A` (Slate 900)
-- **Neutral Light**: `#FFFFFF`
-- **Neutral Light 2**: `#F8FAFC`
+- **Primary**: `#22C55E` (Green 500)
+- **Primary Gradient**: `linear-gradient(90deg, #22C55E 0%, #EAB308 100%)`
+- **Accent**: `#06B6D4` (Cyan 500)
+- **Dark Background**: `#0A0F1A`
+- **Card Background**: `#0F1A2A`
+- **Surface**: `#162032`
+- **Text Primary**: `#FFFFFF`
+- **Text Secondary**: `#94A3B8` (Slate 400)
 
 ### Typography
 - **Headings**: Poppins / Inter (Display)

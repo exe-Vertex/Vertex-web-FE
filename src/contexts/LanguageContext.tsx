@@ -14,12 +14,12 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [lang, setLangState] = useState<Lang>('en');
 
   const setLang = useCallback((l: Lang) => {
-    setLangState('en');
+    setLangState(l);
   }, []);
 
   const toggle = useCallback(() => {
-    setLang('en');
-  }, [setLang]);
+    setLangState(prev => prev === 'en' ? 'vi' : 'en');
+  }, []);
 
   const t = translations[lang] as Translations;
 

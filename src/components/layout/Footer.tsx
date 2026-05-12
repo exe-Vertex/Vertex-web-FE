@@ -1,5 +1,6 @@
 import React from 'react';
 import { Github, Twitter, Linkedin } from 'lucide-react';
+import { VertexLogo } from '../ui/VertexLogo';
 import { useLang } from '../../contexts/LanguageContext';
 
 interface FooterProps {
@@ -15,12 +16,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           <div className="col-span-2">
             <div className="vertex-brand flex items-center gap-2 mb-4">
               <div className="vertex-mark w-8 h-8 rounded-lg flex items-center justify-center text-white">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="6" cy="6" r="3" fill="currentColor" fillOpacity="0.8"/>
-                  <circle cx="18" cy="6" r="3" fill="currentColor" fillOpacity="0.8"/>
-                  <circle cx="12" cy="18" r="3" fill="currentColor" fillOpacity="0.8"/>
-                  <path d="M6 6L12 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <VertexLogo size={20} />
               </div>
               <span className="font-display text-lg tracking-tight vertex-wordmark">
                 Vertex

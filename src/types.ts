@@ -1,6 +1,6 @@
 export type Priority = 'low' | 'medium' | 'high';
 export type Status = 'todo' | 'in-progress' | 'ready-for-review' | 'done';
-export type Role = 'student' | 'admin';
+export type Role = 'student' | 'admin' | 'lecturer';
 export type UserPlan = 'free-trial' | 'paid';
 export type UserStatus = 'active' | 'banned';
 

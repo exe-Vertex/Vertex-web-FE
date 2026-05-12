@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Eye, EyeOff, ArrowRight, Github, Chrome, GraduationCap, Shield } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Github, Chrome, GraduationCap, Shield, BookOpen } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { VertexLogo } from '../components/ui/VertexLogo';
 import { useLang } from '../contexts/LanguageContext';
 import { Role } from '../types';
 
@@ -24,6 +25,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     localStorage.setItem('userRole', selectedRole);
     if (selectedRole === 'admin') {
       onNavigate('admin');
+    } else if (selectedRole === 'lecturer') {
+      onNavigate('lecturer');
     } else {
       onNavigate('dashboard');
     }
@@ -49,12 +52,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
             onClick={() => onNavigate('landing')}
           >
             <div className="vertex-mark w-10 h-10 rounded-xl flex items-center justify-center text-white">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="6" cy="6" r="3" fill="currentColor" fillOpacity="0.8"/>
-                <circle cx="18" cy="6" r="3" fill="currentColor" fillOpacity="0.8"/>
-                <circle cx="12" cy="18" r="3" fill="currentColor" fillOpacity="0.8"/>
-                <path d="M6 6L12 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <VertexLogo size={22} />
             </div>
             <span className="font-display text-2xl vertex-wordmark">Vertex</span>
           </div>
@@ -99,12 +97,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
             onClick={() => onNavigate('landing')}
           >
             <div className="vertex-mark w-8 h-8 rounded-lg flex items-center justify-center text-white">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="6" cy="6" r="3" fill="currentColor" fillOpacity="0.8"/>
-                <circle cx="18" cy="6" r="3" fill="currentColor" fillOpacity="0.8"/>
-                <circle cx="12" cy="18" r="3" fill="currentColor" fillOpacity="0.8"/>
-                <path d="M6 6L12 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <VertexLogo size={18} />
             </div>
             <span className="font-display text-lg vertex-wordmark">Vertex</span>
           </div>
@@ -201,11 +194,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
             {/* Role selection */}
             <div className="mt-6 pt-5 border-t border-[#22C55E]/10">
               <p className="text-xs font-medium text-slate-500 mb-3 text-center">{t.roles.selectRole}</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <button type="button" onClick={() => setSelectedRole('student')}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${selectedRole === 'student' ? 'bg-[#22C55E]/15 border-[#22C55E]/40 text-[#22C55E]' : 'bg-[#162032] border-[#22C55E]/10 text-slate-400 hover:border-[#22C55E]/20 hover:text-slate-300'}`}>
                   <GraduationCap size={20} />
                   <span className="text-xs font-medium">{t.roles.student}</span>
+                </button>
+                <button type="button" onClick={() => setSelectedRole('lecturer')}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${selectedRole === 'lecturer' ? 'bg-blue-500/15 border-blue-500/40 text-blue-400' : 'bg-[#162032] border-[#22C55E]/10 text-slate-400 hover:border-blue-500/20 hover:text-slate-300'}`}>
+                  <BookOpen size={20} />
+                  <span className="text-xs font-medium">Lecturer</span>
                 </button>
                 <button type="button" onClick={() => setSelectedRole('admin')}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${selectedRole === 'admin' ? 'bg-red-500/15 border-red-500/40 text-red-400' : 'bg-[#162032] border-[#22C55E]/10 text-slate-400 hover:border-red-500/20 hover:text-slate-300'}`}>

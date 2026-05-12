@@ -1,12 +1,12 @@
 # Website Structure
 
-Updated: 2026-03-31T18:16:01.174Z
+Updated: 2026-05-12T03:40:34.258Z
 
 ## Summary
 
 - Entry point: Landing → Login → Workspaces
 - Top-level sections: 6
-- Total nodes: 41
+- Total nodes: 36
 - Total routes in App.tsx: 10
 
 ```text
@@ -30,11 +30,6 @@ Landing
     │ │ ├ Tasks Today
     │ │ └ Progress Overview
     │ ├ Projects
-    │ │ ├ Board
-    │ │ ├ AI Planner
-    │ │ ├ Insights
-    │ │ ├ Members
-    │ │ ├ Files
     │ │ ├ Timeline
     │ │ └ Calendar
     │ ├ Members
