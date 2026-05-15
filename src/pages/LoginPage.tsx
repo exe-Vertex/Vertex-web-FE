@@ -5,6 +5,8 @@ import { Button } from '../components/ui/Button';
 import { VertexLogo } from '../components/ui/VertexLogo';
 import { useLang } from '../contexts/LanguageContext';
 import { Role } from '../types';
+import { getMe, login, register } from '../api/auth';
+import { setTokens, setUserInfo } from '../utils/authStorage';
 
 interface LoginPageProps {
   onNavigate: (page: string) => void;
@@ -17,18 +19,44 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [selectedRole, setSelectedRole] = useState<Role>('student');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const { t } = useLang();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('authToken', 'demo-token');
-    localStorage.setItem('userRole', selectedRole);
-    if (selectedRole === 'admin') {
-      onNavigate('admin');
-    } else if (selectedRole === 'lecturer') {
-      onNavigate('lecturer');
-    } else {
-      onNavigate('dashboard');
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      if (isSignUp) {
+        await register(name.trim(), email.trim(), password);
+        setIsSignUp(false);
+        setSuccessMessage('Account created. Please sign in.');
+        return;
+      }
+
+      const tokens = await login(email.trim(), password);
+      setTokens(tokens);
+
+      const me = await getMe(tokens.accessToken);
+      setUserInfo(me);
+
+      const role = (me.role || selectedRole) as Role;
+      if (role === 'admin') {
+        onNavigate('admin');
+      } else if (role === 'lecturer') {
+        onNavigate('lecturer');
+      } else {
+        onNavigate('dashboard');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed.';
+      setErrorMessage(message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -186,7 +214,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 </div>
               )}
 
-              <Button type="submit" variant="primary" className="w-full justify-center" icon={<ArrowRight size={18} />}>
+              {errorMessage && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                  {errorMessage}
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs text-green-200">
+                  {successMessage}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                variant="primary"
+                className="w-full justify-center"
+                icon={<ArrowRight size={18} />}
+                disabled={isSubmitting}
+              >
                 {isSignUp ? t.login.btnSignUp : t.login.btnSignIn}
               </Button>
             </form>
