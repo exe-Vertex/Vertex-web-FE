@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useLang } from '../../contexts/LanguageContext';
 
-type UserPlan = 'free' | 'student_pro' | 'lecturer';
+import { OrgPlan } from '../../types';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -21,7 +21,7 @@ interface SidebarProps {
   onOpenMembers?: () => void;
   onCreateProject?: () => void;
   onViewPlans?: () => void;
-  userPlan?: UserPlan;
+  userPlan?: OrgPlan;
   workspaceName?: string;
   workspaces?: { id: string; name: string }[];
   activeWorkspaceId?: string;
@@ -52,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [wsDropdownOpen, setWsDropdownOpen] = useState(false);
   const wsDropdownRef = useRef<HTMLDivElement>(null);
 
-  const isPro = userPlan === 'student_pro' || userPlan === 'lecturer';
+  const isPro = userPlan === 'pro' || userPlan === 'business' || userPlan === 'enterprise';
 
   // Close workspace dropdown on outside click
   useEffect(() => {
@@ -66,12 +66,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [wsDropdownOpen]);
 
-  const upgradeTitle = userPlan === 'student_pro' ? t.sidebar.upgradeLecturer : t.sidebar.upgradePro;
-  const upgradeDesc  = userPlan === 'student_pro' ? t.sidebar.upgradeLecturerDesc : t.sidebar.upgradeDesc;
-  const upgradeBtn   = userPlan === 'student_pro' ? t.sidebar.viewLecturerPlan : t.sidebar.viewPlans;
+  const upgradeTitle = userPlan === 'pro' ? t.sidebar.upgradeLecturer : t.sidebar.upgradePro;
+  const upgradeDesc  = userPlan === 'pro' ? t.sidebar.upgradeLecturerDesc : t.sidebar.upgradeDesc;
+  const upgradeBtn   = userPlan === 'pro' ? t.sidebar.viewLecturerPlan : t.sidebar.viewPlans;
 
   // Visual theme per plan
-  const cardTheme = userPlan === 'student_pro'
+  const cardTheme = userPlan === 'pro'
     ? {
         badge: 'Next Plan' as const,
         badgeBg: 'bg-[#1a1a2e]',
@@ -260,7 +260,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
 
           {/* Upgrade Card */}
-          {userPlan !== 'lecturer' && (
+          {userPlan !== 'business' && userPlan !== 'enterprise' && (
             !collapsed ? (
               <div className={`mt-auto p-3 border-t ${cardTheme.borderTop}`}>
                 <div className={`relative bg-gradient-to-r ${cardTheme.cardBg} rounded-xl p-3.5 border ${cardTheme.cardBorder}`}>

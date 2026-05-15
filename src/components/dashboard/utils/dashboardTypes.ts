@@ -1,9 +1,9 @@
 import { Status, WorkspaceMember } from '../../../types';
 
+import { OrgPlan } from '../../../types';
+
 export type AppNotification = { id: string; text: string; time: string; read: boolean };
 export type InviteRole = 'Leader' | 'Member' | 'Guest';
-
-export type DashboardUserPlan = 'free' | 'student_pro' | 'lecturer';
 export type ProjectTab = 'board' | 'ai-planner' | 'insights' | 'members' | 'files';
 export type PlannerDifficulty = 'Easy' | 'Medium' | 'Hard';
 export type PlannerCategory = 'Design' | 'Research' | 'Engineering' | 'Marketing';
@@ -60,3 +60,24 @@ export type MembersDatabaseRow = {
 };
 
 export type ProjectWithMembers = import('../../../types').Project & { members: import('../../../types').User[] };
+
+export type MockOrgMember = {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  orgRole: 'owner' | 'admin' | 'lecturer' | 'member';
+  joinedAt: string;
+  status: 'active' | 'invited';
+};
+
+export type MockBilling = {
+  plan: OrgPlan;
+  storageUsed: number;
+  storageLimit: number;
+  aiUsed: number;
+  aiLimit: number;
+  membersCount: number;
+  membersLimit: number;
+  renewalDate: string;
+};

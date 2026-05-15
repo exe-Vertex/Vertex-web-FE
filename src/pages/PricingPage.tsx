@@ -15,24 +15,32 @@ const plans = [
     name: 'Free',
     description: 'For individuals & small teams',
     price: '$0',
-    period: '/month',
+    period: '/user/month',
     cta: 'Get Started',
     highlight: false,
   },
   {
-    name: 'Student Pro',
-    description: 'For capstone projects & teams',
+    name: 'Pro',
+    description: 'For growing teams & capstone projects',
     price: '$5',
-    period: '/month',
+    period: '/user/month',
     cta: 'Start Free Trial',
     highlight: true,
   },
   {
-    name: 'Lecturer',
-    description: 'For teachers who supervise student projects',
-    price: '$15',
-    period: '/month',
-    cta: 'Start Teaching',
+    name: 'Business',
+    description: 'For schools and mid-sized companies',
+    price: '$12',
+    period: '/user/month',
+    cta: 'Upgrade to Business',
+    highlight: false,
+  },
+  {
+    name: 'Enterprise',
+    description: 'For large universities and enterprises',
+    price: 'Custom',
+    period: '',
+    cta: 'Contact Sales',
     highlight: false,
   },
 ];
@@ -43,6 +51,7 @@ interface FeatureRow {
   name: string;
   free: FeatureValue;
   pro: FeatureValue;
+  business: FeatureValue;
   enterprise: FeatureValue;
 }
 
@@ -55,52 +64,42 @@ const featureCategories: FeatureCategory[] = [
   {
     category: 'Project Management',
     features: [
-      { name: 'Dashboard overview', free: true, pro: true, enterprise: true },
-      { name: 'Kanban board view', free: true, pro: true, enterprise: true },
-      { name: 'Timeline view', free: true, pro: true, enterprise: true },
-      { name: 'Calendar view', free: true, pro: true, enterprise: true },
-      { name: 'Task status workflow', free: true, pro: true, enterprise: true },
-      { name: 'Project members management', free: true, pro: true, enterprise: true },
-      { name: 'Project files (upload, preview, download)', free: true, pro: true, enterprise: true },
+      { name: 'Dashboard overview', free: true, pro: true, business: true, enterprise: true },
+      { name: 'Kanban board view', free: true, pro: true, business: true, enterprise: true },
+      { name: 'Timeline view', free: true, pro: true, business: true, enterprise: true },
+      { name: 'Calendar view', free: true, pro: true, business: true, enterprise: true },
+      { name: 'Task status workflow', free: true, pro: true, business: true, enterprise: true },
+      { name: 'Project members management', free: 'Up to 5', pro: 'Up to 20', business: 'Unlimited', enterprise: 'Unlimited' },
+      { name: 'Project files management', free: true, pro: true, business: true, enterprise: true },
     ],
   },
   {
     category: 'AI Features',
     features: [
-      { name: 'AI planner tab', free: true, pro: true, enterprise: true },
-      { name: 'Generate task plan from project brief', free: true, pro: true, enterprise: true },
-      { name: 'Insights dashboard (progress, workload, risk)', free: true, pro: true, enterprise: true },
-      { name: 'Workspace AI settings', free: false, pro: true, enterprise: true },
-      { name: 'Lecturer AI group insights panel', free: false, pro: false, enterprise: true },
+      { name: 'AI planner tab', free: true, pro: true, business: true, enterprise: true },
+      { name: 'AI task generation', free: '20/mo', pro: '200/mo', business: '1000/mo', enterprise: 'Unlimited' },
+      { name: 'Insights dashboard', free: true, pro: true, business: true, enterprise: true },
+      { name: 'Workspace AI settings', free: false, pro: true, business: true, enterprise: true },
+      { name: 'Group insights panel', free: false, pro: false, business: true, enterprise: true },
     ],
   },
   {
-    category: 'Team & Collaboration',
+    category: 'Organization & Administration',
     features: [
-      { name: 'In-app notifications', free: true, pro: true, enterprise: true },
-      { name: 'Invite by code / email / role', free: true, pro: true, enterprise: true },
-      { name: 'Workspace switcher in sidebar', free: false, pro: true, enterprise: true },
-      { name: 'Workspace permissions controls', free: false, pro: true, enterprise: true },
-      { name: 'Danger zone actions (leave/delete workspace)', free: false, pro: true, enterprise: true },
+      { name: 'In-app notifications', free: true, pro: true, business: true, enterprise: true },
+      { name: 'Workspace switcher', free: false, pro: true, business: true, enterprise: true },
+      { name: 'Role management (Admin/Lecturer/Member)', free: false, pro: false, business: true, enterprise: true },
+      { name: 'Lecturer dashboard', free: false, pro: false, business: true, enterprise: true },
+      { name: 'Manage student groups & classes', free: false, pro: false, business: true, enterprise: true },
+      { name: 'Single Sign-On (SSO)', free: false, pro: false, business: false, enterprise: true },
+      { name: 'Audit logs', free: false, pro: false, business: false, enterprise: true },
     ],
   },
   {
-    category: 'Settings & Storage',
+    category: 'Storage & Support',
     features: [
-      { name: 'Personal settings (profile, theme, notifications)', free: true, pro: true, enterprise: true },
-      { name: 'Workspace settings tab', free: false, pro: true, enterprise: true },
-      { name: 'Google Calendar integration toggle', free: true, pro: true, enterprise: true },
-      { name: 'Storage quota', free: '1 GB', pro: '10 GB', enterprise: '50 GB' },
-    ],
-  },
-  {
-    category: 'Lecturer Tools',
-    features: [
-      { name: 'Lecturer dashboard', free: false, pro: false, enterprise: true },
-      { name: 'Manage student groups', free: false, pro: false, enterprise: true },
-      { name: 'Group detail with task review', free: false, pro: false, enterprise: true },
-      { name: 'Deadline overview across classes', free: false, pro: false, enterprise: true },
-      { name: 'Class-based filtering and progress tracking', free: false, pro: false, enterprise: true },
+      { name: 'Storage quota', free: '1 GB', pro: '10 GB', business: '50 GB', enterprise: 'Unlimited' },
+      { name: 'Priority support', free: false, pro: false, business: true, enterprise: '24/7 Dedicated' },
     ],
   },
 ];
@@ -116,38 +115,33 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   const handleChoosePlan = (planName: string) => {
-    if (planName === 'Free') {
-      localStorage.setItem('userPlan', 'free');
-      showToast('Free plan activated! Redirecting to dashboard...');
-      setTimeout(() => onNavigate('dashboard'), 800);
-    } else if (planName === 'Lecturer') {
-      localStorage.setItem('userPlan', 'lecturer');
-      showToast('Welcome lecturer! Redirecting to Lecturer dashboard...', 'info');
-      setTimeout(() => onNavigate('lecturer'), 800);
+    if (planName === 'Enterprise') {
+      showToast('Redirecting to contact sales...', 'info');
+      // In a real app, redirect to a contact form
     } else {
-      localStorage.setItem('userPlan', 'student_pro');
-      showToast(`${planName} plan selected! Redirecting to dashboard...`);
+      showToast(`Selected ${planName} plan! Redirecting to signup...`);
       setTimeout(() => onNavigate('dashboard'), 800);
     }
   };
 
   const getPrice = (plan: typeof plans[0]) => {
+    if (plan.price === 'Custom') return 'Custom';
     if (billingCycle === 'yearly') {
       if (plan.price === '$5') return '$4';
-      if (plan.price === '$15') return '$12';
+      if (plan.price === '$12') return '$10';
     }
     return plan.price;
   };
 
   const getOriginalMonthlyPrice = (plan: typeof plans[0]) => {
-    if (billingCycle !== 'yearly' || plan.price === '$0') return null;
+    if (billingCycle !== 'yearly' || plan.price === '$0' || plan.price === 'Custom') return null;
     return plan.price;
   };
 
   const getYearlySavings = (plan: typeof plans[0]) => {
     if (billingCycle !== 'yearly') return null;
-    if (plan.price === '$5') return 'Save $12/year';
-    if (plan.price === '$15') return 'Save $36/year';
+    if (plan.price === '$5') return 'Save $12/user/yr';
+    if (plan.price === '$12') return 'Save $24/user/yr';
     return null;
   };
 
@@ -231,7 +225,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
 
         {/* Plans Cards */}
         <div className="mx-auto max-w-6xl px-4 pb-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
             {plans.map((plan, idx) => (
               <motion.div
                 key={plan.name}
@@ -252,7 +246,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                   ) : (
                     <span className="h-6" />
                   )}
-                  {billingCycle === 'yearly' && plan.price !== '$0' ? (
+                  {billingCycle === 'yearly' && plan.price !== '$0' && plan.price !== 'Custom' ? (
                     <div className="rounded-full border border-[#EAB308]/45 bg-[#EAB308]/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#FDE68A]">
                       Yearly Deal
                     </div>
@@ -272,7 +266,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                       <span className="mb-1 text-sm text-slate-500 line-through">{getOriginalMonthlyPrice(plan)}</span>
                     )}
                   </div>
-                  {billingCycle === 'yearly' && plan.price !== '$0' && (
+                  {billingCycle === 'yearly' && plan.price !== '$0' && plan.price !== 'Custom' && (
                     <div className="mt-2 space-y-1.5">
                       <span className="inline-flex rounded-full border border-[#22C55E]/35 bg-[#22C55E]/12 px-2.5 py-1 text-[11px] font-semibold text-[#86EFAC]">
                         {getYearlySavings(plan)}
@@ -322,7 +316,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
 
             <div className="bg-[#0F1A2A]/50 backdrop-blur-xl rounded-2xl border border-[#22C55E]/10 overflow-x-auto">
               {/* Table header */}
-              <div className="grid grid-cols-4 border-b border-[#22C55E]/10 bg-[#0F1A2A]/80 min-w-[600px]">
+              <div className="grid grid-cols-5 border-b border-[#22C55E]/10 bg-[#0F1A2A]/80 min-w-[700px]">
                 <div className="px-6 py-4">
                   <span className="text-sm font-medium text-slate-500">Features</span>
                 </div>
@@ -337,8 +331,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
               {featureCategories.map((cat, catIdx) => (
                 <div key={cat.category}>
                   {/* Category header */}
-                  <div className="grid grid-cols-4 bg-[#162032]/40 border-b border-[#22C55E]/5 min-w-[600px]">
-                    <div className="col-span-4 px-6 py-3">
+                  <div className="grid grid-cols-5 bg-[#162032]/40 border-b border-[#22C55E]/5 min-w-[700px]">
+                    <div className="col-span-5 px-6 py-3">
                       <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider">{cat.category}</span>
                     </div>
                   </div>
@@ -347,7 +341,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                   {cat.features.map((feature, fIdx) => (
                     <div
                       key={feature.name}
-                      className={`grid grid-cols-4 border-b border-[#22C55E]/5 hover:bg-[#162032]/30 transition-colors min-w-[600px] ${
+                      className={`grid grid-cols-5 border-b border-[#22C55E]/5 hover:bg-[#162032]/30 transition-colors min-w-[700px] ${
                         fIdx === cat.features.length - 1 && catIdx < featureCategories.length - 1 ? '' : ''
                       }`}
                     >
@@ -359,6 +353,9 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                       </div>
                       <div className="px-4 py-3.5 flex items-center justify-center">
                         {renderCellValue(feature.pro)}
+                      </div>
+                      <div className="px-4 py-3.5 flex items-center justify-center">
+                        {renderCellValue(feature.business)}
                       </div>
                       <div className="px-4 py-3.5 flex items-center justify-center">
                         {renderCellValue(feature.enterprise)}

@@ -6,6 +6,23 @@
 -- Enable UUID generation
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS ai_history CASCADE;
+DROP TABLE IF EXISTS project_files CASCADE;
+DROP TABLE IF EXISTS task_comments CASCADE;
+DROP TABLE IF EXISTS subtasks CASCADE;
+DROP TABLE IF EXISTS tasks CASCADE;
+DROP TABLE IF EXISTS project_members CASCADE;
+DROP TABLE IF EXISTS projects CASCADE;
+DROP TABLE IF EXISTS workspace_members CASCADE;
+DROP TABLE IF EXISTS workspaces CASCADE;
+DROP TABLE IF EXISTS organization_members CASCADE;
+DROP TABLE IF EXISTS organizations CASCADE;
+DROP TABLE IF EXISTS user_skills CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+
 -- ─────────────────────────────────────────────
 -- 1. USERS
 -- ─────────────────────────────────────────────
@@ -15,8 +32,7 @@ CREATE TABLE users (
     email           VARCHAR(255) NOT NULL UNIQUE,
     password_hash   VARCHAR(255) NOT NULL,
     avatar_url      VARCHAR(500) DEFAULT '',
-    role            VARCHAR(20) NOT NULL DEFAULT 'student',       -- student | admin
-    plan            VARCHAR(20) NOT NULL DEFAULT 'free',          -- free | student_pro | lecturer
+    role            VARCHAR(20) NOT NULL DEFAULT 'member',        -- member | lecturer | admin (system-level)
     status          VARCHAR(20) NOT NULL DEFAULT 'active',        -- active | banned
     title           VARCHAR(100) DEFAULT '',
     bio             TEXT DEFAULT '',
@@ -40,12 +56,43 @@ CREATE TABLE user_skills (
 CREATE INDEX idx_user_skills_user ON user_skills(user_id);
 
 -- ─────────────────────────────────────────────
--- 3. WORKSPACES
+-- 3. ORGANIZATIONS
+-- ─────────────────────────────────────────────
+CREATE TABLE organizations (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            VARCHAR(200) NOT NULL,
+    slug            VARCHAR(100) UNIQUE,                           -- url-friendly identifier
+    plan            VARCHAR(20) NOT NULL DEFAULT 'free',           -- free | pro | business | enterprise
+    max_members     INT NOT NULL DEFAULT 5,
+    ai_quota        INT NOT NULL DEFAULT 20,
+    storage_limit   BIGINT NOT NULL DEFAULT 1073741824,            -- 1 GB in bytes
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ─────────────────────────────────────────────
+-- 4. ORGANIZATION MEMBERS
+-- ─────────────────────────────────────────────
+CREATE TABLE organization_members (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id          UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role            VARCHAR(20) NOT NULL DEFAULT 'member',         -- owner | admin | lecturer | member
+    joined_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(org_id, user_id)
+);
+
+CREATE INDEX idx_org_members_org ON organization_members(org_id);
+CREATE INDEX idx_org_members_user ON organization_members(user_id);
+
+-- ─────────────────────────────────────────────
+-- 5. WORKSPACES
 -- ─────────────────────────────────────────────
 CREATE TABLE workspaces (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            VARCHAR(200) NOT NULL,
     owner_id        UUID NOT NULL REFERENCES users(id),
+    org_id          UUID REFERENCES organizations(id) ON DELETE SET NULL, -- nullable for personal workspaces
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -226,15 +273,36 @@ CREATE TRIGGER trg_tasks_updated_at
 -- Trong .NET dùng BCrypt.Net: BCrypt.HashPassword("password123")
 -- Hash dưới đây là placeholder, thay bằng hash thật khi chạy
 
-INSERT INTO users (id, name, email, password_hash, avatar_url, role, plan, status, title, ai_quota, ai_used, created_at) VALUES
-('a1000000-0000-0000-0000-000000000001', 'Minh',  'minh@university.edu',  '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u1', 'student', 'student_pro', 'active', 'Designer',   100, 67, '2025-11-10'),
-('a1000000-0000-0000-0000-000000000002', 'Lan',   'lan@university.edu',   '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u2', 'student', 'free',        'active', 'Researcher', 20,  18, '2026-01-05'),
-('a1000000-0000-0000-0000-000000000003', 'Hung',  'hung@university.edu',  '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u3', 'student', 'student_pro', 'active', 'Designer',   100, 34, '2025-12-20'),
-('a1000000-0000-0000-0000-000000000004', 'Trang', 'trang@university.edu', '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u4', 'student', 'free',        'banned', 'Researcher', 20,  20, '2026-02-01'),
-('a1000000-0000-0000-0000-000000000005', 'Duc',   'duc@gmail.com',        '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u5', 'student', 'free',        'active', '',           20,  3,  '2026-02-15'),
-('a1000000-0000-0000-0000-000000000006', 'Hanh',  'hanh@outlook.com',     '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u6', 'student', 'student_pro', 'active', '',           100, 89, '2025-10-01'),
-('a1000000-0000-0000-0000-000000000007', 'Phong', 'phong@university.edu', '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u7', 'student', 'free',        'active', '',           20,  0,  '2026-02-27'),
-('a1000000-0000-0000-0000-000000000099', 'Admin', 'admin@vertex.io',      '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=admin1', 'admin', 'lecturer', 'active', 'Admin',     9999, 0, '2025-01-01');
+INSERT INTO users (id, name, email, password_hash, avatar_url, role, status, title, ai_quota, ai_used, created_at) VALUES
+('a1000000-0000-0000-0000-000000000001', 'Minh',  'minh@university.edu',  '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u1', 'member',   'active', 'Designer',   100, 67, '2025-11-10'),
+('a1000000-0000-0000-0000-000000000002', 'Lan',   'lan@university.edu',   '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u2', 'member',   'active', 'Researcher', 20,  18, '2026-01-05'),
+('a1000000-0000-0000-0000-000000000003', 'Hung',  'hung@university.edu',  '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u3', 'member',   'active', 'Designer',   100, 34, '2025-12-20'),
+('a1000000-0000-0000-0000-000000000004', 'Trang', 'trang@university.edu', '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u4', 'member',   'banned', 'Researcher', 20,  20, '2026-02-01'),
+('a1000000-0000-0000-0000-000000000005', 'Duc',   'duc@gmail.com',        '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u5', 'member',   'active', '',           20,  3,  '2026-02-15'),
+('a1000000-0000-0000-0000-000000000006', 'Hanh',  'hanh@outlook.com',     '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u6', 'member',   'active', '',           100, 89, '2025-10-01'),
+('a1000000-0000-0000-0000-000000000007', 'Phong', 'phong@university.edu', '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u7', 'member',   'active', '',           20,  0,  '2026-02-27'),
+('a1000000-0000-0000-0000-000000000008', 'Dr. Tran Van Minh', 'minh.tv@university.edu', '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=lecturer1', 'member', 'active', 'Lecturer', 200, 12, '2025-06-01'),
+('a1000000-0000-0000-0000-000000000099', 'Admin', 'admin@vertex.io',      '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=admin1', 'admin', 'active', 'System Admin', 9999, 0, '2025-01-01');
+
+-- Organizations
+INSERT INTO organizations (id, name, slug, plan, max_members, ai_quota, storage_limit) VALUES
+('e1000000-0000-0000-0000-000000000001', 'FPT University',     'fpt-university',   'business',   200, 1000, 53687091200),
+('e1000000-0000-0000-0000-000000000002', 'Startup XYZ',        'startup-xyz',      'pro',        20,  200,  10737418240),
+('e1000000-0000-0000-0000-000000000003', 'Personal (Duc)',     'personal-duc',     'free',       5,   20,   1073741824);
+
+-- Organization members (role = role within org)
+INSERT INTO organization_members (org_id, user_id, role) VALUES
+-- FPT University: lecturer + students
+('e1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000008', 'lecturer'),
+('e1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000001', 'member'),
+('e1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000002', 'member'),
+('e1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000003', 'member'),
+('e1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000004', 'member'),
+-- Startup XYZ
+('e1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000006', 'owner'),
+('e1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000007', 'member'),
+-- Personal
+('e1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000005', 'owner');
 
 -- Skills
 INSERT INTO user_skills (user_id, skill_name) VALUES
@@ -248,8 +316,8 @@ INSERT INTO user_skills (user_id, skill_name) VALUES
 ('a1000000-0000-0000-0000-000000000004', 'Writing');
 
 -- Workspace
-INSERT INTO workspaces (id, name, owner_id) VALUES
-('b1000000-0000-0000-0000-000000000001', 'Design Studio Workspace', 'a1000000-0000-0000-0000-000000000001');
+INSERT INTO workspaces (id, name, owner_id, org_id) VALUES
+('b1000000-0000-0000-0000-000000000001', 'Design Studio Workspace', 'a1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001');
 
 -- Workspace members
 INSERT INTO workspace_members (workspace_id, user_id, role) VALUES

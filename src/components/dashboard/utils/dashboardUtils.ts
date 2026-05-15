@@ -1,7 +1,7 @@
-import { Project, Task, Status } from '../../../types';
+import { OrgPlan, Project, Task, Status } from '../../../types';
 import { normalizeProjects } from '../../../data/projectCompatibility';
 import { mockProjects } from '../../../data/mockData';
-import { AppNotification, DashboardUserPlan, MemberWorkloadLabel, ProjectFileItem } from './dashboardTypes';
+import { AppNotification, MemberWorkloadLabel, ProjectFileItem } from './dashboardTypes';
 
 // ── Storage keys ──
 export const PROJECTS_STORAGE_KEY = 'ppt_projects';
@@ -48,12 +48,13 @@ export const loadDashboardNotifications = (): AppNotification[] => {
   return [...received, ...initialNotifications];
 };
 
-export const getStoredUserPlan = (): DashboardUserPlan => {
+export const getStoredUserPlan = (): OrgPlan => {
   const rawPlan = localStorage.getItem('userPlan');
-  if (rawPlan === 'free' || rawPlan === 'student_pro' || rawPlan === 'lecturer') return rawPlan;
-  if (rawPlan === 'free-trial') return 'free';
-  if (rawPlan === 'paid') return 'student_pro';
-  return 'student_pro';
+  if (rawPlan === 'free' || rawPlan === 'pro' || rawPlan === 'business' || rawPlan === 'enterprise') return rawPlan as OrgPlan;
+  // Fallbacks for old values
+  if (rawPlan === 'student_pro' || rawPlan === 'paid') return 'pro';
+  if (rawPlan === 'lecturer') return 'business';
+  return 'free';
 };
 
 export const getWorkspaceName = (): string => {

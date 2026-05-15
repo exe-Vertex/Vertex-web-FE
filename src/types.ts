@@ -1,7 +1,8 @@
 export type Priority = 'low' | 'medium' | 'high';
 export type Status = 'todo' | 'in-progress' | 'ready-for-review' | 'done';
-export type Role = 'student' | 'admin' | 'lecturer';
-export type UserPlan = 'free-trial' | 'paid';
+export type Role = 'member' | 'lecturer' | 'admin' | 'owner';
+export type OrgRole = 'owner' | 'admin' | 'lecturer' | 'member';
+export type OrgPlan = 'free' | 'pro' | 'business' | 'enterprise';
 export type UserStatus = 'active' | 'banned';
 
 export interface User {
@@ -52,11 +53,12 @@ export interface AdminUserEntry {
   email: string;
   avatar: string;
   status: UserStatus;
-  plan: UserPlan;
+  plan: OrgPlan;
   createdAt: string;
   aiQuota: number;
   aiUsed: number;
 }
+
 
 export interface AIHistoryEntry {
   id: string;

@@ -9,9 +9,9 @@ import { Avatar } from '../ui/Avatar';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { TeamModal } from './TeamModal';
-import { SettingsModal } from './SettingsModal';
 import { ProfileModal } from './ProfileModal';
 import { useToast } from '../ui/Toast';
+import { OrgPlan } from '../../types';
 import { useLang } from '../../contexts/LanguageContext';
 import { Search, Bell, Menu, LayoutGrid, List, Plus, Calendar as CalendarIcon, CalendarDays, Filter, X, LogOut, Kanban, Sparkles, Users as UsersIcon, TrendingUp, AlertTriangle, WandSparkles, FileText, Paperclip, MessageSquare, Trash2, Eye, Download, Grid3X3, ImageIcon, File, Video, FileImage, FileCode2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -24,10 +24,11 @@ import { ProjectFilesView } from './views/ProjectFilesView';
 import { KanbanBoard } from './views/KanbanBoard';
 import { TimelineView } from './views/TimelineView';
 import { CalendarView } from './views/CalendarView';
+import { SettingsView } from './views/SettingsView';
 import { AddTaskModal } from './modals/AddTaskModal';
 import { CreateProjectModal } from './modals/CreateProjectModal';
 import { SignOutConfirmDialog } from './modals/SignOutConfirmDialog';
-import { AppNotification, DashboardUserPlan, ProjectTab, PlannerDifficulty, PlannerCategory, GeneratedPlanStep, ProjectFileItem, MemberWorkloadLabel, MemberAssignmentSuggestion, MembersDatabaseRow, ProjectWithMembers, InviteRole } from './utils/dashboardTypes';
+import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, GeneratedPlanStep, ProjectFileItem, MemberWorkloadLabel, MemberAssignmentSuggestion, MembersDatabaseRow, ProjectWithMembers, InviteRole } from './utils/dashboardTypes';
 import { PROJECTS_STORAGE_KEY, PROJECT_FILES_STORAGE_KEY, SETTINGS_STORAGE_KEY, INVITE_INBOX_KEY, CURRENT_USER_EMAIL, CURRENT_USER_ID, DEFAULT_WORKSPACES, initialNotifications, loadInviteInbox, createInviteNotification, loadDashboardNotifications, getStoredUserPlan, getWorkspaceName, loadProjects, loadProjectFiles, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel } from './utils/dashboardUtils';
 
 interface DashboardProps {
@@ -38,7 +39,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { showToast } = useToast();
   const [projects, setProjects] = useState<Project[]>(loadProjects);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>(loadWorkspaceMembers);
-  const [userPlan] = useState<DashboardUserPlan>(getStoredUserPlan);
+  const [userPlan] = useState<OrgPlan>(getStoredUserPlan);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [workspaceName, setWorkspaceName] = useState(getWorkspaceName);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState('ws-1');
@@ -56,7 +57,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [addTaskStatus, setAddTaskStatus] = useState<Status>('todo');
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'projects' | 'members'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'projects' | 'members' | 'settings'>('dashboard');
   const [projectTab, setProjectTab] = useState<ProjectTab>('board');
   const [projectFiles, setProjectFiles] = useState<Record<string, ProjectFileItem[]>>(loadProjectFiles);
   const [plannerInput, setPlannerInput] = useState({
@@ -614,8 +615,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
-  const planBadgeLabel = userPlan === 'student_pro' ? 'Pro' : 'Free';
-  const planBadgeClass = userPlan === 'student_pro'
+  const planBadgeLabel = userPlan.charAt(0).toUpperCase() + userPlan.slice(1);
+  const planBadgeClass = userPlan === 'pro' || userPlan === 'business' || userPlan === 'enterprise'
     ? 'border-blue-500/35 bg-blue-500/10 text-blue-300'
     : 'border-[#22C55E]/35 bg-[#22C55E]/10 text-[#6EE7B7]';
 
@@ -768,7 +769,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 </button>
                 <button
                   onClick={() => {
-                    setShowSettingsModal(true);
+                    setActiveTab('settings');
                     setShowProfileMenu(false);
                   }}
                   className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-[#162032]"
@@ -801,7 +802,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           projects={projects.map(p => ({ id: p.id, name: p.name }))}
           onOpenDashboard={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
           onOpenProjects={() => { setActiveTab('projects'); setProjectTab('board'); setProjectViewMode('kanban'); setIsSidebarOpen(false); }}
-          onOpenSettings={() => { setShowSettingsModal(true); setIsSidebarOpen(false); }}
+          onOpenSettings={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
           onOpenMembers={() => { setActiveTab('members'); setIsSidebarOpen(false); }}
           onCreateProject={() => setShowCreateProject(true)}
           onDeleteProject={(id) => handleDeleteProject(id)}
@@ -978,6 +979,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 }}
               />
             )}
+
+            {activeTab === 'settings' && (
+              <SettingsView userPlan={userPlan} orgName={workspaceName} />
+            )}
           </div>
         </main>
       </div>
@@ -1001,7 +1006,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         onRemoveMember={handleRemoveProjectMember}
         onInvite={handleInviteMember}
       />
-      <SettingsModal open={showSettingsModal} onClose={() => { setShowSettingsModal(false); setWorkspaceName(getWorkspaceName()); }} userPlan={userPlan} />
       <ProfileModal
         open={showProfileModal}
         member={currentWorkspaceMember}

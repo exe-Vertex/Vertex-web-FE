@@ -1,10 +1,10 @@
 import { Project, User, AdminUserEntry, AIHistoryEntry, AuditLogEntry, AdminNotification, ChartDataPoint } from '../types';
 
 export const users: User[] = [
-  { id: 'u1', name: 'Minh', avatar: 'https://i.pravatar.cc/150?u=u1', email: 'minh@university.edu', role: 'student' },
-  { id: 'u2', name: 'Lan', avatar: 'https://i.pravatar.cc/150?u=u2', email: 'lan@university.edu', role: 'student' },
-  { id: 'u3', name: 'Hung', avatar: 'https://i.pravatar.cc/150?u=u3', email: 'hung@university.edu', role: 'student' },
-  { id: 'u4', name: 'Trang', avatar: 'https://i.pravatar.cc/150?u=u4', email: 'trang@university.edu', role: 'student' },
+  { id: 'u1', name: 'Minh', avatar: 'https://i.pravatar.cc/150?u=u1', email: 'minh@university.edu', role: 'member' },
+  { id: 'u2', name: 'Lan', avatar: 'https://i.pravatar.cc/150?u=u2', email: 'lan@university.edu', role: 'member' },
+  { id: 'u3', name: 'Hung', avatar: 'https://i.pravatar.cc/150?u=u3', email: 'hung@university.edu', role: 'member' },
+  { id: 'u4', name: 'Trang', avatar: 'https://i.pravatar.cc/150?u=u4', email: 'trang@university.edu', role: 'member' },
 ];
 
 export const adminUser: User = {
@@ -16,13 +16,13 @@ export const adminUser: User = {
 };
 
 export const adminUserEntries: AdminUserEntry[] = [
-  { id: 'u1', name: 'Minh', email: 'minh@university.edu', avatar: 'https://i.pravatar.cc/150?u=u1', status: 'active', plan: 'paid', createdAt: '2025-11-10', aiQuota: 100, aiUsed: 67 },
-  { id: 'u2', name: 'Lan', email: 'lan@university.edu', avatar: 'https://i.pravatar.cc/150?u=u2', status: 'active', plan: 'free-trial', createdAt: '2026-01-05', aiQuota: 20, aiUsed: 18 },
-  { id: 'u3', name: 'Hung', email: 'hung@university.edu', avatar: 'https://i.pravatar.cc/150?u=u3', status: 'active', plan: 'paid', createdAt: '2025-12-20', aiQuota: 100, aiUsed: 34 },
-  { id: 'u4', name: 'Trang', email: 'trang@university.edu', avatar: 'https://i.pravatar.cc/150?u=u4', status: 'banned', plan: 'free-trial', createdAt: '2026-02-01', aiQuota: 20, aiUsed: 20 },
-  { id: 'u5', name: 'Duc', email: 'duc@gmail.com', avatar: 'https://i.pravatar.cc/150?u=u5', status: 'active', plan: 'free-trial', createdAt: '2026-02-15', aiQuota: 20, aiUsed: 3 },
-  { id: 'u6', name: 'Hanh', email: 'hanh@outlook.com', avatar: 'https://i.pravatar.cc/150?u=u6', status: 'active', plan: 'paid', createdAt: '2025-10-01', aiQuota: 100, aiUsed: 89 },
-  { id: 'u7', name: 'Phong', email: 'phong@university.edu', avatar: 'https://i.pravatar.cc/150?u=u7', status: 'active', plan: 'free-trial', createdAt: '2026-02-27', aiQuota: 20, aiUsed: 0 },
+  { id: 'u1', name: 'Minh', email: 'minh@university.edu', avatar: 'https://i.pravatar.cc/150?u=u1', status: 'active', plan: 'pro', createdAt: '2025-11-10', aiQuota: 100, aiUsed: 67 },
+  { id: 'u2', name: 'Lan', email: 'lan@university.edu', avatar: 'https://i.pravatar.cc/150?u=u2', status: 'active', plan: 'free', createdAt: '2026-01-05', aiQuota: 20, aiUsed: 18 },
+  { id: 'u3', name: 'Hung', email: 'hung@university.edu', avatar: 'https://i.pravatar.cc/150?u=u3', status: 'active', plan: 'pro', createdAt: '2025-12-20', aiQuota: 100, aiUsed: 34 },
+  { id: 'u4', name: 'Trang', email: 'trang@university.edu', avatar: 'https://i.pravatar.cc/150?u=u4', status: 'banned', plan: 'free', createdAt: '2026-02-01', aiQuota: 20, aiUsed: 20 },
+  { id: 'u5', name: 'Duc', email: 'duc@gmail.com', avatar: 'https://i.pravatar.cc/150?u=u5', status: 'active', plan: 'free', createdAt: '2026-02-15', aiQuota: 20, aiUsed: 3 },
+  { id: 'u6', name: 'Hanh', email: 'hanh@outlook.com', avatar: 'https://i.pravatar.cc/150?u=u6', status: 'active', plan: 'pro', createdAt: '2025-10-01', aiQuota: 100, aiUsed: 89 },
+  { id: 'u7', name: 'Phong', email: 'phong@university.edu', avatar: 'https://i.pravatar.cc/150?u=u7', status: 'active', plan: 'free', createdAt: '2026-02-27', aiQuota: 20, aiUsed: 0 },
 ];
 
 export const aiHistory: AIHistoryEntry[] = [

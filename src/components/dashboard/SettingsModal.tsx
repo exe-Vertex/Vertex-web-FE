@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useToast } from '../ui/Toast';
 import { Moon, Sun, X, Bell, Shield, Palette, HardDrive, Sparkles, Settings2, CalendarDays, TriangleAlert, Users, Trash2, LogOut } from 'lucide-react';
 
+import { OrgPlan } from '../../types';
+
 interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
-  userPlan?: 'free' | 'student_pro' | 'lecturer';
+  userPlan?: OrgPlan;
 }
 
 type SettingsState = {
@@ -87,7 +89,7 @@ const ToggleRow: React.FC<{
   </div>
 );
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, userPlan = 'student_pro' }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, userPlan = 'pro' }) => {
   const { showToast } = useToast();
   const [isDark, setIsDark] = useState(false);
   const [settings, setSettings] = useState<SettingsState>(defaultSettings);
@@ -149,12 +151,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, use
   };
 
   const isFreePlan = userPlan === 'free';
-  const storageConfig = userPlan === 'student_pro'
-    ? { usedGb: 2.3, limitGb: 10, usedLabel: '2.3 GB', limitLabel: '10 GB' }
-    : userPlan === 'lecturer'
+  const storageConfig = userPlan === 'enterprise'
+    ? { usedGb: 12.4, limitGb: 1000, usedLabel: '12.4 GB', limitLabel: 'Unlimited' }
+    : userPlan === 'business'
       ? { usedGb: 8.4, limitGb: 50, usedLabel: '8.4 GB', limitLabel: '50 GB' }
-      : { usedGb: 0.34, limitGb: 1, usedLabel: '340 MB', limitLabel: '1 GB' };
-  const storagePercent = Math.min(100, Math.round((storageConfig.usedGb / storageConfig.limitGb) * 100));
+      : userPlan === 'pro'
+        ? { usedGb: 2.3, limitGb: 10, usedLabel: '2.3 GB', limitLabel: '10 GB' }
+        : { usedGb: 0.34, limitGb: 1, usedLabel: '340 MB', limitLabel: '1 GB' };
+  const storagePercent = storageConfig.limitGb === 1000 ? 1 : Math.min(100, Math.round((storageConfig.usedGb / storageConfig.limitGb) * 100));
 
   const updateSettings = (updater: (prev: SettingsState) => SettingsState) => {
     setSettings(prev => updater(prev));
@@ -174,7 +178,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, use
         <div className="px-6 py-4 border-b border-[#22C55E]/10 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-lg text-white">Settings</h3>
-            <p className="text-xs text-slate-500 mt-1">Workspace controls for the {userPlan === 'student_pro' ? 'Pro' : userPlan === 'lecturer' ? 'Lecturer' : 'Free'} plan.</p>
+            <p className="text-xs text-slate-500 mt-1">Workspace controls for the {userPlan.charAt(0).toUpperCase() + userPlan.slice(1)} plan.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-[#162032] flex items-center justify-center text-slate-400 hover:text-white transition-colors">
             <X size={18} />

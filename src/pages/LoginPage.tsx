@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Eye, EyeOff, ArrowRight, Github, Chrome, GraduationCap, Shield, BookOpen } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Github, Chrome } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { VertexLogo } from '../components/ui/VertexLogo';
 import { useLang } from '../contexts/LanguageContext';
-import { Role } from '../types';
 import { getMe, login, register } from '../api/auth';
 import { setTokens, setUserInfo } from '../utils/authStorage';
 
@@ -18,7 +17,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [selectedRole, setSelectedRole] = useState<Role>('student');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -44,7 +43,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
       const me = await getMe(tokens.accessToken);
       setUserInfo(me);
 
-      const role = (me.role || selectedRole) as Role;
+      const role = me.role;
       if (role === 'admin') {
         onNavigate('admin');
       } else if (role === 'lecturer') {
@@ -237,27 +236,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
               </Button>
             </form>
 
-            {/* Role selection */}
-            <div className="mt-6 pt-5 border-t border-[#22C55E]/10">
-              <p className="text-xs font-medium text-slate-500 mb-3 text-center">{t.roles.selectRole}</p>
-              <div className="grid grid-cols-3 gap-3">
-                <button type="button" onClick={() => setSelectedRole('student')}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${selectedRole === 'student' ? 'bg-[#22C55E]/15 border-[#22C55E]/40 text-[#22C55E]' : 'bg-[#162032] border-[#22C55E]/10 text-slate-400 hover:border-[#22C55E]/20 hover:text-slate-300'}`}>
-                  <GraduationCap size={20} />
-                  <span className="text-xs font-medium">{t.roles.student}</span>
-                </button>
-                <button type="button" onClick={() => setSelectedRole('lecturer')}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${selectedRole === 'lecturer' ? 'bg-blue-500/15 border-blue-500/40 text-blue-400' : 'bg-[#162032] border-[#22C55E]/10 text-slate-400 hover:border-blue-500/20 hover:text-slate-300'}`}>
-                  <BookOpen size={20} />
-                  <span className="text-xs font-medium">Lecturer</span>
-                </button>
-                <button type="button" onClick={() => setSelectedRole('admin')}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${selectedRole === 'admin' ? 'bg-red-500/15 border-red-500/40 text-red-400' : 'bg-[#162032] border-[#22C55E]/10 text-slate-400 hover:border-red-500/20 hover:text-slate-300'}`}>
-                  <Shield size={20} />
-                  <span className="text-xs font-medium">{t.roles.admin}</span>
-                </button>
-              </div>
-            </div>
+
 
             <p className="text-center text-sm text-slate-400 mt-6">
               {isSignUp ? t.login.haveAccount : t.login.noAccount}{' '}
