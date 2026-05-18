@@ -164,6 +164,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                   <label className="block text-sm font-medium text-slate-300 mb-1.5">{t.login.fullName}</label>
                   <input
                     type="text"
+                    id="name"
+                    name="name"
+                    autoComplete="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder={t.login.fullNamePlaceholder}
@@ -176,6 +179,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
                 <input
                   type="email"
+                  id="email"
+                  name="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
@@ -188,6 +194,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
+                    id="password"
+                    name="password"
+                    autoComplete={isSignUp ? "new-password" : "current-password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
