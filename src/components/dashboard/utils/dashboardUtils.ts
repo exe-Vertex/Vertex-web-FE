@@ -2,12 +2,23 @@ import { OrgPlan, Project, Task, Status } from '../../../types';
 import { normalizeProjects } from '../../../data/projectCompatibility';
 import { mockProjects } from '../../../data/mockData';
 import { AppNotification, MemberWorkloadLabel, ProjectFileItem } from './dashboardTypes';
+import { getAccessToken } from '../../../utils/authStorage';
 
 // ── Storage keys ──
 export const PROJECTS_STORAGE_KEY = 'ppt_projects';
 export const PROJECT_FILES_STORAGE_KEY = 'ppt_project_files';
 export const SETTINGS_STORAGE_KEY = 'ppt_workspace_settings';
 export const INVITE_INBOX_KEY = 'ppt_invite_inbox';
+export const ACTIVE_ORG_KEY = 'vertex.activeOrgId';
+
+// ── Auth / Org helpers ──
+export const getAuthToken = (): string | null => getAccessToken();
+
+export const getActiveOrgId = (): string | null =>
+  localStorage.getItem(ACTIVE_ORG_KEY);
+
+export const setActiveOrgId = (orgId: string): void =>
+  localStorage.setItem(ACTIVE_ORG_KEY, orgId);
 
 export const CURRENT_USER_EMAIL = 'minh@university.edu';
 export const CURRENT_USER_ID = 'u1';

@@ -60,24 +60,3 @@ export type MembersDatabaseRow = {
 };
 
 export type ProjectWithMembers = import('../../../types').Project & { members: import('../../../types').User[] };
-
-export type MockOrgMember = {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-  orgRole: 'owner' | 'admin' | 'lecturer' | 'member';
-  joinedAt: string;
-  status: 'active' | 'invited';
-};
-
-export type MockBilling = {
-  plan: OrgPlan;
-  storageUsed: number;
-  storageLimit: number;
-  aiUsed: number;
-  aiLimit: number;
-  membersCount: number;
-  membersLimit: number;
-  renewalDate: string;
-};

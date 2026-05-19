@@ -1,34 +1,22 @@
 import React, { useState } from 'react';
 import { OrgPlan } from '../../../types';
 import { useToast } from '../../ui/Toast';
-import { Moon, Sun, Bell, Palette, HardDrive, Sparkles, CalendarDays, Users, Shield, Zap, Mail, Trash2, ShieldCheck, MoreHorizontal, UserPlus } from 'lucide-react';
-import { MockOrgMember, MockBilling } from '../utils/dashboardTypes';
+import { Moon, Sun, Bell, Palette, HardDrive, Sparkles, CalendarDays, Users, Shield, Zap, Trash2, ShieldCheck, MoreHorizontal, UserPlus, GraduationCap, Loader2 } from 'lucide-react';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
+import type { OrgDetail, OrgMember } from '../../../api/org';
 
 interface SettingsViewProps {
   userPlan: OrgPlan;
   orgName: string;
+  orgDetail?: OrgDetail | null;
+  orgLoading?: boolean;
+  onInviteMember?: () => void;
+  onUpdateMemberRole?: (memberId: string, role: string) => void;
+  onRemoveMember?: (memberId: string) => void;
 }
 
-const mockMembers: MockOrgMember[] = [
-  { id: 'u1', name: 'Minh Nguyen', email: 'minh@university.edu', avatar: 'https://i.pravatar.cc/150?u=u1', orgRole: 'owner', joinedAt: '2025-01-10', status: 'active' },
-  { id: 'u2', name: 'Lan Pham', email: 'lan@university.edu', avatar: 'https://i.pravatar.cc/150?u=u2', orgRole: 'admin', joinedAt: '2025-02-15', status: 'active' },
-  { id: 'u3', name: 'Hung Vu', email: 'hung@university.edu', avatar: 'https://i.pravatar.cc/150?u=u3', orgRole: 'member', joinedAt: '2026-01-05', status: 'active' },
-  { id: 'u4', name: 'Trang Le', email: 'trang@university.edu', avatar: 'https://i.pravatar.cc/150?u=u4', orgRole: 'member', joinedAt: '2026-02-01', status: 'invited' },
-];
-
-const mockBillingFree: MockBilling = { plan: 'free', storageUsed: 0.34, storageLimit: 1, aiUsed: 12, aiLimit: 20, membersCount: 4, membersLimit: 5, renewalDate: 'N/A' };
-const mockBillingPro: MockBilling = { plan: 'pro', storageUsed: 2.3, storageLimit: 10, aiUsed: 45, aiLimit: 100, membersCount: 4, membersLimit: 10, renewalDate: '2026-06-15' };
-const mockBillingBusiness: MockBilling = { plan: 'business', storageUsed: 8.4, storageLimit: 50, aiUsed: 300, aiLimit: 500, membersCount: 15, membersLimit: 20, renewalDate: '2026-06-15' };
-const mockBillingEnterprise: MockBilling = { plan: 'enterprise', storageUsed: 12.4, storageLimit: 1000, aiUsed: 1200, aiLimit: 9999, membersCount: 45, membersLimit: 999, renewalDate: '2027-01-01' };
-
-const getBillingForPlan = (plan: OrgPlan) => {
-  if (plan === 'pro') return mockBillingPro;
-  if (plan === 'business') return mockBillingBusiness;
-  if (plan === 'enterprise') return mockBillingEnterprise;
-  return mockBillingFree;
-};
+const ROLE_OPTIONS = ['admin', 'lecturer', 'member'] as const;
 
 const ToggleRow: React.FC<{ title: string; description?: string; enabled: boolean; onToggle: () => void; }> = ({ title, description, enabled, onToggle }) => (
   <div className="flex items-start justify-between gap-4 rounded-xl border border-[#22C55E]/10 bg-[#162032]/50 px-4 py-3">
@@ -42,16 +30,21 @@ const ToggleRow: React.FC<{ title: string; description?: string; enabled: boolea
   </div>
 );
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName, orgDetail, orgLoading, onInviteMember, onUpdateMemberRole, onRemoveMember }) => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'notifications' | 'org-general' | 'org-members' | 'org-billing'>('profile');
   const [isDark, setIsDark] = useState(localStorage.getItem('theme') === 'dark');
   const [notifs, setNotifs] = useState({ assigned: true, overdue: true, comments: true });
+  const [roleMenuOpen, setRoleMenuOpen] = useState<string | null>(null);
 
-  const billing = getBillingForPlan(userPlan);
-  const storagePercent = Math.min(100, Math.round((billing.storageUsed / billing.storageLimit) * 100));
-  const aiPercent = Math.min(100, Math.round((billing.aiUsed / billing.aiLimit) * 100));
-  const membersPercent = Math.min(100, Math.round((billing.membersCount / billing.membersLimit) * 100));
+  const membersCount = orgDetail?.members.length ?? 0;
+  const maxMembers = orgDetail?.maxMembers ?? 5;
+  const aiQuota = orgDetail?.aiQuota ?? 20;
+  const storageLimitBytes = orgDetail?.storageLimit ?? (1024 * 1024 * 1024);
+  const storageLimitGB = storageLimitBytes / (1024 * 1024 * 1024);
+  const storageUsedGB = storageLimitGB * 0.34; // placeholder until backend tracks usage
+  const storagePercent = Math.min(100, Math.round((storageUsedGB / storageLimitGB) * 100));
+  const membersPercent = Math.min(100, Math.round((membersCount / maxMembers) * 100));
 
   const toggleTheme = () => {
     const next = !isDark;
@@ -189,11 +182,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName })
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold text-white">Organization Members</h2>
-                <p className="text-sm text-slate-400 mt-1">Manage access and roles for your team ({billing.membersCount}/{billing.membersLimit} seats used).</p>
+                <p className="text-sm text-slate-400 mt-1">Manage access and roles for your team ({membersCount}/{maxMembers} seats used).</p>
               </div>
-              <Button icon={<UserPlus size={16} />}>Invite Member</Button>
+              <Button icon={<UserPlus size={16} />} onClick={onInviteMember}>Invite Member</Button>
             </div>
 
+            {orgLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 size={24} className="text-[#22C55E] animate-spin" />
+              </div>
+            ) : !orgDetail ? (
+              <div className="text-center py-16 text-slate-500">No organization data available.</div>
+            ) : (
             <div className="bg-[#162032]/40 rounded-2xl border border-[#22C55E]/10 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm whitespace-nowrap">
@@ -201,17 +201,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName })
                     <tr>
                       <th className="px-6 py-4 font-medium text-slate-400">User</th>
                       <th className="px-6 py-4 font-medium text-slate-400">Role</th>
-                      <th className="px-6 py-4 font-medium text-slate-400">Status</th>
                       <th className="px-6 py-4 font-medium text-slate-400">Joined</th>
                       <th className="px-6 py-4 font-medium text-slate-400 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#22C55E]/5 text-slate-300">
-                    {mockMembers.map(member => (
+                    {orgDetail.members.map(member => (
                       <tr key={member.id} className="hover:bg-[#22C55E]/5 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <Avatar src={member.avatar} fallback={member.name.charAt(0)} size="sm" />
+                            <Avatar src={member.avatarUrl} fallback={member.name.charAt(0)} size="sm" />
                             <div>
                               <p className="font-medium text-white">{member.name}</p>
                               <p className="text-xs text-slate-500">{member.email}</p>
@@ -220,26 +219,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName })
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${
-                            member.orgRole === 'owner' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
-                            member.orgRole === 'admin' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                            member.orgRole === 'lecturer' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+                            member.role === 'owner' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                            member.role === 'admin' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                            member.role === 'lecturer' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
                             'bg-slate-500/10 text-slate-300 border-slate-500/20'
                           }`}>
-                            {member.orgRole === 'owner' && <ShieldCheck size={12} />}
-                            {member.orgRole === 'admin' && <Shield size={12} />}
-                            {member.orgRole.charAt(0).toUpperCase() + member.orgRole.slice(1)}
+                            {member.role === 'owner' && <ShieldCheck size={12} />}
+                            {member.role === 'admin' && <Shield size={12} />}
+                            {member.role === 'lecturer' && <GraduationCap size={12} />}
+                            {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
-                          {member.status === 'active' 
-                            ? <span className="text-[#22C55E]">Active</span>
-                            : <span className="text-yellow-500">Invited</span>}
-                        </td>
-                        <td className="px-6 py-4 text-slate-500">{member.joinedAt}</td>
+                        <td className="px-6 py-4 text-slate-500">{new Date(member.joinedAt).toLocaleDateString()}</td>
                         <td className="px-6 py-4 text-right">
-                          <button className="p-1.5 text-slate-500 hover:text-white hover:bg-[#162032] rounded-lg transition-colors">
-                            <MoreHorizontal size={16} />
-                          </button>
+                          {member.role !== 'owner' && (
+                            <div className="relative inline-block">
+                              <button
+                                onClick={() => setRoleMenuOpen(roleMenuOpen === member.id ? null : member.id)}
+                                className="p-1.5 text-slate-500 hover:text-white hover:bg-[#162032] rounded-lg transition-colors"
+                              >
+                                <MoreHorizontal size={16} />
+                              </button>
+                              {roleMenuOpen === member.id && (
+                                <div className="absolute right-0 top-8 z-50 w-44 bg-[#0F1A2A] border border-[#22C55E]/15 rounded-xl shadow-xl overflow-hidden">
+                                  {ROLE_OPTIONS.filter(r => r !== member.role).map(r => (
+                                    <button key={r} onClick={() => { onUpdateMemberRole?.(member.id, r); setRoleMenuOpen(null); }}
+                                      className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-[#162032] transition-colors">
+                                      Set as {r.charAt(0).toUpperCase() + r.slice(1)}
+                                    </button>
+                                  ))}
+                                  <div className="h-px bg-[#22C55E]/10" />
+                                  <button onClick={() => { onRemoveMember?.(member.id); setRoleMenuOpen(null); }}
+                                    className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2">
+                                    <Trash2 size={13} /> Remove
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -247,6 +264,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName })
                 </table>
               </div>
             </div>
+            )}
           </div>
         );
 
@@ -263,22 +281,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName })
                 <div>
                   <div className="flex items-center justify-between">
                     <span className={`inline-flex px-3 py-1 rounded-md border text-xs font-bold uppercase tracking-wider ${
-                      billing.plan === 'pro' || billing.plan === 'business' || billing.plan === 'enterprise' 
+                      userPlan === 'pro' || userPlan === 'business' || userPlan === 'enterprise' 
                         ? 'border-blue-500/35 bg-blue-500/10 text-blue-300'
                         : 'border-[#22C55E]/35 bg-[#22C55E]/10 text-[#6EE7B7]'
                     }`}>
-                      {billing.plan.charAt(0).toUpperCase() + billing.plan.slice(1)} Plan
+                      {(orgDetail?.plan || userPlan).charAt(0).toUpperCase() + (orgDetail?.plan || userPlan).slice(1)} Plan
                     </span>
-                    <span className="text-xs text-slate-500">Renews on {billing.renewalDate}</span>
                   </div>
                   <h3 className="text-2xl font-bold text-white mt-4">
-                    {billing.plan === 'free' ? '$0' : billing.plan === 'pro' ? '$5' : billing.plan === 'business' ? '$15' : 'Custom'} <span className="text-sm font-normal text-slate-400">/mo</span>
+                    {userPlan === 'free' ? '$0' : userPlan === 'pro' ? '$5' : userPlan === 'business' ? '$15' : 'Custom'} <span className="text-sm font-normal text-slate-400">/mo</span>
                   </h3>
                   <p className="text-sm text-slate-400 mt-2">Active workspace subscription for {orgName}.</p>
                 </div>
                 <div className="mt-6">
-                  <Button onClick={handleUpgrade} className="w-full" variant={billing.plan === 'free' ? 'primary' : 'outline'}>
-                    {billing.plan === 'free' ? 'Upgrade Plan' : 'Manage Subscription'}
+                  <Button onClick={handleUpgrade} className="w-full" variant={userPlan === 'free' ? 'primary' : 'outline'}>
+                    {userPlan === 'free' ? 'Upgrade Plan' : 'Manage Subscription'}
                   </Button>
                 </div>
               </div>
@@ -290,7 +307,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName })
                       <HardDrive size={14} className="text-orange-400" />
                       <span className="text-sm font-medium text-slate-200">Storage</span>
                     </div>
-                    <span className="text-xs text-slate-400">{billing.storageUsed} GB / {billing.storageLimit === 1000 ? 'Unlimited' : `${billing.storageLimit} GB`}</span>
+                    <span className="text-xs text-slate-400">{storageUsedGB.toFixed(1)} GB / {storageLimitGB >= 1000 ? 'Unlimited' : `${storageLimitGB.toFixed(0)} GB`}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-[#0A0F1A] overflow-hidden">
                     <div className="h-full rounded-full bg-orange-400" style={{ width: `${storagePercent}%` }} />
@@ -303,10 +320,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName })
                       <Zap size={14} className="text-yellow-400" />
                       <span className="text-sm font-medium text-slate-200">AI Quota</span>
                     </div>
-                    <span className="text-xs text-slate-400">{billing.aiUsed} / {billing.aiLimit > 1000 ? 'Unlimited' : billing.aiLimit}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-[#0A0F1A] overflow-hidden">
-                    <div className="h-full rounded-full bg-yellow-400" style={{ width: `${aiPercent}%` }} />
+                    <span className="text-xs text-slate-400">{aiQuota > 1000 ? 'Unlimited' : `${aiQuota} requests`}</span>
                   </div>
                 </div>
 
@@ -316,7 +330,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName })
                       <Users size={14} className="text-blue-400" />
                       <span className="text-sm font-medium text-slate-200">Members</span>
                     </div>
-                    <span className="text-xs text-slate-400">{billing.membersCount} / {billing.membersLimit > 100 ? 'Unlimited' : billing.membersLimit}</span>
+                    <span className="text-xs text-slate-400">{membersCount} / {maxMembers > 100 ? 'Unlimited' : maxMembers}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-[#0A0F1A] overflow-hidden">
                     <div className="h-full rounded-full bg-blue-400" style={{ width: `${membersPercent}%` }} />

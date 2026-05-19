@@ -26,6 +26,7 @@ interface SidebarProps {
   workspaces?: { id: string; name: string }[];
   activeWorkspaceId?: string;
   onSwitchWorkspace?: (id: string) => void;
+  onCreateWorkspace?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -46,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   workspaces = [],
   activeWorkspaceId,
   onSwitchWorkspace,
+  onCreateWorkspace,
 }) => {
   const { t } = useLang();
   const [collapsed, setCollapsed] = useState(false);
@@ -179,7 +181,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </button>
                       ))}
                       <div className="border-t border-[#22C55E]/10">
-                        <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-500 hover:bg-[#162032] hover:text-slate-300 transition-colors">
+                        <button onClick={() => { onCreateWorkspace?.(); setWsDropdownOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-500 hover:bg-[#162032] hover:text-slate-300 transition-colors">
                           <Plus size={14} />
                           New workspace
                         </button>

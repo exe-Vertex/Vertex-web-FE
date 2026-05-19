@@ -28,8 +28,12 @@ import { SettingsView } from './views/SettingsView';
 import { AddTaskModal } from './modals/AddTaskModal';
 import { CreateProjectModal } from './modals/CreateProjectModal';
 import { SignOutConfirmDialog } from './modals/SignOutConfirmDialog';
+import { CreateOrgModal } from './modals/CreateOrgModal';
+import { InviteOrgMemberModal } from './modals/InviteOrgMemberModal';
 import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, GeneratedPlanStep, ProjectFileItem, MemberWorkloadLabel, MemberAssignmentSuggestion, MembersDatabaseRow, ProjectWithMembers, InviteRole } from './utils/dashboardTypes';
-import { PROJECTS_STORAGE_KEY, PROJECT_FILES_STORAGE_KEY, SETTINGS_STORAGE_KEY, INVITE_INBOX_KEY, CURRENT_USER_EMAIL, CURRENT_USER_ID, DEFAULT_WORKSPACES, initialNotifications, loadInviteInbox, createInviteNotification, loadDashboardNotifications, getStoredUserPlan, getWorkspaceName, loadProjects, loadProjectFiles, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel } from './utils/dashboardUtils';
+import { PROJECTS_STORAGE_KEY, PROJECT_FILES_STORAGE_KEY, SETTINGS_STORAGE_KEY, INVITE_INBOX_KEY, CURRENT_USER_EMAIL, CURRENT_USER_ID, DEFAULT_WORKSPACES, initialNotifications, loadInviteInbox, createInviteNotification, loadDashboardNotifications, getStoredUserPlan, getWorkspaceName, loadProjects, loadProjectFiles, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel, getAuthToken, getActiveOrgId, setActiveOrgId } from './utils/dashboardUtils';
+import { listMyOrgs, getOrgDetail, createOrg, inviteMember, updateMemberRole, removeMember } from '../../api/org';
+import type { OrgSummary, OrgDetail } from '../../api/org';
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
@@ -71,8 +75,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlanStep[] | null>(null);
   const { t } = useLang();
 
+  // ── Org state ──
+  const [orgs, setOrgs] = useState<OrgSummary[]>([]);
+  const [activeOrgId, setActiveOrgIdState] = useState<string | null>(getActiveOrgId());
+  const [orgDetail, setOrgDetail] = useState<OrgDetail | null>(null);
+  const [orgLoading, setOrgLoading] = useState(false);
+  const [showCreateOrg, setShowCreateOrg] = useState(false);
+  const [showInviteOrgMember, setShowInviteOrgMember] = useState(false);
+  const [orgActionLoading, setOrgActionLoading] = useState(false);
+
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // ── Load orgs on mount ──
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+    listMyOrgs(token).then(list => {
+      setOrgs(list);
+      if (list.length > 0) {
+        const savedId = getActiveOrgId();
+        const targetId = savedId && list.some(o => o.id === savedId) ? savedId : list[0].id;
+        setActiveOrgIdState(targetId);
+        setActiveOrgId(targetId);
+      }
+    }).catch(() => { /* token expired or API down — fallback to mock */ });
+  }, []);
+
+  // ── Load org detail when activeOrgId changes ──
+  useEffect(() => {
+    if (!activeOrgId) { setOrgDetail(null); return; }
+    const token = getAuthToken();
+    if (!token) return;
+    setOrgLoading(true);
+    getOrgDetail(token, activeOrgId)
+      .then(detail => setOrgDetail(detail))
+      .catch(() => setOrgDetail(null))
+      .finally(() => setOrgLoading(false));
+  }, [activeOrgId]);
 
   // Click outside handler for profile menu & notification panel
   useEffect(() => {
@@ -589,6 +629,82 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }));
   };
 
+  // ── Org action handlers ──
+  const refreshOrgDetail = () => {
+    if (!activeOrgId) return;
+    const token = getAuthToken();
+    if (!token) return;
+    getOrgDetail(token, activeOrgId).then(setOrgDetail).catch(() => {});
+  };
+
+  const handleCreateOrg = async (name: string, slug: string) => {
+    const token = getAuthToken();
+    if (!token) return;
+    setOrgActionLoading(true);
+    try {
+      const newOrg = await createOrg(token, { name, slug });
+      setOrgs(prev => [...prev, newOrg]);
+      setActiveOrgIdState(newOrg.id);
+      setActiveOrgId(newOrg.id);
+      setShowCreateOrg(false);
+      showToast(`Organization "${name}" created!`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to create organization', 'error');
+    } finally {
+      setOrgActionLoading(false);
+    }
+  };
+
+  const handleInviteOrgMember = async (email: string, role: string) => {
+    if (!activeOrgId) return;
+    const token = getAuthToken();
+    if (!token) return;
+    setOrgActionLoading(true);
+    try {
+      await inviteMember(token, activeOrgId, { email, role });
+      refreshOrgDetail();
+      setShowInviteOrgMember(false);
+      showToast(`Invited ${email} as ${role}`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to invite member', 'error');
+    } finally {
+      setOrgActionLoading(false);
+    }
+  };
+
+  const handleUpdateOrgMemberRole = async (memberId: string, role: string) => {
+    if (!activeOrgId) return;
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      await updateMemberRole(token, activeOrgId, memberId, { role });
+      refreshOrgDetail();
+      showToast(`Role updated to ${role}`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update role', 'error');
+    }
+  };
+
+  const handleRemoveOrgMember = async (memberId: string) => {
+    if (!activeOrgId) return;
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      await removeMember(token, activeOrgId, memberId);
+      refreshOrgDetail();
+      showToast('Member removed');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to remove member', 'error');
+    }
+  };
+
+  const handleSwitchOrg = (orgId: string) => {
+    setActiveOrgIdState(orgId);
+    setActiveOrgId(orgId);
+    const org = orgs.find(o => o.id === orgId);
+    if (org) setWorkspaceName(org.name);
+  };
+
   const handleSignOut = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem(PROJECTS_STORAGE_KEY);
@@ -808,14 +924,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           onDeleteProject={(id) => handleDeleteProject(id)}
           onViewPlans={() => onNavigate?.('pricing')}
           userPlan={userPlan}
-          workspaceName={workspaceName}
-          workspaces={DEFAULT_WORKSPACES}
-          activeWorkspaceId={activeWorkspaceId}
+          workspaceName={orgDetail?.name || workspaceName}
+          workspaces={orgs.length > 0 ? orgs.map(o => ({ id: o.id, name: o.name })) : DEFAULT_WORKSPACES}
+          activeWorkspaceId={activeOrgId || activeWorkspaceId}
           onSwitchWorkspace={(id) => {
-            setActiveWorkspaceId(id);
-            const ws = DEFAULT_WORKSPACES.find(w => w.id === id);
-            if (ws) setWorkspaceName(ws.name);
+            if (orgs.some(o => o.id === id)) {
+              handleSwitchOrg(id);
+            } else {
+              setActiveWorkspaceId(id);
+              const ws = DEFAULT_WORKSPACES.find(w => w.id === id);
+              if (ws) setWorkspaceName(ws.name);
+            }
           }}
+          onCreateWorkspace={() => setShowCreateOrg(true)}
         />
 
         {/* Main Content */}
@@ -981,7 +1102,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             )}
 
             {activeTab === 'settings' && (
-              <SettingsView userPlan={userPlan} orgName={workspaceName} />
+              <SettingsView
+                userPlan={userPlan}
+                orgName={orgDetail?.name || workspaceName}
+                orgDetail={orgDetail}
+                orgLoading={orgLoading}
+                onInviteMember={() => setShowInviteOrgMember(true)}
+                onUpdateMemberRole={handleUpdateOrgMemberRole}
+                onRemoveMember={handleRemoveOrgMember}
+              />
             )}
           </div>
         </main>
@@ -1033,6 +1162,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         isOpen={showSignOutConfirm}
         onClose={() => setShowSignOutConfirm(false)}
         onConfirm={handleSignOut}
+      />
+
+      {/* Create Organization Modal */}
+      <CreateOrgModal
+        isOpen={showCreateOrg}
+        onClose={() => setShowCreateOrg(false)}
+        onSubmit={handleCreateOrg}
+        loading={orgActionLoading}
+      />
+
+      {/* Invite Org Member Modal */}
+      <InviteOrgMemberModal
+        isOpen={showInviteOrgMember}
+        onClose={() => setShowInviteOrgMember(false)}
+        onSubmit={handleInviteOrgMember}
+        loading={orgActionLoading}
+        orgName={orgDetail?.name || workspaceName}
       />
     </div>
   );
