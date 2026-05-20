@@ -113,7 +113,7 @@ CREATE TABLE workspace_members (
 -- ─────────────────────────────────────────────
 CREATE TABLE projects (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id    UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    org_id          UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     name            VARCHAR(200) NOT NULL,
     description     TEXT,
     deadline        DATE NOT NULL,
@@ -121,7 +121,7 @@ CREATE TABLE projects (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_projects_workspace ON projects(workspace_id);
+CREATE INDEX idx_projects_org ON projects(org_id);
 
 -- ─────────────────────────────────────────────
 -- 6. PROJECT MEMBERS
@@ -327,9 +327,9 @@ INSERT INTO workspace_members (workspace_id, user_id, role) VALUES
 ('b1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000004', 'member');
 
 -- Projects
-INSERT INTO projects (id, workspace_id, name, description, deadline) VALUES
-('c1000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000001', 'Poster Project',    'Design poster for Tech Day 2026 event',        '2026-03-01'),
-('c1000000-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000001', 'Short Animation',   '30s animated video introducing the club',       '2026-03-15');
+INSERT INTO projects (id, org_id, name, description, deadline) VALUES
+('c1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001', 'Poster Project',    'Design poster for Tech Day 2026 event',        '2026-03-01'),
+('c1000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000001', 'Short Animation',   '30s animated video introducing the club',       '2026-03-15');
 
 -- Project members
 INSERT INTO project_members (project_id, user_id, role) VALUES
