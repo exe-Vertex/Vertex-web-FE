@@ -209,7 +209,7 @@ export const MembersDatabaseView: React.FC<{
                     </div>
                   </div>
                   <div className="mt-4 flex items-center gap-2">
-                    <Badge variant="primary" size="sm">{selectedMember.role}</Badge>
+                    <Badge variant="purple">{selectedMember.role}</Badge>
                     <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold capitalize ${availabilityStyle[selectedMember.availability]}`}>
                       {selectedMember.availability}
                     </span>

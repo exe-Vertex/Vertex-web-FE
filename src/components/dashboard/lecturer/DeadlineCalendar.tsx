@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, AlertTriangle, Clock, CheckCircle, Filter } from 'lucide-react';
-import { LecturerGroup } from '../../../data/lecturerMockData';
+import { LecturerGroup } from '../../../data/lecturerTypes';
 
 interface DeadlineCalendarProps {
   groups: LecturerGroup[];

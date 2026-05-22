@@ -6,7 +6,11 @@ import {
   CheckCircle, Clock, AlertTriangle, TrendingUp, Search,
   ChevronDown, Sparkles,
 } from 'lucide-react';
-import { mockLecturerGroups, lecturerNotifications, LECTURER_CLASSES, LecturerGroup } from '../../../data/lecturerMockData';
+import { LecturerGroup } from '../../../data/lecturerTypes';
+
+const mockLecturerGroups: LecturerGroup[] = [];
+const lecturerNotifications: any[] = [];
+const LECTURER_CLASSES: string[] = [];
 import { useAuth } from '../../../contexts/AuthContext';
 import { GroupDetail } from './GroupDetail';
 import { DeadlineCalendar } from './DeadlineCalendar';

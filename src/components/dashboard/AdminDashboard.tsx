@@ -9,11 +9,15 @@ import {
   CheckSquare, Square, ListChecks,
   RefreshCw, ArrowLeftRight, ArrowUpDown,
 } from 'lucide-react';
-import {
-  adminUserEntries, aiHistory, todayMetrics,
-  userSignupChart, apiCostChart, planDistribution,
-  auditLog as initialAuditLog, adminNotifications as initialNotifs,
-} from '../../data/mockData';
+const adminUserEntries: AdminUserEntry[] = [];
+const aiHistory: any[] = [];
+const todayMetrics = { newUsersToday: 0, apiCostToday: 0, totalApiCostMonth: 0, totalTokensToday: 0 };
+const userSignupChart: any[] = [];
+const apiCostChart: any[] = [];
+const planDistribution: any[] = [];
+const initialAuditLog: AuditLogEntry[] = [];
+const initialNotifs: AdminNotification[] = [];
+
 import { AdminUserEntry, AuditLogEntry, AdminNotification } from '../../types';
 import { Avatar } from '../ui/Avatar';
 import { useLang } from '../../contexts/LanguageContext';
@@ -1648,7 +1652,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                             </td>
                             <td className="px-4 py-4">
                               <div className="flex items-center gap-3">
-                                <Avatar src={user.avatar} name={user.name} size="sm" />
+                                <Avatar src={user.avatar} fallback={user.name.charAt(0)} size="sm" />
                                 <div>
                                   <p className="text-sm font-semibold text-white">{user.name}</p>
                                   <p className="text-xs text-slate-400">{user.email}</p>

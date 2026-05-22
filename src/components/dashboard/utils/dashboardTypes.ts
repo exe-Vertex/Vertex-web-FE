@@ -59,4 +59,10 @@ export type MembersDatabaseRow = {
   topSuggestion: MemberAssignmentSuggestion | null;
 };
 
+export type BaseMembersDatabaseRow = Omit<
+  MembersDatabaseRow,
+  'skillScore' | 'workloadUtilization' | 'workloadLabel' | 'suggestionCount' | 'topSuggestion'
+>;
+
 export type ProjectWithMembers = import('../../../types').Project & { members: import('../../../types').User[] };
+

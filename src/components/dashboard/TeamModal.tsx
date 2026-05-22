@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { users } from '../../data/mockData';
 import { User } from '../../types';
 import { X, UserPlus, Star, User as UserIcon, Link as LinkIcon, Copy, Share2 } from 'lucide-react';
+
+const users: User[] = [];
 
 interface TeamModalProps {
   open: boolean;
