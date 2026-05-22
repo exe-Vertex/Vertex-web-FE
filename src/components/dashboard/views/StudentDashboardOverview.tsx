@@ -1,11 +1,13 @@
 import React from 'react';
 import { ProjectWithMembers } from '../utils/dashboardTypes';
-import { computeProgressFromTasks, CURRENT_USER_ID } from '../utils/dashboardUtils';
+import { computeProgressFromTasks } from '../utils/dashboardUtils';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export const StudentDashboardOverview: React.FC<{
   projects: ProjectWithMembers[];
   onOpenProject: (projectId: string) => void;
 }> = ({ projects, onOpenProject }) => {
+  const { user } = useAuth();
   const today = new Date();
   const todayStart = new Date(today);
   todayStart.setHours(0, 0, 0, 0);
@@ -20,7 +22,7 @@ export const StudentDashboardOverview: React.FC<{
 
   const myTasksToday = projects
     .flatMap(project => project.tasks
-      .filter(task => task.assignee?.id === CURRENT_USER_ID && task.status !== 'done')
+      .filter(task => task.assignee?.id === user?.id && task.status !== 'done')
       .map(task => ({
         ...task,
         projectId: project.id,

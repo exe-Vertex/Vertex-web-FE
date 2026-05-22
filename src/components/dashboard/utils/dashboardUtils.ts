@@ -2,7 +2,7 @@ import { OrgPlan, Project, Task, Status } from '../../../types';
 import { normalizeProjects } from '../../../data/projectCompatibility';
 import { mockProjects } from '../../../data/mockData';
 import { AppNotification, MemberWorkloadLabel, ProjectFileItem } from './dashboardTypes';
-import { getAccessToken } from '../../../utils/authStorage';
+import { getAccessToken, getUserInfo } from '../../../utils/authStorage';
 
 // ── Storage keys ──
 export const PROJECTS_STORAGE_KEY = 'ppt_projects';
@@ -55,7 +55,8 @@ export const createInviteNotification = (text: string): AppNotification => ({
 
 export const loadDashboardNotifications = (): AppNotification[] => {
   const inbox = loadInviteInbox();
-  const received = inbox[CURRENT_USER_EMAIL] || [];
+  const userEmail = getUserInfo()?.email || CURRENT_USER_EMAIL;
+  const received = inbox[userEmail] || [];
   return [...received, ...initialNotifications];
 };
 

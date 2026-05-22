@@ -32,7 +32,7 @@ import { SignOutConfirmDialog } from './modals/SignOutConfirmDialog';
 import { CreateOrgModal } from './modals/CreateOrgModal';
 import { InviteOrgMemberModal } from './modals/InviteOrgMemberModal';
 import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, GeneratedPlanStep, ProjectFileItem, MemberWorkloadLabel, MemberAssignmentSuggestion, MembersDatabaseRow, ProjectWithMembers, InviteRole } from './utils/dashboardTypes';
-import { PROJECTS_STORAGE_KEY, PROJECT_FILES_STORAGE_KEY, SETTINGS_STORAGE_KEY, INVITE_INBOX_KEY, CURRENT_USER_EMAIL, CURRENT_USER_ID, DEFAULT_WORKSPACES, initialNotifications, loadInviteInbox, createInviteNotification, loadDashboardNotifications, getStoredUserPlan, getWorkspaceName, loadProjects, loadProjectFiles, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel, getAuthToken, getActiveOrgId, setActiveOrgId } from './utils/dashboardUtils';
+import { PROJECTS_STORAGE_KEY, PROJECT_FILES_STORAGE_KEY, SETTINGS_STORAGE_KEY, INVITE_INBOX_KEY, DEFAULT_WORKSPACES, initialNotifications, loadInviteInbox, createInviteNotification, loadDashboardNotifications, getStoredUserPlan, getWorkspaceName, loadProjects, loadProjectFiles, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel, getAuthToken, getActiveOrgId, setActiveOrgId } from './utils/dashboardUtils';
 import { listMyOrgs, getOrgDetail, createOrg, inviteMember, updateMemberRole, removeMember } from '../../api/org';
 import type { OrgSummary, OrgDetail } from '../../api/org';
 import { listProjects, getProjectDetail, createProject, updateProject, deleteProject, createTask, updateTask, deleteTask } from '../../api/project';
@@ -80,7 +80,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   });
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlanStep[] | null>(null);
   const { t } = useLang();
-  const { logout: authLogout } = useAuth();
+  const { user, logout: authLogout } = useAuth();
 
   // ── Org state ──
   const [orgs, setOrgs] = useState<OrgSummary[]>([]);
@@ -191,12 +191,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   }, [workspaceMembers]);
 
   const currentWorkspaceMember = useMemo(() => {
-    return workspaceMembers.find(member => member.id === CURRENT_USER_ID) || workspaceMembers[0] || null;
-  }, [workspaceMembers]);
+    if (!user) return null;
+    const found = workspaceMembers.find(member => member.id === user.id);
+    if (found) return found;
+    return {
+      id: user.id,
+      profile: {
+        name: user.name,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name)}`,
+        email: user.email,
+        role: user.role,
+        title: user.role === 'admin' ? 'System Admin' : user.role === 'lecturer' ? 'Lecturer' : 'Contributor',
+        bio: 'Vertex user profile.',
+      },
+      skills: [],
+      availability: 'available' as const,
+      taskStats: { completed: 0, inProgress: 0, bySkill: {} },
+      projectsJoined: [],
+      history: [],
+    };
+  }, [workspaceMembers, user]);
 
-  const currentUserName = currentWorkspaceMember?.profile.name || 'Minh';
-  const currentUserAvatar = currentWorkspaceMember?.profile.avatar || 'https://i.pravatar.cc/150?u=me';
-  const currentUserTitle = currentWorkspaceMember?.profile.title || 'Contributor';
+  const currentUserName = currentWorkspaceMember?.profile.name || user?.name || 'User';
+  const currentUserAvatar = currentWorkspaceMember?.profile.avatar || (user ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name)}` : 'https://i.pravatar.cc/150?u=me');
+  const currentUserTitle = currentWorkspaceMember?.profile.title || (user?.role === 'admin' ? 'System Admin' : user?.role === 'lecturer' ? 'Lecturer' : 'Contributor');
 
   const memberLookup = useMemo(() => {
     return new Map(workspaceUsers.map(user => [user.id, user]));
