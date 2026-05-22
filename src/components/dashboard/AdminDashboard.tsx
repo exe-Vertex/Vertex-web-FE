@@ -17,6 +17,7 @@ import {
 import { AdminUserEntry, AuditLogEntry, AdminNotification } from '../../types';
 import { Avatar } from '../ui/Avatar';
 import { useLang } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
 import websiteStructureMarkdown from '../../../website-structure.md?raw';
 
 interface AdminDashboardProps {
@@ -166,6 +167,7 @@ const actionColorMap: Record<string, string> = {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) => {
   const { t } = useLang();
+  const { logout: authLogout } = useAuth();
   const [activeTab, setActiveTab] = useState<'users' | 'ai' | 'analytics' | 'auditlog' | 'config' | 'sitemap'>('users');
   const [userSegment, setUserSegment] = useState<'all' | 'active' | 'banned' | 'paid' | 'free-trial'>('all');
   const [collapsed, setCollapsed] = useState(false);
@@ -1272,9 +1274,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     setTimeout(() => setPriceSaved(false), 3000); 
   };
 
-  const handleSignOut = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userRole');
+  const handleSignOut = async () => {
+    await authLogout();
     onNavigate?.('login');
   };
 

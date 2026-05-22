@@ -19,6 +19,7 @@ DROP TABLE IF EXISTS workspace_members CASCADE;
 DROP TABLE IF EXISTS workspaces CASCADE;
 DROP TABLE IF EXISTS organization_members CASCADE;
 DROP TABLE IF EXISTS organizations CASCADE;
+DROP TABLE IF EXISTS refresh_tokens CASCADE;
 DROP TABLE IF EXISTS user_skills CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
@@ -42,6 +43,21 @@ CREATE TABLE users (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ─────────────────────────────────────────────
+-- 1b. REFRESH TOKENS (Auth flow)
+-- ─────────────────────────────────────────────
+CREATE TABLE refresh_tokens (
+    id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id                UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash             VARCHAR(64) NOT NULL UNIQUE,
+    expires_at             TIMESTAMPTZ NOT NULL,
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    revoked_at             TIMESTAMPTZ,
+    replaced_by_token_hash VARCHAR(64)
+);
+
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
 
 -- ─────────────────────────────────────────────
 -- 2. USER SKILLS
@@ -274,15 +290,15 @@ CREATE TRIGGER trg_tasks_updated_at
 -- Hash dưới đây là placeholder, thay bằng hash thật khi chạy
 
 INSERT INTO users (id, name, email, password_hash, avatar_url, role, status, title, ai_quota, ai_used, created_at) VALUES
-('a1000000-0000-0000-0000-000000000001', 'Minh',  'minh@university.edu',  '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u1', 'member',   'active', 'Designer',   100, 67, '2025-11-10'),
-('a1000000-0000-0000-0000-000000000002', 'Lan',   'lan@university.edu',   '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u2', 'member',   'active', 'Researcher', 20,  18, '2026-01-05'),
-('a1000000-0000-0000-0000-000000000003', 'Hung',  'hung@university.edu',  '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u3', 'member',   'active', 'Designer',   100, 34, '2025-12-20'),
-('a1000000-0000-0000-0000-000000000004', 'Trang', 'trang@university.edu', '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u4', 'member',   'banned', 'Researcher', 20,  20, '2026-02-01'),
-('a1000000-0000-0000-0000-000000000005', 'Duc',   'duc@gmail.com',        '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u5', 'member',   'active', '',           20,  3,  '2026-02-15'),
-('a1000000-0000-0000-0000-000000000006', 'Hanh',  'hanh@outlook.com',     '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u6', 'member',   'active', '',           100, 89, '2025-10-01'),
-('a1000000-0000-0000-0000-000000000007', 'Phong', 'phong@university.edu', '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=u7', 'member',   'active', '',           20,  0,  '2026-02-27'),
-('a1000000-0000-0000-0000-000000000008', 'Dr. Tran Van Minh', 'minh.tv@university.edu', '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=lecturer1', 'member', 'active', 'Lecturer', 200, 12, '2025-06-01'),
-('a1000000-0000-0000-0000-000000000099', 'Admin', 'admin@vertex.io',      '$2a$11$placeholder', 'https://i.pravatar.cc/150?u=admin1', 'admin', 'active', 'System Admin', 9999, 0, '2025-01-01');
+('a1000000-0000-0000-0000-000000000001', 'Minh',  'minh@university.edu',  '$2a$11$SQMHCAk2E32Nz26q6GNuNOflhEfLYmD3p5Ve.6jYRE3V9Y3BEA4Ba', 'https://i.pravatar.cc/150?u=u1', 'member',   'active', 'Designer',   100, 67, '2025-11-10'),
+('a1000000-0000-0000-0000-000000000002', 'Lan',   'lan@university.edu',   '$2a$11$SQMHCAk2E32Nz26q6GNuNOflhEfLYmD3p5Ve.6jYRE3V9Y3BEA4Ba', 'https://i.pravatar.cc/150?u=u2', 'member',   'active', 'Researcher', 20,  18, '2026-01-05'),
+('a1000000-0000-0000-0000-000000000003', 'Hung',  'hung@university.edu',  '$2a$11$SQMHCAk2E32Nz26q6GNuNOflhEfLYmD3p5Ve.6jYRE3V9Y3BEA4Ba', 'https://i.pravatar.cc/150?u=u3', 'member',   'active', 'Designer',   100, 34, '2025-12-20'),
+('a1000000-0000-0000-0000-000000000004', 'Trang', 'trang@university.edu', '$2a$11$SQMHCAk2E32Nz26q6GNuNOflhEfLYmD3p5Ve.6jYRE3V9Y3BEA4Ba', 'https://i.pravatar.cc/150?u=u4', 'member',   'banned', 'Researcher', 20,  20, '2026-02-01'),
+('a1000000-0000-0000-0000-000000000005', 'Duc',   'duc@gmail.com',        '$2a$11$SQMHCAk2E32Nz26q6GNuNOflhEfLYmD3p5Ve.6jYRE3V9Y3BEA4Ba', 'https://i.pravatar.cc/150?u=u5', 'member',   'active', '',           20,  3,  '2026-02-15'),
+('a1000000-0000-0000-0000-000000000006', 'Hanh',  'hanh@outlook.com',     '$2a$11$SQMHCAk2E32Nz26q6GNuNOflhEfLYmD3p5Ve.6jYRE3V9Y3BEA4Ba', 'https://i.pravatar.cc/150?u=u6', 'member',   'active', '',           100, 89, '2025-10-01'),
+('a1000000-0000-0000-0000-000000000007', 'Phong', 'phong@university.edu', '$2a$11$SQMHCAk2E32Nz26q6GNuNOflhEfLYmD3p5Ve.6jYRE3V9Y3BEA4Ba', 'https://i.pravatar.cc/150?u=u7', 'member',   'active', '',           20,  0,  '2026-02-27'),
+('a1000000-0000-0000-0000-000000000008', 'Dr. Tran Van Minh', 'minh.tv@university.edu', '$2a$11$SQMHCAk2E32Nz26q6GNuNOflhEfLYmD3p5Ve.6jYRE3V9Y3BEA4Ba', 'https://i.pravatar.cc/150?u=lecturer1', 'lecturer', 'active', 'Lecturer', 200, 12, '2025-06-01'),
+('a1000000-0000-0000-0000-000000000099', 'Admin', 'admin@vertex.io',      '$2a$11$SQMHCAk2E32Nz26q6GNuNOflhEfLYmD3p5Ve.6jYRE3V9Y3BEA4Ba', 'https://i.pravatar.cc/150?u=admin1', 'admin', 'active', 'System Admin', 9999, 0, '2025-01-01');
 
 -- Organizations
 INSERT INTO organizations (id, name, slug, plan, max_members, ai_quota, storage_limit) VALUES

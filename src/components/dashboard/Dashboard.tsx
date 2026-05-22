@@ -13,6 +13,7 @@ import { ProfileModal } from './ProfileModal';
 import { useToast } from '../ui/Toast';
 import { OrgPlan } from '../../types';
 import { useLang } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Search, Bell, Menu, LayoutGrid, List, Plus, Calendar as CalendarIcon, CalendarDays, Filter, X, LogOut, Kanban, Sparkles, Users as UsersIcon, TrendingUp, AlertTriangle, WandSparkles, FileText, Paperclip, MessageSquare, Trash2, Eye, Download, Grid3X3, ImageIcon, File, Video, FileImage, FileCode2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { StudentDashboardOverview } from './views/StudentDashboardOverview';
@@ -74,6 +75,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   });
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlanStep[] | null>(null);
   const { t } = useLang();
+  const { logout: authLogout } = useAuth();
 
   // ── Org state ──
   const [orgs, setOrgs] = useState<OrgSummary[]>([]);
@@ -705,12 +707,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     if (org) setWorkspaceName(org.name);
   };
 
-  const handleSignOut = () => {
-    localStorage.removeItem('authToken');
+  const handleSignOut = async () => {
+    await authLogout();
     localStorage.removeItem(PROJECTS_STORAGE_KEY);
     showToast('Signed out successfully');
     setTimeout(() => {
-      onNavigate?.('landing');
+      onNavigate?.('login');
     }, 300);
     setShowSignOutConfirm(false);
   };

@@ -10,6 +10,7 @@ import { ChangelogPage } from './pages/ChangelogPage';
 import { ResourcesPage } from './pages/ResourcesPage';
 import { LegalPage } from './pages/LegalPage';
 import { LecturerDashboardPage } from './pages/LecturerDashboardPage';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 // Wrapper components to extract URL :tab param
 function ResourcesPageWrapper({ onNavigate }: { onNavigate: (page: string) => void }) {
@@ -48,22 +49,47 @@ export default function App() {
       legal: '/legal',
       terms: '/legal/terms',
       privacy: '/legal/privacy',
+      admin: '/admin',
     };
     navigate(routeMap[page] || '/' + page);
   };
 
   return (
     <Routes>
+      {/* Public routes */}
       <Route path="/" element={<LandingPage onNavigate={handleNavigate} />} />
-      <Route path="/dashboard" element={<DashboardPage onNavigate={handleNavigate} />} />
-      <Route path="/admin" element={<AdminDashboardPage onNavigate={handleNavigate} />} />
-      <Route path="/lecturer" element={<LecturerDashboardPage onNavigate={handleNavigate} />} />
       <Route path="/pricing" element={<PricingPage onNavigate={handleNavigate} />} />
       <Route path="/features" element={<FeaturesPage onNavigate={handleNavigate} />} />
       <Route path="/login" element={<LoginPage onNavigate={handleNavigate} />} />
       <Route path="/changelog" element={<ChangelogPage onNavigate={handleNavigate} />} />
       <Route path="/resources/:tab?" element={<ResourcesPageWrapper onNavigate={handleNavigate} />} />
       <Route path="/legal/:tab?" element={<LegalPageWrapper onNavigate={handleNavigate} />} />
+
+      {/* Protected routes — require authentication */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={['member']}>
+            <DashboardPage onNavigate={handleNavigate} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboardPage onNavigate={handleNavigate} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lecturer"
+        element={
+          <ProtectedRoute allowedRoles={['lecturer']}>
+            <LecturerDashboardPage onNavigate={handleNavigate} />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }

@@ -7,6 +7,7 @@ import {
   ChevronDown, Sparkles,
 } from 'lucide-react';
 import { mockLecturerGroups, lecturerNotifications, LECTURER_CLASSES, LecturerGroup } from '../../../data/lecturerMockData';
+import { useAuth } from '../../../contexts/AuthContext';
 import { GroupDetail } from './GroupDetail';
 import { DeadlineCalendar } from './DeadlineCalendar';
 
@@ -439,6 +440,7 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
   const [showProfile,     setShowProfile]     = useState(false);
   const [showAI,          setShowAI]          = useState(false);
   const [notifications,   setNotifications]   = useState(lecturerNotifications);
+  const { logout: authLogout } = useAuth();
 
   const notifRef   = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -551,7 +553,7 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
                     <p className="text-xs font-semibold text-white">Dr. Tran Van Minh</p>
                     <p className="text-[11px] text-[#22C55E]">Lecturer</p>
                   </div>
-                  <button onClick={() => onNavigate?.('landing')}
+                  <button onClick={async () => { await authLogout(); onNavigate?.('login'); }}
                     className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-slate-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200">
                     <LogOut size={14} />Sign out
                   </button>

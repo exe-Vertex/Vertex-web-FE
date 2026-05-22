@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Eye, EyeOff, ArrowRight, Github, Chrome } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { VertexLogo } from '../components/ui/VertexLogo';
 import { useLang } from '../contexts/LanguageContext';
-import { getMe, login, register } from '../api/auth';
-import { setTokens, setUserInfo } from '../utils/authStorage';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LoginPageProps {
   onNavigate: (page: string) => void;
@@ -22,6 +21,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const { t } = useLang();
+  const { login, register, isAuthenticated, user } = useAuth();
+
+  // If already authenticated, redirect to appropriate dashboard
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const role = user.role;
+      if (role === 'admin') {
+        onNavigate('admin');
+      } else if (role === 'lecturer') {
+        onNavigate('lecturer');
+      } else {
+        onNavigate('dashboard');
+      }
+    }
+  }, [isAuthenticated, user, onNavigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,19 +44,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     setSuccessMessage('');
 
     try {
+      let me;
       if (isSignUp) {
-        await register(name.trim(), email.trim(), password);
-        setIsSignUp(false);
-        setSuccessMessage('Account created. Please sign in.');
-        return;
+        me = await register(name.trim(), email.trim(), password);
+      } else {
+        me = await login(email.trim(), password);
       }
 
-      const tokens = await login(email.trim(), password);
-      setTokens(tokens);
-
-      const me = await getMe(tokens.accessToken);
-      setUserInfo(me);
-
+      // Navigate based on role
       const role = me.role;
       if (role === 'admin') {
         onNavigate('admin');

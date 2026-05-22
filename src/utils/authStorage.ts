@@ -2,17 +2,11 @@ import type { AuthTokens, MeResponse } from '../api/auth';
 
 const ACCESS_TOKEN_KEY = 'vertex.accessToken';
 const REFRESH_TOKEN_KEY = 'vertex.refreshToken';
-const USER_ROLE_KEY = 'vertex.userRole';
-const USER_NAME_KEY = 'vertex.userName';
+const USER_INFO_KEY = 'vertex.userInfo';
 
 export function setTokens(tokens: AuthTokens) {
   localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
-}
-
-export function clearTokens() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 export function getAccessToken() {
@@ -24,10 +18,30 @@ export function getRefreshToken() {
 }
 
 export function setUserInfo(user: MeResponse) {
-  localStorage.setItem(USER_ROLE_KEY, user.role);
-  localStorage.setItem(USER_NAME_KEY, user.name);
+  localStorage.setItem(USER_INFO_KEY, JSON.stringify(user));
 }
 
-export function getUserRole() {
-  return localStorage.getItem(USER_ROLE_KEY);
+export function getUserInfo(): MeResponse | null {
+  const raw = localStorage.getItem(USER_INFO_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as MeResponse;
+  } catch {
+    return null;
+  }
+}
+
+export function getUserRole(): string | null {
+  return getUserInfo()?.role ?? null;
+}
+
+export function clearAll() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(USER_INFO_KEY);
+}
+
+/** @deprecated Use clearAll() instead */
+export function clearTokens() {
+  clearAll();
 }
