@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Sidebar } from './Sidebar';
 import { TaskPanel } from './TaskPanel';
-import { mockProjects, users } from '../../data/mockData';
+import { users } from '../../data/mockData';
 import { Task, Project, Status, Priority, User, WorkspaceMember } from '../../types';
 import { loadWorkspaceMembers, saveWorkspaceMembers, workspaceMemberToUser } from '../../data/workspaceStore';
 import { normalizeProjects, resolveProjectMembers } from '../../data/projectCompatibility';
@@ -35,6 +35,8 @@ import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, Genera
 import { PROJECTS_STORAGE_KEY, PROJECT_FILES_STORAGE_KEY, SETTINGS_STORAGE_KEY, INVITE_INBOX_KEY, CURRENT_USER_EMAIL, CURRENT_USER_ID, DEFAULT_WORKSPACES, initialNotifications, loadInviteInbox, createInviteNotification, loadDashboardNotifications, getStoredUserPlan, getWorkspaceName, loadProjects, loadProjectFiles, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel, getAuthToken, getActiveOrgId, setActiveOrgId } from './utils/dashboardUtils';
 import { listMyOrgs, getOrgDetail, createOrg, inviteMember, updateMemberRole, removeMember } from '../../api/org';
 import type { OrgSummary, OrgDetail } from '../../api/org';
+import { listProjects, getProjectDetail, createProject, updateProject, deleteProject, createTask, updateTask, deleteTask } from '../../api/project';
+import { mapProjectDetailToProject } from '../../utils/projectMapper';
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
@@ -48,7 +50,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [workspaceName, setWorkspaceName] = useState(getWorkspaceName);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState('ws-1');
-  const [activeProjectId, setActiveProjectId] = useState(mockProjects[0].id);
+  const [activeProjectId, setActiveProjectId] = useState<string>(() => {
+    const initialProjects = loadProjects();
+    return initialProjects[0]?.id || '';
+  });
   const [projectViewMode, setProjectViewMode] = useState<'kanban' | 'timeline' | 'calendar'>('kanban');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -114,6 +119,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       .then(detail => setOrgDetail(detail))
       .catch(() => setOrgDetail(null))
       .finally(() => setOrgLoading(false));
+  }, [activeOrgId]);
+
+  // ── Refresh projects list from backend API ──
+  const refreshProjectsList = async () => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    if (!token || !orgId) return;
+
+    try {
+      const summaries = await listProjects(token, orgId);
+      if (!summaries || summaries.length === 0) {
+        setProjects([]);
+        return;
+      }
+
+      const details = await Promise.all(
+        summaries.map(s => getProjectDetail(token, orgId, s.id))
+      );
+
+      const mappedProjects = details.map(mapProjectDetailToProject);
+      setProjects(mappedProjects);
+
+      setActiveProjectId(prevId => {
+        if (prevId && mappedProjects.some(p => p.id === prevId)) {
+          return prevId;
+        }
+        return mappedProjects[0]?.id || '';
+      });
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      showToast('Không thể tải danh sách dự án từ server', 'error');
+    }
+  };
+
+  // ── Load projects when activeOrgId changes ──
+  useEffect(() => {
+    refreshProjectsList();
   }, [activeOrgId]);
 
   // Click outside handler for profile menu & notification panel
@@ -199,7 +241,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     return resolveProjectMembers(project, memberLookup);
   };
 
-  const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
+  const fallbackProject: Project = { id: '', name: 'No projects', memberIds: [], tasks: [], deadline: '', progress: 0 };
+  const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || fallbackProject;
   const activeProjectMembers = useMemo(() => {
     return activeProject ? getProjectMembers(activeProject) : [];
   }, [activeProject, memberLookup]);
@@ -387,11 +430,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setSelectedTask(task);
   };
 
-  const handleTaskDrop = (taskId: string, newStatus: Status) => {
-    setProjects(prev => prev.map(p => ({
-      ...p,
-      tasks: p.tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t)
-    })));
+  const handleTaskDrop = async (taskId: string, newStatus: Status) => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    const projectId = activeProjectId;
+    if (!token || !orgId || !projectId) {
+      showToast('Không đủ thông tin để kéo thả công việc', 'error');
+      return;
+    }
+
+    const task = activeProject.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    try {
+      // 1. Cập nhật state local lập tức để UI kéo thả phản hồi mượt mà (Optimistic UI update)
+      setProjects(prev => prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          tasks: p.tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t)
+        };
+      }));
+
+      // 2. Gửi request cập nhật lên Backend
+      await updateTask(token, orgId, projectId, taskId, {
+        status: newStatus,
+      });
+
+      // 3. Fetch lại để đảm bảo dữ liệu đồng bộ chính xác với DB
+      await refreshProjectsList();
+    } catch (err) {
+      console.error('Error in handleTaskDrop:', err);
+      showToast('Không thể lưu trạng thái kéo thả công việc', 'error');
+      await refreshProjectsList();
+    }
   };
 
   const handleOpenAddTask = (status: Status) => {
@@ -399,49 +471,102 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setShowAddTask(true);
   };
 
-  const handleAddTask = (title: string, priority: Priority, description: string, attachmentCount: number) => {
-    const newTask: Task = {
-      id: `t${Date.now()}`,
-      title,
-      description: description.trim() || undefined,
-      attachmentCount: Math.max(0, attachmentCount || 0),
-      status: addTaskStatus,
-      priority,
-      assignee: activeProjectMembers[0],
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
-    };
-    setProjects(prev => prev.map(p =>
-      p.id === activeProjectId ? { ...p, tasks: [...p.tasks, newTask] } : p
-    ));
-    setShowAddTask(false);
-    showToast('Task created successfully!');
+  const handleAddTask = async (title: string, priority: Priority, description: string, attachmentCount: number) => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    const projectId = activeProjectId;
+    if (!token || !orgId || !projectId) {
+      showToast('Không đủ thông tin để tạo công việc', 'error');
+      return;
+    }
+
+    try {
+      const startDate = new Date().toISOString();
+      const endDate = new Date(Date.now() + 7 * 86400000).toISOString();
+
+      await createTask(token, orgId, projectId, {
+        title,
+        description: description.trim() || undefined,
+        status: addTaskStatus,
+        priority,
+        assigneeId: activeProjectMembers[0]?.id || null,
+        startDate,
+        endDate,
+      });
+
+      showToast('Task created successfully!');
+      setShowAddTask(false);
+      await refreshProjectsList();
+    } catch (err) {
+      console.error('Error creating task:', err);
+      showToast('Không thể tạo công việc mới', 'error');
+    }
   };
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    const projectId = activeProjectId;
+    if (!token || !orgId || !projectId) {
+      showToast('Không đủ thông tin để xóa công việc', 'error');
+      return;
+    }
+
     const taskToDelete = activeProject.tasks.find(task => task.id === taskId);
     if (!taskToDelete) return;
 
-    setProjects(prev => prev.map(project =>
-      project.id === activeProjectId
-        ? { ...project, tasks: project.tasks.filter(task => task.id !== taskId) }
-        : project
-    ));
-    showToast(`Deleted task "${taskToDelete.title}"`);
+    try {
+      await deleteTask(token, orgId, projectId, taskId);
+      showToast(`Deleted task "${taskToDelete.title}"`);
+      if (selectedTask?.id === taskId) {
+        setSelectedTask(null);
+      }
+      await refreshProjectsList();
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      showToast('Không thể xóa công việc', 'error');
+    }
   };
 
-  const handleUpdateTask = (updatedTask: Task) => {
-    setProjects(prev => prev.map(project => (
-      project.id === activeProjectId
-        ? {
-            ...project,
-            tasks: project.tasks.map(task => task.id === updatedTask.id ? updatedTask : task),
-          }
-        : project
-    )));
+  const handleUpdateTask = async (updatedTask: Task) => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    const projectId = activeProjectId;
+    if (!token || !orgId || !projectId) {
+      showToast('Không đủ thông tin để cập nhật công việc', 'error');
+      return;
+    }
+
+    try {
+      await updateTask(token, orgId, projectId, updatedTask.id, {
+        title: updatedTask.title,
+        description: updatedTask.description || '',
+        status: updatedTask.status,
+        priority: updatedTask.priority,
+        assigneeId: updatedTask.assignee?.id || null,
+        startDate: updatedTask.startDate,
+        endDate: updatedTask.endDate,
+      });
+
+      if (selectedTask?.id === updatedTask.id) {
+        setSelectedTask(updatedTask);
+      }
+
+      await refreshProjectsList();
+    } catch (err) {
+      console.error('Error updating task:', err);
+      showToast('Không thể cập nhật công việc', 'error');
+    }
   };
 
-  const handleDeleteProject = (projectId: string) => {
+  const handleDeleteProject = async (projectId: string) => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    if (!token || !orgId) {
+      showToast('Không đủ thông tin để xóa dự án', 'error');
+      return;
+    }
+
     if (projects.length <= 1) {
       showToast('You must keep at least one project.', 'error');
       return;
@@ -449,13 +574,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const projectToDelete = projects.find(p => p.id === projectId);
     if (!projectToDelete) return;
 
-    const nextProjects = projects.filter(p => p.id !== projectId);
-    setProjects(nextProjects);
-
-    if (activeProjectId === projectId) {
-      setActiveProjectId(nextProjects[0].id);
+    try {
+      await deleteProject(token, orgId, projectId);
+      showToast(`Deleted project "${projectToDelete.name}"`);
+      await refreshProjectsList();
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      showToast('Không thể xóa dự án', 'error');
     }
-    showToast(`Deleted project "${projectToDelete.name}"`);
   };
 
   const handleAddProjectMember = (user: User) => {
@@ -502,23 +628,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     showToast(`Removed ${member.name} from ${activeProject.name}`);
   };
 
-  const handleAddProject = (name: string) => {
-    const newProject: Project = {
-      id: `p${Date.now()}`,
-      name,
-      description: 'New project',
-      memberIds: [users[0].id],
-      deadline: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-      tasks: [],
-      progress: 0,
-    };
-    setProjects(prev => [...prev, newProject]);
-    setActiveProjectId(newProject.id);
-    setActiveTab('projects');
-    setProjectTab('board');
-    setProjectViewMode('kanban');
-    setShowCreateProject(false);
-    showToast('Project created successfully!');
+  const handleAddProject = async (name: string) => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    if (!token || !orgId) {
+      showToast('Bạn chưa đăng nhập hoặc chưa chọn tổ chức', 'error');
+      return;
+    }
+
+    try {
+      const deadline = new Date(Date.now() + 30 * 86400000).toISOString();
+      const newProjectSummary = await createProject(token, orgId, {
+        name,
+        description: 'New project',
+        deadline,
+      });
+
+      showToast('Project created successfully!');
+      
+      await refreshProjectsList();
+      
+      setActiveProjectId(newProjectSummary.id);
+      setActiveTab('projects');
+      setProjectTab('board');
+      setProjectViewMode('kanban');
+      setShowCreateProject(false);
+    } catch (err) {
+      console.error('Error creating project:', err);
+      showToast('Không thể tạo dự án mới', 'error');
+    }
   };
 
   const generateAiPlan = (descriptionOverride?: string) => {
