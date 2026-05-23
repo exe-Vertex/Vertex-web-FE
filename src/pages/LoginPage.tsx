@@ -6,6 +6,23 @@ import { VertexLogo } from '../components/ui/VertexLogo';
 import { useLang } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 
+const getPasswordStrength = (pwd: string) => {
+  if (!pwd) return { score: 0, label: '', color: 'bg-slate-700', textClass: 'text-slate-500' };
+  let score = 0;
+  if (pwd.length >= 8) score++;
+  if (/[a-zA-Z]/.test(pwd)) score++;
+  if (/[0-9]/.test(pwd)) score++;
+  if (/[^a-zA-Z0-9]/.test(pwd)) score++;
+
+  if (score <= 1) {
+    return { score, label: 'Yếu', color: 'bg-red-500', textClass: 'text-red-400' };
+  } else if (score === 2 || score === 3) {
+    return { score, label: 'Trung bình', color: 'bg-yellow-500', textClass: 'text-yellow-400' };
+  } else {
+    return { score, label: 'Mạnh', color: 'bg-[#22C55E]', textClass: 'text-[#22C55E]' };
+  }
+};
+
 interface LoginPageProps {
   onNavigate: (page: string) => void;
 }
@@ -42,6 +59,40 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     setIsSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setErrorMessage("Vui lòng nhập đúng định dạng email (ví dụ: you@example.com).");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (isSignUp) {
+      if (name.trim().length < 2) {
+        setErrorMessage("Họ và tên phải dài ít nhất 2 ký tự.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (password.length < 8) {
+        setErrorMessage("Mật khẩu phải chứa ít nhất 8 ký tự.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+        setErrorMessage("Mật khẩu bắt buộc phải chứa cả chữ cái và chữ số.");
+        setIsSubmitting(false);
+        return;
+      }
+    } else {
+      if (!password) {
+        setErrorMessage("Vui lòng nhập mật khẩu.");
+        setIsSubmitting(false);
+        return;
+      }
+    }
 
     try {
       let me;
@@ -219,6 +270,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {isSignUp && password && (
+                  <div className="mt-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400">Độ mạnh mật khẩu:</span>
+                      <span className={`font-semibold ${getPasswordStrength(password).textClass} transition-colors duration-300`}>
+                        {getPasswordStrength(password).label}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-[#162032] rounded-full overflow-hidden border border-[#22C55E]/5">
+                      <div 
+                        className={`h-full ${getPasswordStrength(password).color} transition-all duration-500 ease-out`}
+                        style={{ width: `${(getPasswordStrength(password).score / 4) * 100}%` }}
+                      />
+                    </div>
+                    <ul className="text-[10px] text-slate-500 space-y-0.5 list-disc list-inside">
+                      <li className={password.length >= 8 ? "text-[#22C55E]" : ""}>Tối thiểu 8 ký tự</li>
+                      <li className={/[a-zA-Z]/.test(password) && /[0-9]/.test(password) ? "text-[#22C55E]" : ""}>Chứa cả chữ cái và chữ số</li>
+                    </ul>
+                  </div>
+                )}
               </div>
 
               {!isSignUp && (
