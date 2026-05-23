@@ -1,30 +1,8 @@
-import { users } from './mockData';
 import { Workspace, WorkspaceMember, User } from '../types';
 
 const WORKSPACE_STORAGE_KEY = 'ppt_workspace';
 
-const defaultWorkspaceMembers: WorkspaceMember[] = users.map((user, idx) => ({
-  id: user.id,
-  profile: {
-    name: user.name,
-    avatar: user.avatar,
-    email: user.email,
-    role: user.role,
-    title: idx % 2 === 0 ? 'Designer' : 'Researcher',
-    bio: idx % 2 === 0
-      ? 'Focused on visual systems, motion cues, and clear interface polish.'
-      : 'Strong at discovery, synthesis, and turning messy inputs into clear direction.',
-  },
-  skills: idx % 2 === 0 ? ['UI', 'Motion'] : ['Research', 'Writing'],
-  availability: 'available',
-  taskStats: {
-    completed: 0,
-    inProgress: 0,
-    bySkill: {},
-  },
-  projectsJoined: [],
-  history: [],
-}));
+const defaultWorkspaceMembers: WorkspaceMember[] = [];
 
 const defaultWorkspace: Workspace = {
   id: 'ws-1',

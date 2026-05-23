@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Sidebar } from './Sidebar';
 import { TaskPanel } from './TaskPanel';
-import { users } from '../../data/mockData';
-import { Task, Project, Status, Priority, User, WorkspaceMember } from '../../types';
+import { Task, Project, Status, Priority, User, WorkspaceMember, Role } from '../../types';
 import { loadWorkspaceMembers, saveWorkspaceMembers, workspaceMemberToUser } from '../../data/workspaceStore';
 import { normalizeProjects, resolveProjectMembers } from '../../data/projectCompatibility';
 import { Avatar } from '../ui/Avatar';
@@ -31,7 +30,7 @@ import { CreateProjectModal } from './modals/CreateProjectModal';
 import { SignOutConfirmDialog } from './modals/SignOutConfirmDialog';
 import { CreateOrgModal } from './modals/CreateOrgModal';
 import { InviteOrgMemberModal } from './modals/InviteOrgMemberModal';
-import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, GeneratedPlanStep, ProjectFileItem, MemberWorkloadLabel, MemberAssignmentSuggestion, MembersDatabaseRow, ProjectWithMembers, InviteRole } from './utils/dashboardTypes';
+import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, GeneratedPlanStep, ProjectFileItem, MemberWorkloadLabel, MemberAssignmentSuggestion, MembersDatabaseRow, BaseMembersDatabaseRow, ProjectWithMembers, InviteRole } from './utils/dashboardTypes';
 import { PROJECTS_STORAGE_KEY, PROJECT_FILES_STORAGE_KEY, SETTINGS_STORAGE_KEY, INVITE_INBOX_KEY, DEFAULT_WORKSPACES, initialNotifications, loadInviteInbox, createInviteNotification, loadDashboardNotifications, getStoredUserPlan, getWorkspaceName, loadProjects, loadProjectFiles, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel, getAuthToken, getActiveOrgId, setActiveOrgId } from './utils/dashboardUtils';
 import { listMyOrgs, getOrgDetail, createOrg, inviteMember, updateMemberRole, removeMember } from '../../api/org';
 import type { OrgSummary, OrgDetail } from '../../api/org';
@@ -183,8 +182,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const workspaceUsers = useMemo(() => {
     const fromWorkspace = workspaceMembers.map(workspaceMemberToUser);
-    const allUsers = [...fromWorkspace, ...users];
-    return allUsers.reduce<User[]>((acc, user) => {
+    return fromWorkspace.reduce<User[]>((acc, user) => {
       if (!acc.some(entry => entry.id === user.id)) acc.push(user);
       return acc;
     }, []);
@@ -200,7 +198,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         name: user.name,
         avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name)}`,
         email: user.email,
-        role: user.role,
+        role: user.role as Role,
         title: user.role === 'admin' ? 'System Admin' : user.role === 'lecturer' ? 'Lecturer' : 'Contributor',
         bio: 'Vertex user profile.',
       },
@@ -220,7 +218,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     return new Map(workspaceUsers.map(user => [user.id, user]));
   }, [workspaceUsers]);
 
-  const membersDatabase = useMemo<MembersDatabaseRow[]>(() => {
+  const membersDatabase = useMemo<BaseMembersDatabaseRow[]>(() => {
     const workspaceMemberMap = new Map<string, WorkspaceMember>(workspaceMembers.map(member => [member.id, member]));
 
     return workspaceUsers.map(user => {
@@ -328,7 +326,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       const candidateRows = membersDatabase.filter(member => activeMemberIds.has(member.id));
       if (candidateRows.length === 0) return;
 
-      const scoreCandidate = (member: MembersDatabaseRow): { value: number; reason: string } => {
+      const scoreCandidate = (member: BaseMembersDatabaseRow): { value: number; reason: string } => {
         const memberSkills = member.skills.map(skill => skill.toLowerCase());
         const overlap = taskSkills.filter(skill => memberSkills.includes(skill)).length;
         const skillFit = taskSkills.length > 0 ? overlap / taskSkills.length : 0.5;

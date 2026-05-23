@@ -4,7 +4,7 @@ import {
   ArrowLeft, Users, Calendar, CheckCircle, Clock, AlertTriangle,
   MessageSquare, GitBranch, LayoutGrid, Send, CheckCheck, RotateCcw, BarChart3,
 } from 'lucide-react';
-import { GroupComment, LecturerGroup, LecturerTask, TaskStatus } from '../../../data/lecturerMockData';
+import { GroupComment, LecturerGroup, LecturerTask, TaskStatus } from '../../../data/lecturerTypes';
 
 type Tab = 'overview' | 'tasks' | 'contributions' | 'timeline';
 

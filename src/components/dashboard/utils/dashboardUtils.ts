@@ -1,6 +1,5 @@
 import { OrgPlan, Project, Task, Status } from '../../../types';
 import { normalizeProjects } from '../../../data/projectCompatibility';
-import { mockProjects } from '../../../data/mockData';
 import { AppNotification, MemberWorkloadLabel, ProjectFileItem } from './dashboardTypes';
 import { getAccessToken, getUserInfo } from '../../../utils/authStorage';
 
@@ -28,13 +27,8 @@ export const DEFAULT_WORKSPACES = [
   { id: 'ws-2', name: 'Creative Hub' },
 ];
 
-// ── Mock notifications ──
-export const initialNotifications: AppNotification[] = [
-  { id: '1', text: 'Task "Design Main Layout" is due tomorrow', time: '2 hours ago', read: false },
-  { id: '2', text: 'Lan completed "Choose Color Palette"', time: '5 hours ago', read: false },
-  { id: '3', text: 'New comment on "Sketch Ideas"', time: '1 day ago', read: true },
-  { id: '4', text: 'Hung uploaded a storyboard draft', time: '2 days ago', read: true },
-];
+// ── Notifications ──
+export const initialNotifications: AppNotification[] = [];
 
 // ── Loaders ──
 export const loadInviteInbox = (): Record<string, AppNotification[]> => {
@@ -89,7 +83,7 @@ export const loadProjects = (): Project[] => {
       if (normalizedStoredProjects.length > 0) return normalizedStoredProjects;
     }
   } catch { /* ignore parse errors */ }
-  return normalizeProjects(mockProjects);
+  return [];
 };
 
 export const loadProjectFiles = (): Record<string, ProjectFileItem[]> => {
