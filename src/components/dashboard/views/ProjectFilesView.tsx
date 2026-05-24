@@ -1,16 +1,79 @@
 import React, { useState, useEffect } from 'react';
 import { Paperclip, Eye, Download, Trash2, Grid3X3, List, FileText, File, Video, FileImage, FileCode2 } from 'lucide-react';
-import { ProjectFileItem } from '../utils/dashboardTypes';
+import { ProjectFileItem, ProjectLinkItem } from '../utils/dashboardTypes';
+import { listProjectLinks, addProjectLink, deleteProjectLink } from '../../../api/project';
+import { getAuthToken } from '../utils/dashboardUtils';
+import { useToast } from '../../ui/Toast';
 
 export const ProjectFilesView: React.FC<{
+  projectId: string;
+  orgId: string | null;
+  role: string;
   files: ProjectFileItem[];
   onUpload: (files: FileList | null) => void;
   onDelete: (fileId: string) => void;
   onRename: (fileId: string, newName: string) => void;
-}> = ({ files, onUpload, onDelete, onRename }) => {
+}> = ({ projectId, orgId, role, files, onUpload, onDelete, onRename }) => {
+  const { showToast } = useToast();
+  const [activeTab, setActiveTab] = useState<'files' | 'links'>('files');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [previewFile, setPreviewFile] = useState<ProjectFileItem | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ file: ProjectFileItem; x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ file?: ProjectFileItem; link?: ProjectLinkItem; x: number; y: number } | null>(null);
+  
+  const [links, setLinks] = useState<ProjectLinkItem[]>([]);
+  const [isAddingLink, setIsAddingLink] = useState(false);
+  const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [newLinkTitle, setNewLinkTitle] = useState('');
+
+  useEffect(() => {
+    if (activeTab === 'links' && projectId && orgId) {
+      loadLinks();
+    }
+  }, [activeTab, projectId, orgId]);
+
+  const loadLinks = async () => {
+    const token = getAuthToken();
+    if (!token || !orgId) return;
+    try {
+      const data = await listProjectLinks(token, orgId, projectId);
+      setLinks(data);
+    } catch (err) {
+      console.error('Failed to load links:', err);
+    }
+  };
+
+  const handleAddLink = async () => {
+    if (!newLinkUrl.trim()) return;
+    const token = getAuthToken();
+    if (!token || !orgId) return;
+    
+    try {
+      await addProjectLink(token, orgId, projectId, {
+        url: newLinkUrl,
+        title: newLinkTitle
+      }, role);
+      showToast('Link added successfully');
+      setNewLinkUrl('');
+      setNewLinkTitle('');
+      setIsAddingLink(false);
+      loadLinks();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to add link', 'error');
+    }
+  };
+
+  const handleDeleteLink = async (linkId: string) => {
+    const token = getAuthToken();
+    if (!token || !orgId) return;
+    
+    try {
+      await deleteProjectLink(token, orgId, projectId, linkId);
+      showToast('Link deleted successfully');
+      loadLinks();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete link', 'error');
+    }
+  };
 
   const getExt = (name: string) => {
     const parts = name.split('.');
@@ -36,14 +99,31 @@ export const ProjectFilesView: React.FC<{
     return () => window.removeEventListener('click', close);
   }, [contextMenu]);
 
-  const downloadFile = (file: ProjectFileItem) => {
+  const downloadFile = async (file: ProjectFileItem) => {
     if (!file.objectUrl) return;
-    const a = document.createElement('a');
-    a.href = file.objectUrl;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+      // Append a cache-busting parameter to prevent browser from using opaque cache from <img> tags
+      const response = await fetch(`${file.objectUrl}?download=${Date.now()}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+      // Fallback to normal navigation if fetch fails (e.g., due to strict CORS despite backend config)
+      const a = document.createElement('a');
+      a.href = file.objectUrl;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   };
 
   const renderPreviewBody = (file: ProjectFileItem) => {
@@ -65,36 +145,67 @@ export const ProjectFilesView: React.FC<{
   return (
     <div className="flex-1 overflow-y-auto bg-[#0A0F1A] p-6">
       <div className="max-w-4xl mx-auto space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-white">Project Files</h2>
-            <p className="text-sm text-slate-500 mt-1">Upload and track project documents.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex bg-[#162032] p-1 rounded-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-white">Project Cloud</h2>
+              <p className="text-sm text-slate-500 mt-1">Manage files and links.</p>
+            </div>
+            <div className="flex bg-[#162032] p-1 rounded-lg ml-2">
               <button
-                onClick={() => setViewMode('grid')}
-                className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 ${viewMode === 'grid' ? 'bg-[#0F1A2A] text-[#22C55E]' : 'text-slate-400 hover:text-slate-200'}`}
+                onClick={() => setActiveTab('files')}
+                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${activeTab === 'files' ? 'bg-[#0F1A2A] text-[#22C55E] shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                <Grid3X3 size={13} /> Grid
+                Files
               </button>
               <button
-                onClick={() => setViewMode('list')}
-                className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-[#0F1A2A] text-[#22C55E]' : 'text-slate-400 hover:text-slate-200'}`}
+                onClick={() => setActiveTab('links')}
+                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${activeTab === 'links' ? 'bg-[#0F1A2A] text-[#22C55E] shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                <List size={13} /> List
+                Links
               </button>
             </div>
-
-            <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#22C55E]/20 text-xs font-semibold text-[#6EE7B7] hover:bg-[#162032] cursor-pointer">
-              <Paperclip size={14} />
-              Upload Files
-              <input type="file" className="hidden" multiple onChange={(e) => onUpload(e.target.files)} />
-            </label>
           </div>
+          
+          {activeTab === 'files' ? (
+            <div className="flex items-center gap-2">
+              <div className="flex bg-[#162032] p-1 rounded-lg">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 ${viewMode === 'grid' ? 'bg-[#0F1A2A] text-[#22C55E]' : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                  <Grid3X3 size={13} /> Grid
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-[#0F1A2A] text-[#22C55E]' : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                  <List size={13} /> List
+                </button>
+              </div>
+
+              {role === 'Leader' && (
+                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#22C55E]/20 text-xs font-semibold text-[#6EE7B7] hover:bg-[#162032] cursor-pointer">
+                  <Paperclip size={14} />
+                  Upload Files
+                  <input type="file" className="hidden" multiple onChange={(e) => onUpload(e.target.files)} />
+                </label>
+              )}
+            </div>
+          ) : (
+            role === 'Leader' && (
+              <button
+                onClick={() => setIsAddingLink(true)}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#22C55E]/10 text-[#6EE7B7] hover:bg-[#22C55E]/20 text-xs font-semibold transition-all"
+              >
+                + Add Link
+              </button>
+            )
+          )}
         </div>
 
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-2.5'}>
+        {activeTab === 'files' && (
+          <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-2.5'}>
           {files.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[#22C55E]/20 bg-[#0F1A2A] px-4 py-8 text-center text-sm text-slate-500 sm:col-span-2 lg:col-span-3">
               <p className="font-semibold text-slate-300 mb-1">No files uploaded yet</p>
@@ -136,7 +247,9 @@ export const ProjectFilesView: React.FC<{
                     <div className="flex items-center gap-1.5 text-[11px]">
                       <button onClick={() => setPreviewFile(file)} className="px-2 py-1 rounded-md border border-[#22C55E]/20 text-[#6EE7B7] hover:bg-[#162032]">Preview</button>
                       <button onClick={() => downloadFile(file)} disabled={!file.objectUrl} className="px-2 py-1 rounded-md border border-[#22C55E]/20 text-slate-300 hover:bg-[#162032] disabled:opacity-40">Download</button>
-                      <button onClick={() => onDelete(file.id)} className="px-2 py-1 rounded-md border border-red-500/20 text-red-300 hover:bg-red-500/10">Remove</button>
+                      {role === 'Leader' && (
+                        <button onClick={() => onDelete(file.id)} className="px-2 py-1 rounded-md border border-red-500/20 text-red-300 hover:bg-red-500/10">Remove</button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -175,12 +288,14 @@ export const ProjectFilesView: React.FC<{
                       >
                         <Download size={12} /> Download
                       </button>
-                      <button
-                        onClick={() => onDelete(file.id)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-red-500/20 text-red-300 hover:bg-red-500/10"
-                      >
-                        <Trash2 size={12} /> Remove
-                      </button>
+                      {role === 'Leader' && (
+                        <button
+                          onClick={() => onDelete(file.id)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-red-500/20 text-red-300 hover:bg-red-500/10"
+                        >
+                          <Trash2 size={12} /> Remove
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -188,6 +303,7 @@ export const ProjectFilesView: React.FC<{
             );
           })}
         </div>
+        )}
 
         {previewFile && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
@@ -232,6 +348,86 @@ export const ProjectFilesView: React.FC<{
               Rename
             </button>
             <button onClick={() => { onDelete(contextMenu.file.id); setContextMenu(null); }} className="w-full text-left px-2.5 py-2 text-xs text-red-300 hover:bg-red-500/10 rounded-md">Remove</button>
+          </div>
+        )}
+
+        {activeTab === 'links' && (
+          <div className="space-y-3">
+            {links.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#22C55E]/20 bg-[#0F1A2A] px-4 py-8 text-center text-sm text-slate-500">
+                <p className="font-semibold text-slate-300 mb-1">No links added yet</p>
+                <p>Click + Add Link to save important URLs</p>
+              </div>
+            ) : links.map(link => (
+              <div key={link.id} className="rounded-xl border border-[#22C55E]/12 bg-[#0F1A2A] px-4 py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <a href={link.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-[#6EE7B7] hover:underline truncate block">
+                    {link.title || link.url}
+                  </a>
+                  <div className="text-xs text-slate-500 mt-1 truncate">
+                    <span className="text-slate-400">{link.url}</span> • Added by {link.uploadedBy} • {new Date(link.uploadedAt).toLocaleDateString('en-US')}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a href={link.url} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 rounded-md border border-[#22C55E]/20 text-slate-300 hover:bg-[#162032] text-xs">
+                    Open
+                  </a>
+                  {role === 'Leader' && (
+                    <button onClick={() => handleDeleteLink(link.id)} className="px-2.5 py-1.5 rounded-md border border-red-500/20 text-red-300 hover:bg-red-500/10 text-xs">
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isAddingLink && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={() => setIsAddingLink(false)} />
+            <div className="relative bg-[#0F1A2A] border border-[#22C55E]/15 rounded-2xl w-full max-w-md p-5">
+              <h3 className="text-lg font-bold text-white mb-4">Add New Link</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">URL</label>
+                  <input
+                    type="url"
+                    value={newLinkUrl}
+                    onChange={(e) => setNewLinkUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full bg-[#162032] border border-[#22C55E]/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#22C55E]/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">Title (Optional)</label>
+                  <input
+                    type="text"
+                    value={newLinkTitle}
+                    onChange={(e) => setNewLinkTitle(e.target.value)}
+                    placeholder="e.g., Figma Design"
+                    className="w-full bg-[#162032] border border-[#22C55E]/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#22C55E]/50"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  onClick={() => setIsAddingLink(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:bg-[#162032]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddLink}
+                  disabled={!newLinkUrl.trim()}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#22C55E] text-black hover:bg-[#22C55E]/90 disabled:opacity-50"
+                >
+                  Add Link
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
