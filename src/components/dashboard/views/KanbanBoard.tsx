@@ -8,12 +8,11 @@ import { Project, Task, Status } from '../../../types';
 // Kanban Subcomponent
 export const KanbanBoard: React.FC<{
   project: Project;
-  currentUserRole?: string;
   onTaskClick: (task: Task) => void;
   onTaskDrop: (taskId: string, newStatus: Status) => void;
   onAddTask: (status: Status) => void;
   onDeleteTask: (taskId: string) => void;
-}> = ({ project, currentUserRole, onTaskClick, onTaskDrop, onAddTask, onDeleteTask }) => {
+}> = ({ project, onTaskClick, onTaskDrop, onAddTask, onDeleteTask }) => {
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [menuTaskId, setMenuTaskId] = useState<string | null>(null);
   const todayStartMs = useMemo(() => {
@@ -73,11 +72,9 @@ export const KanbanBoard: React.FC<{
                   'bg-green-500/15 text-green-300 border-green-500/30'
                 }`}>{tasks.length}</span>
               </div>
-              {col.id === 'todo' && currentUserRole === 'Leader' && (
-                <button onClick={() => onAddTask(col.id)} className="text-slate-500 hover:text-[#22C55E] transition-colors">
-                  <Plus size={16} />
-                </button>
-              )}
+              <button onClick={() => onAddTask(col.id)} className="text-slate-500 hover:text-[#22C55E] transition-colors">
+                <Plus size={16} />
+              </button>
             </div>
             
             <div className="p-3 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
@@ -155,10 +152,14 @@ export const KanbanBoard: React.FC<{
                           <FileText size={10} /> Note
                         </span>
                       )}
+                      {(task.attachmentCount ?? 0) > 0 && (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 bg-[#0F1A2A] border border-[#22C55E]/10 px-1.5 py-0.5 rounded-full">
+                          <Paperclip size={10} /> {task.attachmentCount}
+                        </span>
+                      )}
                       {(task.commentCount ?? 0) > 0 && (
                         <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 bg-[#0F1A2A] border border-[#22C55E]/10 px-1.5 py-0.5 rounded-full">
-                          <MessageSquare size={12} className="text-slate-500" />
-                          <span className="text-xs text-slate-400 font-medium">{task.commentCount || 0}</span>
+                          <MessageSquare size={10} /> {task.commentCount}
                         </span>
                       )}
                     </div>

@@ -16,14 +16,6 @@ export type GeneratedPlanStep = {
   taskCount: number;
 };
 
-export interface ProjectLinkItem {
-  id: string;
-  url: string;
-  title: string;
-  uploadedBy: string;
-  uploadedAt: string;
-}
-
 export type ProjectFileItem = {
   id: string;
   name: string;

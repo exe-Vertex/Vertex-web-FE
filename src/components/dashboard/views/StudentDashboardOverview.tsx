@@ -11,7 +11,7 @@ export const StudentDashboardOverview: React.FC<{
   const today = new Date();
   const todayStart = new Date(today);
   todayStart.setHours(0, 0, 0, 0);
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayKey = todayStart.toISOString().split('T')[0];
   const activeProjects = projects.filter(project => project.tasks.some(task => task.status !== 'done')).length;
   const tasksDueToday = projects.reduce((count, project) => (
     count + project.tasks.filter(task => task.endDate === todayKey && task.status !== 'done').length
@@ -20,7 +20,7 @@ export const StudentDashboardOverview: React.FC<{
     count + project.tasks.filter(task => new Date(task.endDate) < todayStart && task.status !== 'done').length
   ), 0);
 
-  const myTasksToday = projects 
+  const myTasksToday = projects
     .flatMap(project => project.tasks
       .filter(task => task.assignee?.id === user?.id && task.status !== 'done')
       .map(task => ({

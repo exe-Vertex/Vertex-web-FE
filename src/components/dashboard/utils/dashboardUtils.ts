@@ -3,6 +3,11 @@ import { normalizeProjects } from '../../../data/projectCompatibility';
 import { AppNotification, MemberWorkloadLabel, ProjectFileItem } from './dashboardTypes';
 import { getAccessToken, getUserInfo } from '../../../utils/authStorage';
 
+// ── Storage keys ──
+export const PROJECTS_STORAGE_KEY = 'ppt_projects';
+export const PROJECT_FILES_STORAGE_KEY = 'ppt_project_files';
+export const SETTINGS_STORAGE_KEY = 'ppt_workspace_settings';
+export const INVITE_INBOX_KEY = 'ppt_invite_inbox';
 export const ACTIVE_ORG_KEY = 'vertex.activeOrgId';
 
 // ── Auth / Org helpers ──
@@ -14,6 +19,41 @@ export const getActiveOrgId = (): string | null =>
 export const setActiveOrgId = (orgId: string): void =>
   localStorage.setItem(ACTIVE_ORG_KEY, orgId);
 
+export const CURRENT_USER_EMAIL = 'minh@university.edu';
+export const CURRENT_USER_ID = 'u1';
+
+export const DEFAULT_WORKSPACES = [
+  { id: 'ws-1', name: 'Design Studio Workspace' },
+  { id: 'ws-2', name: 'Creative Hub' },
+];
+
+// ── Notifications ──
+export const initialNotifications: AppNotification[] = [];
+
+// ── Loaders ──
+export const loadInviteInbox = (): Record<string, AppNotification[]> => {
+  try {
+    const raw = localStorage.getItem(INVITE_INBOX_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+export const createInviteNotification = (text: string): AppNotification => ({
+  id: `invite_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+  text,
+  time: 'Just now',
+  read: false,
+});
+
+export const loadDashboardNotifications = (): AppNotification[] => {
+  const inbox = loadInviteInbox();
+  const userEmail = getUserInfo()?.email || CURRENT_USER_EMAIL;
+  const received = inbox[userEmail] || [];
+  return [...received, ...initialNotifications];
+};
+
 export const getStoredUserPlan = (): OrgPlan => {
   const rawPlan = localStorage.getItem('userPlan');
   if (rawPlan === 'free' || rawPlan === 'pro' || rawPlan === 'business' || rawPlan === 'enterprise') return rawPlan as OrgPlan;
@@ -21,6 +61,38 @@ export const getStoredUserPlan = (): OrgPlan => {
   if (rawPlan === 'student_pro' || rawPlan === 'paid') return 'pro';
   if (rawPlan === 'lecturer') return 'business';
   return 'free';
+};
+
+export const getWorkspaceName = (): string => {
+  try {
+    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.workspaceName) return parsed.workspaceName as string;
+    }
+  } catch { /* ignore */ }
+  return 'Design Studio Workspace';
+};
+
+export const loadProjects = (): Project[] => {
+  try {
+    const stored = localStorage.getItem(PROJECTS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      const normalizedStoredProjects = normalizeProjects(parsed);
+      if (normalizedStoredProjects.length > 0) return normalizedStoredProjects;
+    }
+  } catch { /* ignore parse errors */ }
+  return [];
+};
+
+export const loadProjectFiles = (): Record<string, ProjectFileItem[]> => {
+  try {
+    const raw = localStorage.getItem(PROJECT_FILES_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
 };
 
 // ── Utilities ──

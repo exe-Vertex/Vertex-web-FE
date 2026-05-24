@@ -1,39 +1,30 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../../ui/Button';
-import { Status, Priority, User } from '../../../types';
+import { Status, Priority } from '../../../types';
 
 // Add Task Modal
 export const AddTaskModal: React.FC<{
   isOpen: boolean;
   status: Status;
-  assigneeOptions: User[];
   onClose: () => void;
-  onSubmit: (title: string, priority: Priority, description: string, attachmentCount: number, endDate: string, assigneeId: string | null) => void;
-}> = ({ isOpen, status, assigneeOptions, onClose, onSubmit }) => {
+  onSubmit: (title: string, priority: Priority, description: string, attachmentCount: number) => void;
+}> = ({ isOpen, status, onClose, onSubmit }) => {
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [description, setDescription] = useState('');
-  const [assigneeId, setAssigneeId] = useState<string>('');
-  const [displayDate, setDisplayDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return d.toISOString().split('T')[0];
-  });
-  
+  const [attachmentCount, setAttachmentCount] = useState(0);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !displayDate || !assigneeId) {
-      alert("Vui lòng nhập đủ Tên công việc, Ngày hết hạn và Chọn người phụ trách!");
-      return;
-    }
-    onSubmit(title.trim(), priority, description, 0, displayDate, assigneeId || null);
+    if (!title.trim()) return;
+    onSubmit(title.trim(), priority, description, attachmentCount);
     setTitle('');
     setPriority('medium');
     setDescription('');
-    setAssigneeId('');
+    setAttachmentCount(0);
   };
 
   const statusLabels: Record<Status, string> = {
@@ -90,38 +81,22 @@ export const AddTaskModal: React.FC<{
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Assignee</label>
-            <select
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
-              required
-              className="w-full px-4 py-2 rounded-lg border border-[#22C55E]/10 bg-[#162032] text-white focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all"
-            >
-              <option value="" disabled>-- Chọn người phụ trách --</option>
-              {assigneeOptions.map(member => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Deadline</label>
-            <input
-              type="date"
-              required
-              value={displayDate}
-              onChange={(e) => setDisplayDate(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-[#22C55E]/10 bg-[#162032] text-white placeholder-slate-500 focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all"
-            />
-          </div>
-          <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">Note (optional)</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add quick note for this task..."
               className="w-full min-h-20 px-4 py-2 rounded-lg border border-[#22C55E]/10 bg-[#162032] text-white placeholder-slate-500 focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Attachments count</label>
+            <input
+              type="number"
+              min={0}
+              value={attachmentCount}
+              onChange={(e) => setAttachmentCount(Math.max(0, Number(e.target.value) || 0))}
+              className="w-full px-4 py-2 rounded-lg border border-[#22C55E]/10 bg-[#162032] text-white placeholder-slate-500 focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">

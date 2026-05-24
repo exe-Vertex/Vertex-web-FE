@@ -29,7 +29,6 @@ export function mapTaskDtoToTask(dto: TaskDto): Task {
     assignee: dto.assignee ? mapMemberToUser(dto.assignee) : undefined,
     attachmentCount: 0,
     commentCount: 0,
-    submissionLink: dto.submissionLink,
     subtasks: [],
   };
 }

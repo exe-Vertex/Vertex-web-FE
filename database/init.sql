@@ -9,7 +9,6 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS ai_history CASCADE;
-DROP TABLE IF EXISTS project_links CASCADE;
 DROP TABLE IF EXISTS project_files CASCADE;
 DROP TABLE IF EXISTS task_comments CASCADE;
 DROP TABLE IF EXISTS subtasks CASCADE;
@@ -166,7 +165,6 @@ CREATE TABLE tasks (
     start_date      DATE NOT NULL,
     end_date        DATE NOT NULL,
     position        INT NOT NULL DEFAULT 0,
-    submission_link VARCHAR(2000),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -207,47 +205,14 @@ CREATE TABLE project_files (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id      UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     uploaded_by     UUID NOT NULL REFERENCES users(id),
-    type            VARCHAR(20) NOT NULL DEFAULT 'file',           -- file | link
     file_name       VARCHAR(300) NOT NULL,
     file_size       BIGINT NOT NULL DEFAULT 0,
     mime_type       VARCHAR(100),
-    storage_path    VARCHAR(500),
-    link_url        VARCHAR(2000),
+    storage_path    VARCHAR(500) NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_project_files_project ON project_files(project_id);
-
--- ─────────────────────────────────────────────
--- 10b. PROJECT LINKS
--- ─────────────────────────────────────────────
-CREATE TABLE project_links (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id      UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    url             VARCHAR(2000) NOT NULL,
-    title           VARCHAR(300) NOT NULL,
-    uploaded_by     UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_project_links_project ON project_links(project_id);
-
--- ─────────────────────────────────────────────
--- 10c. TASK ATTACHMENTS
--- ─────────────────────────────────────────────
-CREATE TABLE task_attachments (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    task_id         UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    type            VARCHAR(20) NOT NULL,                          -- file | link
-    url             VARCHAR(2000),
-    title           VARCHAR(300),
-    size            BIGINT,
-    mime_type       VARCHAR(100),
-    uploaded_by     UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_task_attachments_task ON task_attachments(task_id);
 
 -- ─────────────────────────────────────────────
 -- 11. AI HISTORY

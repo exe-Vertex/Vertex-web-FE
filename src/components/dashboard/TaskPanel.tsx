@@ -1,13 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar, Flag, Paperclip, MessageSquare, CheckSquare, Trash2, Plus, ChevronDown, Sparkles, Link as LinkIcon, File as FileIcon, ExternalLink, Star } from 'lucide-react';
-import { Task, User, Priority } from '../../types';
+import { X, Calendar, Flag, Paperclip, MessageSquare, CheckSquare, Trash2, Plus, ChevronDown, Sparkles } from 'lucide-react';
+import { Task, User } from '../../types';
 import { Avatar } from '../ui/Avatar';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { listTaskAttachments, uploadTaskFile, addTaskLink, deleteTaskAttachment, promoteTaskAttachment, TaskAttachmentDto } from '../../api/project';
-import { getAuthToken } from './utils/dashboardUtils';
-import { useToast } from '../ui/Toast';
 
 interface TaskPanelProps {
   task: Task | null;
@@ -15,24 +12,15 @@ interface TaskPanelProps {
   onDeleteTask: (taskId: string) => void;
   onUpdateTask: (task: Task) => void;
   assigneeOptions: User[];
-  orgId: string | null;
-  projectId: string | null;
-  currentUserId: string | null;
-  currentUserRole: string | null;
 }
 
-export const TaskPanel: React.FC<TaskPanelProps> = ({ 
-  task, onClose, onDeleteTask, onUpdateTask, assigneeOptions, orgId, projectId, currentUserId, currentUserRole 
-}) => {
+export const TaskPanel: React.FC<TaskPanelProps> = ({ task, onClose, onDeleteTask, onUpdateTask, assigneeOptions }) => {
   const [commentInput, setCommentInput] = useState('');
   const [comments, setComments] = useState<Array<{ id: string; text: string; time: string }>>([]);
   const [newSubtask, setNewSubtask] = useState('');
-  const [attachments, setAttachments] = useState<TaskAttachmentDto[]>([]);
-  const [isAddingLink, setIsAddingLink] = useState(false);
-  const [newLinkUrl, setNewLinkUrl] = useState('');
-  const [newLinkTitle, setNewLinkTitle] = useState('');
+  const [attachments, setAttachments] = useState<string[]>([]);
+  const [draggingAttachment, setDraggingAttachment] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
-  const { showToast } = useToast();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,81 +31,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     setComments([]);
     setAttachments([]);
     setAssigneeOpen(false);
-    setIsAddingLink(false);
-    setNewLinkUrl('');
-    setNewLinkTitle('');
-    
-    if (orgId && projectId) {
-      loadAttachments();
-    }
-  }, [task?.id, orgId, projectId]);
-
-  const loadAttachments = async () => {
-    if (!task || !orgId || !projectId) return;
-    try {
-      const token = getAuthToken();
-      if (!token) return;
-      const data = await listTaskAttachments(token, orgId, projectId, task.id);
-      setAttachments(data);
-    } catch (err) {
-      console.error('Failed to load task attachments:', err);
-    }
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!task || !orgId || !projectId || !e.target.files?.length) return;
-    const token = getAuthToken();
-    if (!token) return;
-    try {
-      await uploadTaskFile(token, orgId, projectId, task.id, e.target.files[0]);
-      await loadAttachments();
-      showToast('File uploaded successfully', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Failed to upload file', 'error');
-    }
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const handleAddLink = async () => {
-    if (!task || !orgId || !projectId || !newLinkUrl.trim()) return;
-    const token = getAuthToken();
-    if (!token) return;
-    try {
-      await addTaskLink(token, orgId, projectId, task.id, { url: newLinkUrl, title: newLinkTitle });
-      await loadAttachments();
-      setIsAddingLink(false);
-      setNewLinkUrl('');
-      setNewLinkTitle('');
-      showToast('Link added successfully', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Failed to add link', 'error');
-    }
-  };
-
-  const handleDeleteAttachment = async (attachmentId: string) => {
-    if (!task || !orgId || !projectId) return;
-    const token = getAuthToken();
-    if (!token) return;
-    try {
-      await deleteTaskAttachment(token, orgId, projectId, task.id, attachmentId, currentUserRole || 'Member');
-      await loadAttachments();
-      showToast('Attachment deleted', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Failed to delete attachment', 'error');
-    }
-  };
-
-  const handlePromoteAttachment = async (attachmentId: string) => {
-    if (!task || !orgId || !projectId) return;
-    const token = getAuthToken();
-    if (!token) return;
-    try {
-      await promoteTaskAttachment(token, orgId, projectId, task.id, attachmentId, currentUserRole || 'Member');
-      showToast('Attachment promoted to Project Files', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Failed to promote attachment', 'error');
-    }
-  };
+  }, [task?.id]);
 
   if (!task) return null;
 
@@ -153,7 +67,15 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   };
 
   const handleGenerateSubtasks = () => {
-    // Read-only: API not implemented yet
+    if (task.subtasks && task.subtasks.length > 0) return;
+    updateTask({
+      subtasks: [
+        { id: `${task.id}-s1`, title: 'Prepare references', completed: false },
+        { id: `${task.id}-s2`, title: 'Create first draft', completed: false },
+        { id: `${task.id}-s3`, title: 'Review and finalize', completed: false },
+      ],
+      status: task.status === 'todo' ? 'in-progress' : task.status,
+    });
   };
 
   const handleSuggestDeadline = () => {
@@ -188,19 +110,44 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   };
 
   const handleToggleSubtask = (subtaskId: string) => {
-    // Read-only
+    const subtasks = (task.subtasks || []).map(subtask => (
+      subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
+    ));
+
+    const total = subtasks.length;
+    const completed = subtasks.filter(subtask => subtask.completed).length;
+    const nextStatus = total > 0 && completed === total
+      ? 'done'
+      : completed > 0
+        ? 'in-progress'
+        : task.status === 'done'
+          ? 'todo'
+          : task.status;
+
+    updateTask({ subtasks, status: nextStatus });
   };
 
   const handleAddSubtask = () => {
-    // Read-only
+    const title = newSubtask.trim();
+    if (!title) return;
+    const subtasks = [...(task.subtasks || []), { id: `${task.id}-s-${Date.now()}`, title, completed: false }];
+    updateTask({ subtasks, status: task.status === 'todo' ? 'in-progress' : task.status });
+    setNewSubtask('');
   };
 
   const handleAddAttachments = (files: FileList | null) => {
-    // Read-only
+    if (!files || files.length === 0) return;
+    const names = Array.from(files).map(file => file.name);
+    setAttachments(prev => [...prev, ...names]);
+    updateTask({ attachmentCount: (task.attachmentCount ?? 0) + names.length });
   };
 
   const handleSendComment = () => {
-    // Read-only
+    const text = commentInput.trim();
+    if (!text) return;
+    setComments(prev => [{ id: `c-${Date.now()}`, text, time: 'Just now' }, ...prev]);
+    setCommentInput('');
+    updateTask({ commentCount: (task.commentCount ?? 0) + 1 });
   };
 
   const applyMention = (name: string) => {
@@ -210,7 +157,6 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   return (
     <AnimatePresence>
       <motion.div
-        key="backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -218,7 +164,6 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
         className="fixed inset-0 bg-black/35 backdrop-blur-[1px] z-30"
       />
       <motion.div
-        key="panel"
         initial={{ x: '100%' }}
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
@@ -306,36 +251,24 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
               </div>
               <div>
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 block">Deadline</label>
-                <div className="flex items-center gap-2 p-2 rounded-xl bg-[#121C2C] border border-white/6">
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#121C2C] border border-white/6">
                   <Calendar size={16} className="text-slate-400" />
-                  <input
-                    type="date"
-                    defaultValue={task.endDate ? task.endDate.split('T')[0] : ''}
-                    onBlur={(e) => {
-                      if (e.target.value && e.target.value !== (task.endDate?.split('T')[0] || '')) {
-                        onUpdateTask({ ...task, endDate: e.target.value });
-                      }
-                    }}
-                    className="w-full text-sm font-medium text-slate-300 bg-transparent outline-none focus:text-white"
-                  />
+                  <div>
+                    <p className="text-sm font-medium text-slate-300">{deadlineMeta.label}</p>
+                    <p className={`text-xs ${deadlineMeta.hintClass || 'text-slate-500'}`}>{deadlineMeta.hint}</p>
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 block">Priority</label>
-                <div className="flex items-center gap-2 p-2 rounded-xl bg-[#121C2C] border border-white/6">
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#121C2C] border border-white/6">
                   <Flag size={16} className={
                     task.priority === 'high' ? 'text-red-500' : 
                     task.priority === 'medium' ? 'text-yellow-500' : 'text-blue-500'
                   } />
-                  <select
-                    value={task.priority}
-                    onChange={(e) => onUpdateTask({ ...task, priority: e.target.value as Priority })}
-                    className="w-full text-sm font-medium text-slate-300 capitalize bg-transparent outline-none cursor-pointer"
-                  >
-                    <option value="low" className="bg-[#121C2C]">Low</option>
-                    <option value="medium" className="bg-[#121C2C]">Medium</option>
-                    <option value="high" className="bg-[#121C2C]">High</option>
-                  </select>
+                  <span className="text-sm font-medium text-slate-300 capitalize">
+                    {task.priority === 'high' ? 'High' : task.priority === 'medium' ? 'Medium' : 'Low'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -351,123 +284,9 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                   <Sparkles size={12} /> Generate description with AI
                 </button>
               </div>
-              <textarea
-                defaultValue={task.description || ''}
-                onBlur={(e) => {
-                  if (e.target.value !== (task.description || '')) {
-                    onUpdateTask({ ...task, description: e.target.value });
-                  }
-                }}
-                placeholder="No description for this task. Click to edit..."
-                className="w-full text-sm text-slate-300 leading-relaxed bg-[#0B1220] p-4 rounded-xl border border-white/6 outline-none focus:border-[#22C55E]/50 min-h-[100px] resize-y"
-              />
-            </div>
-
-            {/* Attachments */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block">Attachments</label>
-                {currentUserId === task.assignee?.id && task.status === 'in-progress' && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setIsAddingLink(!isAddingLink)}
-                      className="text-xs text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors inline-flex items-center gap-1"
-                    >
-                      <LinkIcon size={12} /> Add Link
-                    </button>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-xs text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors inline-flex items-center gap-1"
-                    >
-                      <Paperclip size={12} /> Add File
-                    </button>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      onChange={handleFileUpload}
-                    />
-                  </div>
-                )}
+              <div className="text-sm text-slate-300 leading-relaxed bg-[#0B1220] p-4 rounded-xl border border-white/6">
+                {task.description || 'No description for this task.'}
               </div>
-
-              {isAddingLink && (
-                <div className="bg-[#121C2C] border border-white/6 p-3 rounded-xl mb-3 flex flex-col gap-2">
-                  <input
-                    type="url"
-                    placeholder="URL (e.g., https://...)"
-                    value={newLinkUrl}
-                    onChange={(e) => setNewLinkUrl(e.target.value)}
-                    className="w-full bg-[#0B1220] border border-white/6 rounded-lg px-3 py-2 text-sm text-slate-300 placeholder:text-slate-600 focus:border-[#22C55E]/50 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Title (Optional)"
-                    value={newLinkTitle}
-                    onChange={(e) => setNewLinkTitle(e.target.value)}
-                    className="w-full bg-[#0B1220] border border-white/6 rounded-lg px-3 py-2 text-sm text-slate-300 placeholder:text-slate-600 focus:border-[#22C55E]/50 focus:outline-none"
-                  />
-                  <div className="flex justify-end gap-2 mt-1">
-                    <Button variant="ghost" onClick={() => setIsAddingLink(false)} className="h-8 text-xs px-3">Cancel</Button>
-                    <Button onClick={handleAddLink} className="h-8 text-xs px-3">Save</Button>
-                  </div>
-                </div>
-              )}
-
-              {attachments.length === 0 ? (
-                <div className="text-sm text-slate-500 italic p-3 bg-[#121C2C] border border-white/6 rounded-xl text-center">
-                  No attachments yet.
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {attachments.map((att) => (
-                    <div key={att.id} className="flex items-center justify-between p-3 bg-[#121C2C] border border-white/6 rounded-xl hover:bg-[#1A263A] transition-colors group">
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="p-2 bg-[#0B1220] rounded-lg text-slate-400">
-                          {att.type === 'link' ? <LinkIcon size={16} /> : <FileIcon size={16} />}
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          {att.type === 'link' ? (
-                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-200 hover:text-[#6EE7B7] hover:underline truncate inline-flex items-center gap-1">
-                              {att.title || att.url} <ExternalLink size={12} />
-                            </a>
-                          ) : (
-                            <span className="text-sm font-medium text-slate-200 truncate">{att.title}</span>
-                          )}
-                          <div className="flex items-center gap-2 text-xs text-slate-500">
-                            <span>{att.uploadedBy}</span>
-                            {att.sizeLabel && (
-                              <>
-                                <span>•</span>
-                                <span>{att.sizeLabel}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {currentUserRole === 'Leader' && (
-                          <button
-                            onClick={() => handlePromoteAttachment(att.id)}
-                            title="Add to Project Files"
-                            className="p-1.5 text-slate-400 hover:text-yellow-400 hover:bg-[#0B1220] rounded-lg transition-colors"
-                          >
-                            <Star size={14} />
-                          </button>
-                        )}
-                        {(currentUserId === task.assignee?.id && task.status === 'in-progress') && (
-                          <button
-                            onClick={() => handleDeleteAttachment(att.id)}
-                            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-[#0B1220] rounded-lg transition-colors"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Quick actions */}
@@ -510,19 +329,95 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                     </span>
                   </div>
                 ))}
-                {(!task.subtasks || task.subtasks.length === 0) && (
-                  <p className="text-sm text-slate-500 py-2">No subtasks yet.</p>
-                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    value={newSubtask}
+                    onChange={(e) => setNewSubtask(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddSubtask();
+                    }}
+                    placeholder="Add subtask"
+                    className="flex-1 px-3 py-2 rounded-xl border border-white/6 bg-[#121C2C] text-sm text-white placeholder-slate-500 outline-none focus:border-slate-500/40"
+                  />
+                  <button onClick={handleAddSubtask} className="flex items-center gap-1 text-sm text-slate-400 hover:text-white px-2 py-1 transition-colors">
+                    <Plus size={14} /> Add
+                  </button>
+                </div>
               </div>
             </div>
 
-
+            {/* Attachments */}
+            <div>
+              <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 block">Attachments</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => handleAddAttachments(e.target.files)}
+              />
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDraggingAttachment(true);
+                }}
+                onDragLeave={() => setDraggingAttachment(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDraggingAttachment(false);
+                  handleAddAttachments(e.dataTransfer.files);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${draggingAttachment ? 'border-[#22C55E]/45 bg-[#22C55E]/8' : 'border-white/8 hover:border-slate-500/40 hover:bg-white/[0.02]'}`}
+              >
+                <Paperclip size={20} className="text-slate-500 mb-2" />
+                <span className="text-xs text-slate-500">Drag & drop files or click to upload</span>
+              </div>
+              {attachments.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  {attachments.map((fileName, index) => (
+                    <div key={`${fileName}-${index}`} className="text-xs text-slate-300 bg-[#121C2C] border border-white/6 rounded-lg px-2.5 py-1.5">
+                      {fileName}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Footer Actions - Read Only */}
+        {/* Footer Actions */}
         <div className="p-4 border-t border-white/6 bg-[#0B1220] flex gap-3">
-          <p className="text-sm text-slate-500">Comments are read-only (API not implemented).</p>
+          <div className="flex-1 relative">
+            <input 
+              type="text" 
+              value={commentInput}
+              onChange={(e) => setCommentInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSendComment();
+              }}
+              placeholder="Write a comment..." 
+              className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-white/6 bg-[#162032] focus:border-slate-500/40 focus:ring-2 focus:ring-white/5 outline-none text-sm text-white placeholder-slate-500"
+            />
+            {mentionCandidates.length > 0 && (
+              <div className="absolute left-0 right-0 bottom-full mb-2 bg-[#0B1220] border border-white/10 rounded-xl shadow-xl overflow-hidden">
+                {mentionCandidates.map(member => (
+                  <button
+                    key={member.id}
+                    onClick={() => applyMention(member.name)}
+                    className="w-full px-3 py-2 text-sm text-slate-300 hover:bg-[#162032] flex items-center gap-2"
+                  >
+                    <Avatar src={member.avatar} fallback={member.name.charAt(0)} size="sm" className="w-5 h-5" />
+                    <span>@{member.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button onClick={handleSendComment} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+              <MessageSquare size={16} />
+            </button>
+          </div>
+          <Button size="sm" onClick={handleSendComment}>Send</Button>
         </div>
 
         {comments.length > 0 && (
