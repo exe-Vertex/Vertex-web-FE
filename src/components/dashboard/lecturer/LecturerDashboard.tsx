@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard, Settings, ChevronLeft, ChevronRight,
@@ -7,13 +7,16 @@ import {
   ChevronDown, Sparkles,
 } from 'lucide-react';
 import { LecturerGroup } from '../../../data/lecturerTypes';
-
-const mockLecturerGroups: LecturerGroup[] = [];
-const lecturerNotifications: any[] = [];
-const LECTURER_CLASSES: string[] = [];
 import { useAuth } from '../../../contexts/AuthContext';
 import { GroupDetail } from './GroupDetail';
 import { DeadlineCalendar } from './DeadlineCalendar';
+import { 
+  getGroups, 
+  getGroupDetail, 
+  getNotifications, 
+  markNotificationRead, 
+  markAllNotificationsRead 
+} from '../../../api/lecturer';
 
 type LecturerView = 'overview' | 'groups' | 'group-detail' | 'deadlines';
 
@@ -31,10 +34,12 @@ interface LecturerSidebarProps {
   onSettings: () => void;
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
+  groups: LecturerGroup[];
+  classes: string[];
 }
 
 const LecturerSidebar: React.FC<LecturerSidebarProps> = ({
-  isOpen, activeView, activeClass, onNavigate, onSettings, collapsed, setCollapsed,
+  isOpen, activeView, activeClass, onNavigate, onSettings, collapsed, setCollapsed, groups, classes
 }) => {
   const [classesOpen, setClassesOpen] = useState(true);
 
@@ -103,8 +108,8 @@ const LecturerSidebar: React.FC<LecturerSidebarProps> = ({
                 {classesOpen && (
                   <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden mt-1 space-y-0.5">
-                    {LECTURER_CLASSES.map(cls => {
-                      const count = mockLecturerGroups.filter(g => g.className === cls).length;
+                    {classes.map(cls => {
+                      const count = groups.filter(g => g.className === cls).length;
                       const isActive = activeView === 'groups' && activeClass === cls;
                       return (
                         <button key={cls} onClick={() => onNavigate('groups', cls)}
@@ -126,7 +131,7 @@ const LecturerSidebar: React.FC<LecturerSidebarProps> = ({
           {/* Collapsed: class icons */}
           {collapsed && (
             <div className="flex-1 flex flex-col items-center pt-3 gap-2">
-              {LECTURER_CLASSES.map((cls, i) => (
+              {classes.map((cls, i) => (
                 <button key={cls} onClick={() => onNavigate('groups', cls)}
                   title={cls}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 text-[10px] font-black ${activeClass === cls ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#F59E0B]/35 shadow-[0_8px_18px_rgba(34,197,94,0.14)]' : 'bg-[#162032] text-slate-500 border border-transparent hover:text-[#6EE7B7] hover:border-[#F59E0B]/35 hover:shadow-[0_8px_16px_rgba(10,15,26,0.5)]'}`}>
@@ -158,13 +163,14 @@ const StatCard: React.FC<{ label: string; value: string | number; icon: React.Re
 // ── Dashboard Overview (Class-level) ────────────────────────────────────────
 const DashboardOverview: React.FC<{
   onSelectGroup: (group: LecturerGroup) => void;
-}> = ({ onSelectGroup }) => {
-  const totalGroups = mockLecturerGroups.length;
-  const activeProjects = mockLecturerGroups.filter(g => g.progress > 0 && g.progress < 100).length;
-  const tasksWaitingReview = mockLecturerGroups.flatMap(g => g.tasks).filter(t => t.status === 'ready-for-review').length;
-  const groupsOverdue = mockLecturerGroups.filter(g => g.reviewStatus === 'overdue').length;
+  groups: LecturerGroup[];
+}> = ({ onSelectGroup, groups }) => {
+  const totalGroups = groups.length;
+  const activeProjects = groups.filter(g => g.progress > 0 && g.progress < 100).length;
+  const tasksWaitingReview = groups.flatMap(g => g.tasks || []).filter(t => t.status === 'ready-for-review').length;
+  const groupsOverdue = groups.filter(g => g.reviewStatus === 'overdue').length;
 
-  const groupsNeedingAttention = [...mockLecturerGroups]
+  const groupsNeedingAttention = [...groups]
     .filter(g => g.reviewStatus === 'at-risk' || g.reviewStatus === 'overdue')
     .sort((a, b) => {
       const weight = (s: string) => (s === 'overdue' ? 0 : 1);
@@ -174,14 +180,13 @@ const DashboardOverview: React.FC<{
     })
     .slice(0, 6);
 
-  const onTrackCount = mockLecturerGroups.filter(g => g.reviewStatus === 'on-track').length;
-  const atRiskCount = mockLecturerGroups.filter(g => g.reviewStatus === 'at-risk').length;
-  const overdueCount = mockLecturerGroups.filter(g => g.reviewStatus === 'overdue').length;
+  const onTrackCount = groups.filter(g => g.reviewStatus === 'on-track').length;
+  const atRiskCount = groups.filter(g => g.reviewStatus === 'at-risk').length;
+  const overdueCount = groups.filter(g => g.reviewStatus === 'overdue').length;
   const chartMax = Math.max(onTrackCount, atRiskCount, overdueCount, 1);
 
-  const toDay = (deadline: string) => Number.parseInt(deadline.split(' ')[1] ?? '0', 10);
-  const upcomingDeadlines = [...mockLecturerGroups]
-    .sort((a, b) => toDay(a.deadline) - toDay(b.deadline))
+  const upcomingDeadlines = [...groups]
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     .slice(0, 6);
 
   return (
@@ -366,21 +371,22 @@ const AiInsightsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 const GroupsOverview: React.FC<{
   activeClass: string | null;
   onSelectGroup: (group: LecturerGroup) => void;
-}> = ({ activeClass, onSelectGroup }) => {
+  groups: LecturerGroup[];
+}> = ({ activeClass, onSelectGroup, groups }) => {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'on-track' | 'at-risk' | 'overdue'>('all');
 
-  const filtered = mockLecturerGroups.filter(g => {
+  const filtered = groups.filter(g => {
     const matchClass  = !activeClass || g.className === activeClass;
     const matchStatus = filterStatus === 'all' || g.reviewStatus === filterStatus;
     const matchSearch = !search || g.name.toLowerCase().includes(search.toLowerCase());
     return matchClass && matchStatus && matchSearch;
   });
 
-  const totalGroups   = mockLecturerGroups.length;
-  const activeCount   = mockLecturerGroups.filter(g => g.progress > 0 && g.progress < 100).length;
-  const reviewCount   = mockLecturerGroups.flatMap(g => g.tasks).filter(t => t.status === 'ready-for-review').length;
-  const overdueCount  = mockLecturerGroups.filter(g => g.reviewStatus === 'overdue').length;
+  const totalGroups   = groups.length;
+  const activeCount   = groups.filter(g => g.progress > 0 && g.progress < 100).length;
+  const reviewCount   = groups.flatMap(g => g.tasks || []).filter(t => t.status === 'ready-for-review').length;
+  const overdueCount  = groups.filter(g => g.reviewStatus === 'overdue').length;
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
@@ -443,11 +449,39 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
   const [showNotif,       setShowNotif]       = useState(false);
   const [showProfile,     setShowProfile]     = useState(false);
   const [showAI,          setShowAI]          = useState(false);
-  const [notifications,   setNotifications]   = useState(lecturerNotifications);
-  const { logout: authLogout } = useAuth();
+  
+  const [groups,          setGroups]          = useState<LecturerGroup[]>([]);
+  const [notifications,   setNotifications]   = useState<any[]>([]);
+  const [classes,         setClasses]         = useState<string[]>([]);
+  const [loading,         setLoading]         = useState(true);
+  
+  const { user, logout: authLogout } = useAuth();
 
   const notifRef   = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  const fetchLecturerData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const loadedGroups = await getGroups();
+      setGroups(loadedGroups);
+
+      // Extract unique classes
+      const uniqueClasses = Array.from(new Set(loadedGroups.map(g => g.className)));
+      setClasses(uniqueClasses);
+
+      const loadedNotifs = await getNotifications();
+      setNotifications(loadedNotifs);
+    } catch (err) {
+      console.error('Failed to load lecturer data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLecturerData();
+  }, [fetchLecturerData]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -467,11 +501,37 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
     if (v !== 'group-detail') setSelectedGroup(null);
   };
 
-  const handleSelectGroup = (group: LecturerGroup) => {
-    setSelectedGroup(group);
-    setActiveClass(group.className);
-    setView('group-detail');
+  const handleSelectGroup = async (group: LecturerGroup) => {
+    try {
+      const fullDetail = await getGroupDetail(group.id);
+      setSelectedGroup(fullDetail);
+      setActiveClass(group.className);
+      setView('group-detail');
+    } catch (err) {
+      console.error("Failed to load group details:", err);
+      alert("Failed to load group details: " + (err as Error).message);
+    }
   };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error("Failed to mark all notifications as read:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-screen bg-[#0A1628] flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-12 h-12 border-4 border-[#F59E0B] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm font-semibold text-slate-400">Loading lecturer workspace...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-[#0A1628] flex flex-col overflow-hidden">
@@ -521,19 +581,23 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
                   className="absolute right-0 top-full mt-2 w-80 bg-[#0F1A2A] rounded-xl border border-[#F59E0B]/15 shadow-2xl overflow-hidden z-50">
                   <div className="p-3 border-b border-[#F59E0B]/15 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-white">Notifications</h3>
-                    <button onClick={() => setNotifications(n => n.map(x => ({ ...x, read: true })))}
+                    <button onClick={handleMarkAllRead}
                       className="text-[11px] text-[#22C55E] hover:underline">Mark all read</button>
                   </div>
                   <div className="max-h-72 overflow-y-auto">
-                    {notifications.map(n => (
-                      <div key={n.id} className={`p-3 border-b border-[#162032] flex gap-2.5 ${!n.read ? 'bg-[#22C55E]/5' : ''}`}>
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${n.type === 'review' ? 'bg-purple-400' : n.type === 'overdue' ? 'bg-red-400' : 'bg-green-400'}`} />
-                        <div>
-                          <p className="text-xs text-slate-300">{n.text}</p>
-                          <p className="text-[10px] text-slate-600 mt-0.5">{n.time}</p>
+                    {notifications.length === 0 ? (
+                      <p className="text-xs text-slate-500 text-center py-6">No notifications</p>
+                    ) : (
+                      notifications.map(n => (
+                        <div key={n.id} className={`p-3 border-b border-[#162032] flex gap-2.5 ${!n.read ? 'bg-[#22C55E]/5' : ''}`}>
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${n.type === 'review' ? 'bg-purple-400' : n.type === 'overdue' ? 'bg-red-400' : 'bg-green-400'}`} />
+                          <div>
+                            <p className="text-xs text-slate-300">{n.text}</p>
+                            <p className="text-[10px] text-slate-600 mt-0.5">{n.time}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -545,16 +609,18 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
             <button onClick={() => setShowProfile(o => !o)}
               className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#162032] hover:shadow-[inset_0_0_0_1px_rgba(34,197,94,0.2)] transition-all duration-200">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#22C55E] to-[#EAB308] flex items-center justify-center">
-                <span className="text-xs font-bold text-white">TV</span>
+                <span className="text-xs font-bold text-white">
+                  {user?.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'TV'}
+                </span>
               </div>
-              <span className="text-sm font-medium text-white hidden sm:block">Dr. Tran Van Minh</span>
+              <span className="text-sm font-medium text-white hidden sm:block">{user?.name || 'Dr. Tran Van Minh'}</span>
             </button>
             <AnimatePresence>
               {showProfile && (
                 <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
                   className="absolute right-0 top-full mt-2 w-48 bg-[#0F1A2A] rounded-xl border border-[#F59E0B]/15 shadow-2xl overflow-hidden z-50">
                   <div className="p-3 border-b border-[#F59E0B]/15">
-                    <p className="text-xs font-semibold text-white">Dr. Tran Van Minh</p>
+                    <p className="text-xs font-semibold text-white">{user?.name || 'Dr. Tran Van Minh'}</p>
                     <p className="text-[11px] text-[#22C55E]">Lecturer</p>
                   </div>
                   <button onClick={async () => { await authLogout(); onNavigate?.('login'); }}
@@ -579,6 +645,8 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
           onSettings={() => {}}
           collapsed={collapsed}
           setCollapsed={setCollapsed}
+          groups={groups}
+          classes={classes}
         />
 
         {/* Main content */}
@@ -608,12 +676,12 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
           <AnimatePresence mode="wait">
             {view === 'overview' && (
               <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 overflow-hidden flex flex-col">
-                <DashboardOverview onSelectGroup={handleSelectGroup} />
+                <DashboardOverview onSelectGroup={handleSelectGroup} groups={groups} />
               </motion.div>
             )}
             {view === 'groups' && (
               <motion.div key="groups" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 overflow-hidden flex flex-col">
-                <GroupsOverview activeClass={activeClass} onSelectGroup={handleSelectGroup} />
+                <GroupsOverview activeClass={activeClass} onSelectGroup={handleSelectGroup} groups={groups} />
               </motion.div>
             )}
             {view === 'group-detail' && selectedGroup && (
@@ -623,7 +691,7 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
             )}
             {view === 'deadlines' && (
               <motion.div key="deadlines" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 overflow-hidden flex flex-col">
-                <DeadlineCalendar groups={mockLecturerGroups} onSelectGroup={handleSelectGroup} />
+                <DeadlineCalendar groups={groups} onSelectGroup={handleSelectGroup} />
               </motion.div>
             )}
           </AnimatePresence>
