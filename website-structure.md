@@ -1,6 +1,6 @@
 # Website Structure
 
-Updated: 2026-05-25T10:52:46.446Z
+Updated: 2026-05-25T12:03:28.161Z
 
 ## Summary
 

@@ -1077,6 +1077,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     try {
       await removeMember(token, activeOrgId, memberId);
       refreshOrgDetail();
+      await refreshProjectsList();
       showToast('Member removed');
     } catch (err: any) {
       showToast(err.message || 'Failed to remove member', 'error');

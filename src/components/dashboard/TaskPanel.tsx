@@ -130,11 +130,11 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const diffDays = Math.round((dueDay - nowDay) / 86400000);
 
-    const label = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (diffDays < 0) return { label, hint: 'Overdue', hintClass: 'text-red-300' };
-    if (diffDays === 0) return { label, hint: 'Due today', hintClass: 'text-amber-300' };
-    if (diffDays === 1) return { label, hint: '1 day left', hintClass: 'text-[#6EE7B7]' };
-    return { label, hint: `${diffDays} days left`, hintClass: 'text-[#6EE7B7]' };
+    const label = due.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (diffDays < 0) return { label, hint: 'Quá hạn', hintClass: 'text-red-400 font-medium' };
+    if (diffDays === 0) return { label, hint: 'Đến hạn hôm nay', hintClass: 'text-amber-400 font-medium' };
+    if (diffDays === 1) return { label, hint: 'Còn 1 ngày nữa', hintClass: 'text-[#6EE7B7] font-medium' };
+    return { label, hint: `Còn ${diffDays} ngày nữa`, hintClass: 'text-[#6EE7B7] font-medium' };
   })();
 
   const mentionMatch = commentInput.match(/@([a-zA-Z]*)$/);
@@ -306,18 +306,31 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
               </div>
               <div>
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 block">Deadline</label>
-                <div className="flex items-center gap-2 p-2 rounded-xl bg-[#121C2C] border border-white/6">
-                  <Calendar size={16} className="text-slate-400" />
-                  <input
-                    type="date"
-                    defaultValue={task.endDate ? task.endDate.split('T')[0] : ''}
-                    onBlur={(e) => {
-                      if (e.target.value && e.target.value !== (task.endDate?.split('T')[0] || '')) {
-                        onUpdateTask({ ...task, endDate: e.target.value });
-                      }
-                    }}
-                    className="w-full text-sm font-medium text-slate-300 bg-transparent outline-none focus:text-white"
-                  />
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-[#121C2C] border border-white/6 relative cursor-pointer group">
+                    <Calendar size={16} className="text-slate-400" />
+                    <span className="text-sm font-medium text-slate-300 group-hover:text-white">
+                      {deadlineMeta.label}
+                    </span>
+                    <input
+                      type="date"
+                      value={task.endDate ? task.endDate.split('T')[0] : ''}
+                      onClick={(e) => {
+                        try {
+                          (e.target as any).showPicker();
+                        } catch (err) {}
+                      }}
+                      onChange={(e) => {
+                        if (e.target.value && e.target.value !== (task.endDate?.split('T')[0] || '')) {
+                          onUpdateTask({ ...task, endDate: e.target.value });
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                  </div>
+                  {deadlineMeta && (
+                    <span className={`text-xs ${deadlineMeta.hintClass}`}>{deadlineMeta.hint}</span>
+                  )}
                 </div>
               </div>
               <div>
