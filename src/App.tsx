@@ -11,6 +11,7 @@ import { ResourcesPage } from './pages/ResourcesPage';
 import { LegalPage } from './pages/LegalPage';
 import { LecturerDashboardPage } from './pages/LecturerDashboardPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import AcceptInvite from './pages/AcceptInvite';
 
 // Wrapper components to extract URL :tab param
 function ResourcesPageWrapper({ onNavigate }: { onNavigate: (page: string) => void }) {
@@ -64,6 +65,7 @@ export default function App() {
       <Route path="/changelog" element={<ChangelogPage onNavigate={handleNavigate} />} />
       <Route path="/resources/:tab?" element={<ResourcesPageWrapper onNavigate={handleNavigate} />} />
       <Route path="/legal/:tab?" element={<LegalPageWrapper onNavigate={handleNavigate} />} />
+      <Route path="/invite/accept" element={<AcceptInvite />} />
 
       {/* Protected routes — require authentication */}
       <Route

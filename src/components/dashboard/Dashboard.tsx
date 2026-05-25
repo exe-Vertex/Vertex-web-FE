@@ -35,8 +35,10 @@ import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, Genera
 import { getStoredUserPlan, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel, getAuthToken, getActiveOrgId, setActiveOrgId } from './utils/dashboardUtils';
 import { listMyOrgs, getOrgDetail, createOrg, inviteMember, updateMemberRole, removeMember } from '../../api/org';
 import type { OrgSummary, OrgDetail } from '../../api/org';
-import { listProjects, getProjectDetail, createProject, updateProject, deleteProject, createTask, updateTask, deleteTask, addProjectMember, removeProjectMember, listProjectFiles, uploadProjectFile, deleteProjectFile } from '../../api/project';
+import { listProjects, getProjectDetail, createProject, updateProject, deleteProject, createTask, updateTask, deleteTask, addProjectMember, removeProjectMember, listProjectFiles, uploadProjectFile, deleteProjectFile, TaskDto } from '../../api/project';
 import { mapProjectDetailToProject } from '../../utils/projectMapper';
+import { useSignalR } from '../../hooks/useSignalR';
+import { createInvitation } from '../../api/invitation';
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
@@ -158,11 +160,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   useEffect(() => {
     refreshProjectsList();
 
-    // 1. Tự động làm mới dữ liệu mỗi 30 giây (Polling)
-    const intervalId = setInterval(() => {
-      refreshProjectsList();
-    }, 30000);
-
     // 2. Tự động làm mới dữ liệu khi người dùng chuyển lại tab này (Window Focus)
     const handleFocus = () => {
       refreshProjectsList();
@@ -170,10 +167,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     window.addEventListener('focus', handleFocus);
 
     return () => {
-      clearInterval(intervalId);
       window.removeEventListener('focus', handleFocus);
     };
   }, [activeOrgId]);
+
+  // ── SignalR Integration ──
+  const { on, off } = useSignalR(getAuthToken(), activeProjectId);
+
+  useEffect(() => {
+    const handleTaskUpdated = (task: TaskDto) => {
+      console.log('SignalR: Task updated', task);
+      refreshProjectsList();
+    };
+    const handleTaskCreated = (task: TaskDto) => {
+      console.log('SignalR: Task created', task);
+      refreshProjectsList();
+    };
+    const handleTaskDeleted = (taskId: string) => {
+      console.log('SignalR: Task deleted', taskId);
+      refreshProjectsList();
+    };
+
+    on('TaskUpdated', handleTaskUpdated);
+    on('TaskCreated', handleTaskCreated);
+    on('TaskDeleted', handleTaskDeleted);
+
+    return () => {
+      off('TaskUpdated', handleTaskUpdated);
+      off('TaskCreated', handleTaskCreated);
+      off('TaskDeleted', handleTaskDeleted);
+    };
+  }, [on, off]);
 
   // ── Load project files when activeProjectId changes ──
   useEffect(() => {
@@ -531,6 +555,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       }
     }
 
+    if (task.status === 'in-progress' && newStatus === 'todo') {
+      if (!isAssignee) {
+        showToast('Chỉ người được giao công việc (Assignee) mới có thể chuyển từ In Progress về Todo', 'error');
+        return;
+      }
+    }
+
     if (newStatus === 'ready-for-review') {
       if (!isAssignee) {
         showToast('Chỉ người được giao công việc (Assignee) mới có thể chuyển sang Ready for Review', 'error');
@@ -773,13 +804,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       showToast('Không đủ thông tin để mời thành viên', 'error');
       return;
     }
+
+    const currentProjectMember = activeProject.members?.find(m => m.userId === user?.id || m.id === user?.id);
+    if ((currentProjectMember?.role as string) !== 'Leader') {
+      showToast('Chỉ Leader mới có quyền mời thành viên vào dự án', 'error');
+      return;
+    }
+
     try {
-      await addProjectMember(token, orgId, projectId, { emailOrUserId: email, role });
-      showToast(`Added ${email} to ${activeProject.name}`);
-      await refreshProjectsList();
-    } catch (err) {
-      console.error('Error adding project member by email:', err);
-      showToast(`Không thể mời ${email} (người dùng phải thuộc workspace trước)`, 'error');
+      await createInvitation({ email, role, targetType: 'Project', targetId: projectId });
+      showToast(`Đã gửi email mời tham gia dự án tới ${email}`);
+    } catch (err: any) {
+      console.error('Error inviting member by email:', err);
+      showToast(err.message || `Không thể gửi lời mời tới ${email}`, 'error');
     }
   };
 
@@ -1010,10 +1047,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     if (!token) return;
     setOrgActionLoading(true);
     try {
-      await inviteMember(token, activeOrgId, { email, role });
-      refreshOrgDetail();
+      await createInvitation({ email, role, targetType: 'Organization', targetId: activeOrgId });
       setShowInviteOrgMember(false);
-      showToast(`Invited ${email} as ${role}`);
+      showToast(`Đã gửi email mời tham gia tổ chức tới ${email}`);
     } catch (err: any) {
       showToast(err.message || 'Failed to invite member', 'error');
     } finally {

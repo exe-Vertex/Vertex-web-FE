@@ -294,6 +294,24 @@ CREATE INDEX idx_audit_logs_admin ON audit_logs(admin_id);
 CREATE INDEX idx_audit_logs_created ON audit_logs(created_at DESC);
 
 -- ─────────────────────────────────────────────
+-- 14. INVITATIONS
+-- ─────────────────────────────────────────────
+CREATE TABLE invitations (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email           VARCHAR(255) NOT NULL,
+    target_type     VARCHAR(20) NOT NULL,
+    target_id       UUID NOT NULL,
+    role            VARCHAR(20) NOT NULL,
+    token           VARCHAR(100) NOT NULL UNIQUE,
+    status          VARCHAR(20) NOT NULL,
+    created_by      UUID NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expired_at      TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_invitations_email_target_id_status ON invitations(email, target_id, status);
+
+-- ─────────────────────────────────────────────
 -- AUTO UPDATE updated_at TRIGGER
 -- ─────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION update_updated_at()
