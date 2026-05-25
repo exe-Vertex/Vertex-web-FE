@@ -5,6 +5,8 @@ import {
   MessageSquare, GitBranch, LayoutGrid, Send, CheckCheck, RotateCcw, BarChart3,
 } from 'lucide-react';
 import { GroupComment, LecturerGroup, LecturerTask, TaskStatus } from '../../../data/lecturerTypes';
+import { approveTask, requestChanges, addComment } from '../../../api/lecturer';
+import { useAuth } from '../../../contexts/AuthContext';
 
 type Tab = 'overview' | 'tasks' | 'contributions' | 'timeline';
 
@@ -481,26 +483,51 @@ const TimelineTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
 
 // ── GroupDetail ───────────────────────────────────────────────────────────────
 export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [tasks, setTasks] = useState<LecturerTask[]>(group.tasks);
   const [comments, setComments] = useState<GroupComment[]>(group.comments);
 
-  const handleApprove = (id: string) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'approved' } : t));
+  const handleApprove = async (id: string) => {
+    try {
+      await approveTask(id);
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'approved' } : t));
+    } catch (err) {
+      console.error("Failed to approve task:", err);
+      alert("Failed to approve task: " + (err as Error).message);
+    }
   };
 
-  const handleRequestChanges = (id: string) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'in-progress' } : t));
+  const handleRequestChanges = async (id: string) => {
+    try {
+      await requestChanges(id);
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'in-progress' } : t));
+    } catch (err) {
+      console.error("Failed to request changes:", err);
+      alert("Failed to request changes: " + (err as Error).message);
+    }
   };
 
-  const handleAddComment = (text: string) => {
-    setComments(prev => [...prev, {
-      id: `c${Date.now()}`,
-      author: 'Dr. Tran Van Minh',
-      role: 'lecturer',
-      text,
-      time: 'Just now',
-    }]);
+  const handleAddComment = async (text: string) => {
+    const firstTask = tasks[0];
+    if (!firstTask) {
+      alert("Cannot add comment: No tasks found in this group.");
+      return;
+    }
+
+    try {
+      await addComment(firstTask.id, text);
+      setComments(prev => [...prev, {
+        id: `c${Date.now()}`,
+        author: user?.name || 'Dr. Tran Van Minh',
+        role: 'lecturer',
+        text,
+        time: 'Just now',
+      }]);
+    } catch (err) {
+      console.error("Failed to add comment:", err);
+      alert("Failed to add comment: " + (err as Error).message);
+    }
   };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
