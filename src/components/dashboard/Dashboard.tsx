@@ -805,7 +805,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       return;
     }
 
-    const currentProjectMember = activeProject.members?.find(m => m.userId === user?.id || m.id === user?.id);
+    const currentProjectMember = activeProject.members?.find(m => m.id === user?.id);
     if ((currentProjectMember?.role as string) !== 'Leader') {
       showToast('Chỉ Leader mới có quyền mời thành viên vào dự án', 'error');
       return;
