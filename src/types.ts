@@ -103,6 +103,7 @@ export interface Task {
   priority: Priority;
   startDate: string;
   endDate: string;
+  submissionLink?: string;
   subtasks?: { id: string; title: string; completed: boolean }[];
 }
 

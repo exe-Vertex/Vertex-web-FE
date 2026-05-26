@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Sidebar } from './Sidebar';
 import { TaskPanel } from './TaskPanel';
 import { Task, Project, Status, Priority, User, WorkspaceMember, Role } from '../../types';
-import { loadWorkspaceMembers, saveWorkspaceMembers, workspaceMemberToUser } from '../../data/workspaceStore';
+import { workspaceMemberToUser } from '../../data/workspaceStore';
 import { normalizeProjects, resolveProjectMembers } from '../../data/projectCompatibility';
 import { Avatar } from '../ui/Avatar';
 import { Badge } from '../ui/Badge';
@@ -30,12 +30,15 @@ import { CreateProjectModal } from './modals/CreateProjectModal';
 import { SignOutConfirmDialog } from './modals/SignOutConfirmDialog';
 import { CreateOrgModal } from './modals/CreateOrgModal';
 import { InviteOrgMemberModal } from './modals/InviteOrgMemberModal';
+import { PromptCommentModal } from './modals/PromptCommentModal';
 import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, GeneratedPlanStep, ProjectFileItem, MemberWorkloadLabel, MemberAssignmentSuggestion, MembersDatabaseRow, BaseMembersDatabaseRow, ProjectWithMembers, InviteRole } from './utils/dashboardTypes';
-import { PROJECTS_STORAGE_KEY, PROJECT_FILES_STORAGE_KEY, SETTINGS_STORAGE_KEY, INVITE_INBOX_KEY, DEFAULT_WORKSPACES, initialNotifications, loadInviteInbox, createInviteNotification, loadDashboardNotifications, getStoredUserPlan, getWorkspaceName, loadProjects, loadProjectFiles, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel, getAuthToken, getActiveOrgId, setActiveOrgId } from './utils/dashboardUtils';
+import { getStoredUserPlan, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel, getAuthToken, getActiveOrgId, setActiveOrgId } from './utils/dashboardUtils';
 import { listMyOrgs, getOrgDetail, createOrg, inviteMember, updateMemberRole, removeMember } from '../../api/org';
 import type { OrgSummary, OrgDetail } from '../../api/org';
-import { listProjects, getProjectDetail, createProject, updateProject, deleteProject, createTask, updateTask, deleteTask } from '../../api/project';
+import { listProjects, getProjectDetail, createProject, updateProject, deleteProject, createTask, updateTask, deleteTask, addProjectMember, removeProjectMember, listProjectFiles, uploadProjectFile, deleteProjectFile, TaskDto } from '../../api/project';
 import { mapProjectDetailToProject } from '../../utils/projectMapper';
+import { useSignalR } from '../../hooks/useSignalR';
+import { createInvitation } from '../../api/invitation';
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
@@ -43,16 +46,12 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { showToast } = useToast();
-  const [projects, setProjects] = useState<Project[]>(loadProjects);
-  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>(loadWorkspaceMembers);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const [userPlan] = useState<OrgPlan>(getStoredUserPlan);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState(getWorkspaceName);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState('ws-1');
-  const [activeProjectId, setActiveProjectId] = useState<string>(() => {
-    const initialProjects = loadProjects();
-    return initialProjects[0]?.id || '';
-  });
+  const [workspaceName, setWorkspaceName] = useState('');
+  const [activeProjectId, setActiveProjectId] = useState<string>('');
   const [projectViewMode, setProjectViewMode] = useState<'kanban' | 'timeline' | 'calendar'>('kanban');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -61,14 +60,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<AppNotification[]>(loadDashboardNotifications);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showAddTask, setShowAddTask] = useState(false);
   const [addTaskStatus, setAddTaskStatus] = useState<Status>('todo');
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'projects' | 'members' | 'settings'>('dashboard');
   const [projectTab, setProjectTab] = useState<ProjectTab>('board');
-  const [projectFiles, setProjectFiles] = useState<Record<string, ProjectFileItem[]>>(loadProjectFiles);
+  const [projectFiles, setProjectFiles] = useState<Record<string, ProjectFileItem[]>>({});
   const [plannerInput, setPlannerInput] = useState({
     description: 'Poster campaign for environmental awareness',
     projectGoal: 'Create an A1 poster for Tech Day 2026',
@@ -89,6 +88,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [showCreateOrg, setShowCreateOrg] = useState(false);
   const [showInviteOrgMember, setShowInviteOrgMember] = useState(false);
   const [orgActionLoading, setOrgActionLoading] = useState(false);
+  const [commentPrompt, setCommentPrompt] = useState<{ taskId: string, newStatus: Status, taskDescription: string } | null>(null);
 
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -105,7 +105,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         setActiveOrgIdState(targetId);
         setActiveOrgId(targetId);
       }
-    }).catch(() => { /* token expired or API down — fallback to mock */ });
+    }).catch(() => { /* token expired or API down */ });
   }, []);
 
   // ── Load org detail when activeOrgId changes ──
@@ -137,6 +137,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         summaries.map(s => getProjectDetail(token, orgId, s.id))
       );
 
+      // Re-fetch org details to keep members database in sync
+      const orgDet = await getOrgDetail(token, orgId);
+      if (orgDet) setOrgDetail(orgDet);
+
       const mappedProjects = details.map(mapProjectDetailToProject);
       setProjects(mappedProjects);
 
@@ -155,7 +159,67 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   // ── Load projects when activeOrgId changes ──
   useEffect(() => {
     refreshProjectsList();
+
+    // 2. Tự động làm mới dữ liệu khi người dùng chuyển lại tab này (Window Focus)
+    const handleFocus = () => {
+      refreshProjectsList();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [activeOrgId]);
+
+  // ── SignalR Integration ──
+  const { on, off } = useSignalR(getAuthToken(), activeProjectId);
+
+  useEffect(() => {
+    const handleTaskUpdated = (task: TaskDto) => {
+      console.log('SignalR: Task updated', task);
+      refreshProjectsList();
+    };
+    const handleTaskCreated = (task: TaskDto) => {
+      console.log('SignalR: Task created', task);
+      refreshProjectsList();
+    };
+    const handleTaskDeleted = (taskId: string) => {
+      console.log('SignalR: Task deleted', taskId);
+      refreshProjectsList();
+    };
+
+    on('TaskUpdated', handleTaskUpdated);
+    on('TaskCreated', handleTaskCreated);
+    on('TaskDeleted', handleTaskDeleted);
+
+    return () => {
+      off('TaskUpdated', handleTaskUpdated);
+      off('TaskCreated', handleTaskCreated);
+      off('TaskDeleted', handleTaskDeleted);
+    };
+  }, [on, off]);
+
+  // ── Load project files when activeProjectId changes ──
+  useEffect(() => {
+    if (!activeOrgId || !activeProjectId) return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    listProjectFiles(token, activeOrgId, activeProjectId).then(files => {
+      setProjectFiles(prev => ({
+        ...prev,
+        [activeProjectId]: files.map((f: any) => ({
+          id: f.id,
+          name: f.fileName,
+          sizeLabel: f.sizeLabel,
+          uploadedAt: f.uploadedAt,
+          uploadedBy: f.uploadedBy,
+          mimeType: f.mimeType,
+          objectUrl: `http://localhost:5093${f.fileUrl}`
+        }))
+      }));
+    }).catch(console.error);
+  }, [activeProjectId, activeOrgId]);
 
   // Click outside handler for profile menu & notification panel
   useEffect(() => {
@@ -171,27 +235,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Persist projects to localStorage
-  useEffect(() => {
-    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
-  }, [projects]);
 
-  useEffect(() => {
-    localStorage.setItem(PROJECT_FILES_STORAGE_KEY, JSON.stringify(projectFiles));
-  }, [projectFiles]);
 
+  // Derive workspace users from org members + project members (from API data)
   const workspaceUsers = useMemo(() => {
-    const fromWorkspace = workspaceMembers.map(workspaceMemberToUser);
-    return fromWorkspace.reduce<User[]>((acc, user) => {
-      if (!acc.some(entry => entry.id === user.id)) acc.push(user);
-      return acc;
-    }, []);
-  }, [workspaceMembers]);
+    const userMap = new Map<string, User>();
+
+    // From orgDetail members
+    if (orgDetail?.members) {
+      orgDetail.members.forEach(m => {
+        userMap.set(m.userId, {
+          id: m.userId,
+          name: m.name,
+          avatar: m.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(m.name)}`,
+          email: m.email,
+          role: m.role as Role,
+        });
+      });
+    }
+
+    // From project members (may include members not in org detail response)
+    projects.forEach(p => {
+      p.members?.forEach(u => {
+        if (!userMap.has(u.id)) userMap.set(u.id, u);
+      });
+    });
+
+    return Array.from(userMap.values());
+  }, [orgDetail, projects]);
 
   const currentWorkspaceMember = useMemo(() => {
     if (!user) return null;
-    const found = workspaceMembers.find(member => member.id === user.id);
-    if (found) return found;
     return {
       id: user.id,
       profile: {
@@ -208,7 +282,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       projectsJoined: [],
       history: [],
     };
-  }, [workspaceMembers, user]);
+  }, [user]);
 
   const currentUserName = currentWorkspaceMember?.profile.name || user?.name || 'User';
   const currentUserAvatar = currentWorkspaceMember?.profile.avatar || (user ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name)}` : 'https://i.pravatar.cc/150?u=me');
@@ -458,25 +532,115 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const task = activeProject.tasks.find(t => t.id === taskId);
     if (!task) return;
 
+    const currentProjectMember = activeProject.members?.find(m => m.id === user?.id);
+    const isAssignee = task.assignee?.id === user?.id;
+    const isLeader = (currentProjectMember?.role as string) === 'Leader';
+    if (!isLeader && !isAssignee) {
+      showToast('Chỉ Leader hoặc người phụ trách mới có quyền cập nhật công việc', 'error');
+      return;
+    }
+
+    // Phân quyền kéo thả chi tiết theo yêu cầu
+    if (task.status === 'done' && newStatus !== 'done') {
+      if (!isLeader) {
+        showToast('Chỉ Leader mới có quyền chuyển công việc từ Done về trạng thái khác', 'error');
+        return;
+      }
+    }
+
+    if (task.status === 'todo' && newStatus === 'in-progress') {
+      if (!isAssignee) {
+        showToast('Chỉ người được giao công việc (Assignee) mới có thể chuyển sang In Progress', 'error');
+        return;
+      }
+    }
+
+    if (task.status === 'in-progress' && newStatus === 'todo') {
+      if (!isAssignee) {
+        showToast('Chỉ người được giao công việc (Assignee) mới có thể chuyển từ In Progress về Todo', 'error');
+        return;
+      }
+    }
+
+    if (newStatus === 'ready-for-review') {
+      if (!isAssignee) {
+        showToast('Chỉ người được giao công việc (Assignee) mới có thể chuyển sang Ready for Review', 'error');
+        return;
+      }
+    }
+
+    if (newStatus === 'done') {
+      if (task.status !== 'ready-for-review') {
+        showToast('Chỉ có thể kéo sang Done từ cột Ready for Review', 'error');
+        return;
+      }
+      if (!isLeader) {
+        showToast('Chỉ Leader mới có quyền duyệt task (chuyển sang Done)', 'error');
+        return;
+      }
+    }
+
+    let finalDescription = task.description || '';
+
+    if (isLeader) {
+      if (
+        newStatus === 'done' ||
+        (task.status === 'ready-for-review' && newStatus === 'in-progress')
+      ) {
+        setCommentPrompt({
+          taskId,
+          newStatus,
+          taskDescription: finalDescription,
+        });
+        return; // Dừng luồng xử lý ở đây, đợi Modal trả kết quả về
+      }
+    }
+
+    await executeTaskDrop(taskId, newStatus, finalDescription);
+  };
+
+  const handleCommentSubmit = async (comment: string) => {
+    if (!commentPrompt) return;
+
+    let finalDescription = commentPrompt.taskDescription;
+    if (comment.trim()) {
+      const today = new Date().toLocaleDateString('vi-VN');
+      finalDescription = `**[Leader's Feedback - ${today}]:** ${comment.trim()}\n\n${finalDescription}`;
+    }
+
+    const { taskId, newStatus } = commentPrompt;
+    setCommentPrompt(null);
+    await executeTaskDrop(taskId, newStatus, finalDescription);
+  };
+
+  const executeTaskDrop = async (taskId: string, newStatus: Status, finalDescription: string) => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    const projectId = activeProjectId;
+    if (!token || !orgId || !projectId) return;
+
     try {
       // 1. Cập nhật state local lập tức để UI kéo thả phản hồi mượt mà (Optimistic UI update)
       setProjects(prev => prev.map(p => {
         if (p.id !== projectId) return p;
         return {
           ...p,
-          tasks: p.tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t)
+          tasks: p.tasks.map(t => t.id === taskId ? { ...t, status: newStatus, description: finalDescription } : t)
         };
       }));
+
+      const task = activeProject.tasks.find(t => t.id === taskId);
 
       // 2. Gửi request cập nhật lên Backend
       await updateTask(token, orgId, projectId, taskId, {
         status: newStatus,
+        description: finalDescription !== (task?.description || '') ? finalDescription : undefined,
       });
 
       // 3. Fetch lại để đảm bảo dữ liệu đồng bộ chính xác với DB
       await refreshProjectsList();
     } catch (err) {
-      console.error('Error in handleTaskDrop:', err);
+      console.error('Error in executeTaskDrop:', err);
       showToast('Không thể lưu trạng thái kéo thả công việc', 'error');
       await refreshProjectsList();
     }
@@ -487,7 +651,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setShowAddTask(true);
   };
 
-  const handleAddTask = async (title: string, priority: Priority, description: string, attachmentCount: number) => {
+  const handleAddTask = async (title: string, priority: Priority, description: string, attachmentCount: number, endDate: string, assigneeId: string | null) => {
     const token = getAuthToken();
     const orgId = activeOrgId;
     const projectId = activeProjectId;
@@ -498,14 +662,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
     try {
       const startDate = new Date().toISOString();
-      const endDate = new Date(Date.now() + 7 * 86400000).toISOString();
 
       await createTask(token, orgId, projectId, {
         title,
         description: description.trim() || undefined,
         status: addTaskStatus,
         priority,
-        assigneeId: activeProjectMembers[0]?.id || null,
+        assigneeId: assigneeId,
         startDate,
         endDate,
       });
@@ -531,6 +694,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const taskToDelete = activeProject.tasks.find(task => task.id === taskId);
     if (!taskToDelete) return;
 
+    const currentProjectMember = activeProject.members?.find(m => m.id === user?.id);
+    if ((currentProjectMember?.role as string) !== 'Leader') {
+      showToast('Chỉ Leader mới có quyền xóa công việc', 'error');
+      return;
+    }
+
     try {
       await deleteTask(token, orgId, projectId, taskId);
       showToast(`Deleted task "${taskToDelete.title}"`);
@@ -550,6 +719,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
       showToast('Không đủ thông tin để cập nhật công việc', 'error');
+      return;
+    }
+
+    const task = activeProject.tasks.find(t => t.id === updatedTask.id);
+    const currentProjectMember = activeProject.members?.find(m => m.id === user?.id);
+    const isAssignee = task?.assignee?.id === user?.id;
+
+    if ((currentProjectMember?.role as string) !== 'Leader' && !isAssignee) {
+      showToast('Chỉ Leader hoặc người phụ trách mới có quyền cập nhật công việc', 'error');
       return;
     }
 
@@ -600,32 +778,49 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   };
 
-  const handleAddProjectMember = (user: User) => {
-    setProjects(prev => prev.map(project => (
-      project.id === activeProjectId && !project.memberIds.includes(user.id)
-        ? { ...project, memberIds: [...project.memberIds, user.id] }
-        : project
-    )));
-    showToast(`Invited ${user.name} to ${activeProject.name}`);
+  const handleAddProjectMember = async (user: User) => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    const projectId = activeProjectId;
+    if (!token || !orgId || !projectId) {
+      showToast('Không đủ thông tin để thêm thành viên', 'error');
+      return;
+    }
+    try {
+      await addProjectMember(token, orgId, projectId, { emailOrUserId: user.id, role: 'Member' });
+      showToast(`Added ${user.name} to ${activeProject.name}`);
+      await refreshProjectsList();
+    } catch (err) {
+      console.error('Error adding project member:', err);
+      showToast('Không thể thêm thành viên vào dự án', 'error');
+    }
   };
 
-  const handleInviteMember = ({ email, role, projectCode, joinLink }: { email: string; role: InviteRole; projectCode: string; joinLink: string }) => {
-    const receiverInbox = loadInviteInbox();
-    const receiverNotification = createInviteNotification(
-      `You were invited to "${activeProject.name}" as ${role}. Use code ${projectCode} to join.`
-    );
-    const nextReceiverItems = [receiverNotification, ...(receiverInbox[email] || [])];
-    receiverInbox[email] = nextReceiverItems;
-    localStorage.setItem(INVITE_INBOX_KEY, JSON.stringify(receiverInbox));
+  const handleInviteMember = async ({ email, role }: { email: string; role: InviteRole; projectCode: string; joinLink: string }) => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    const projectId = activeProjectId;
+    if (!token || !orgId || !projectId) {
+      showToast('Không đủ thông tin để mời thành viên', 'error');
+      return;
+    }
 
-    setNotifications(prev => [
-      createInviteNotification(`Invite sent to ${email}. Join link: ${joinLink}`),
-      ...prev,
-    ]);
-    showToast(`Invite sent to ${email}`);
+    const currentProjectMember = activeProject.members?.find(m => m.userId === user?.id || m.id === user?.id);
+    if ((currentProjectMember?.role as string) !== 'Leader') {
+      showToast('Chỉ Leader mới có quyền mời thành viên vào dự án', 'error');
+      return;
+    }
+
+    try {
+      await createInvitation({ email, role, targetType: 'Project', targetId: projectId });
+      showToast(`Đã gửi email mời tham gia dự án tới ${email}`);
+    } catch (err: any) {
+      console.error('Error inviting member by email:', err);
+      showToast(err.message || `Không thể gửi lời mời tới ${email}`, 'error');
+    }
   };
 
-  const handleRemoveProjectMember = (userId: string) => {
+  const handleRemoveProjectMember = async (userId: string) => {
     const member = activeProjectMembers.find(entry => entry.id === userId);
     if (!member) return;
     if (activeProjectMembers.length <= 1) {
@@ -633,15 +828,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       return;
     }
 
-    setProjects(prev => prev.map(project => {
-      if (project.id !== activeProjectId) return project;
-      return {
-        ...project,
-        memberIds: project.memberIds.filter(memberId => memberId !== userId),
-        tasks: project.tasks.map(task => task.assignee?.id === userId ? { ...task, assignee: undefined } : task),
-      };
-    }));
-    showToast(`Removed ${member.name} from ${activeProject.name}`);
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    const projectId = activeProjectId;
+    if (!token || !orgId || !projectId) {
+      showToast('Không đủ thông tin để xóa thành viên', 'error');
+      return;
+    }
+
+    try {
+      await removeProjectMember(token, orgId, projectId, userId);
+      showToast(`Removed ${member.name} from ${activeProject.name}`);
+      await refreshProjectsList();
+    } catch (err) {
+      console.error('Error removing project member:', err);
+      showToast('Không thể xóa thành viên khỏi dự án', 'error');
+    }
   };
 
   const handleAddProject = async (name: string) => {
@@ -661,9 +863,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       });
 
       showToast('Project created successfully!');
-      
+
       await refreshProjectsList();
-      
+
       setActiveProjectId(newProjectSummary.id);
       setActiveTab('projects');
       setProjectTab('board');
@@ -746,32 +948,60 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setProjectTab('ai-planner');
   };
 
-  const handleUploadProjectFiles = (fileList: FileList | null) => {
-    if (!fileList || fileList.length === 0) return;
-    const uploads: ProjectFileItem[] = Array.from(fileList).map(file => ({
-      id: `f_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      name: file.name,
-      sizeLabel: file.size >= 1024 * 1024
-        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-        : `${Math.max(1, Math.round(file.size / 1024))} KB`,
-      uploadedAt: new Date().toISOString(),
-      uploadedBy: 'Minh',
-      mimeType: file.type,
-      objectUrl: URL.createObjectURL(file),
-    }));
+  const handleUploadProjectFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0 || !activeOrgId) return;
+    const token = getAuthToken();
+    if (!token) return;
 
-    setProjectFiles(prev => ({
-      ...prev,
-      [activeProjectId]: [...uploads, ...(prev[activeProjectId] || [])],
-    }));
-    showToast(`${uploads.length} file${uploads.length > 1 ? 's' : ''} uploaded`);
+    try {
+      const currentProjectMember = activeProject.members?.find(m => m.id === user?.id);
+      const role = (currentProjectMember?.role as string) || 'Member';
+
+      const uploads = Array.from(fileList);
+      for (const file of uploads) {
+        await uploadProjectFile(token, activeOrgId, activeProjectId, file, role);
+      }
+
+      // Refresh files
+      const files = await listProjectFiles(token, activeOrgId, activeProjectId);
+      setProjectFiles(prev => ({
+        ...prev,
+        [activeProjectId]: files.map((f: any) => ({
+          id: f.id,
+          name: f.fileName,
+          sizeLabel: f.sizeLabel,
+          uploadedAt: f.uploadedAt,
+          uploadedBy: f.uploadedBy,
+          mimeType: f.mimeType,
+          objectUrl: `http://localhost:5093${f.fileUrl}`
+        }))
+      }));
+
+      showToast(`${uploads.length} file${uploads.length > 1 ? 's' : ''} uploaded`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to upload file(s)', 'error');
+    }
   };
 
-  const handleDeleteProjectFile = (fileId: string) => {
-    setProjectFiles(prev => ({
-      ...prev,
-      [activeProjectId]: (prev[activeProjectId] || []).filter(file => file.id !== fileId),
-    }));
+  const handleDeleteProjectFile = async (fileId: string) => {
+    if (!activeOrgId) return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const currentProjectMember = activeProject.members?.find(m => m.id === user?.id);
+      const role = (currentProjectMember?.role as string) || 'Member';
+
+      await deleteProjectFile(token, activeOrgId, activeProjectId, fileId, role);
+
+      setProjectFiles(prev => ({
+        ...prev,
+        [activeProjectId]: (prev[activeProjectId] || []).filter(file => file.id !== fileId),
+      }));
+      showToast('File deleted successfully');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete file', 'error');
+    }
   };
 
   const handleRenameProjectFile = (fileId: string, newName: string) => {
@@ -790,7 +1020,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     if (!activeOrgId) return;
     const token = getAuthToken();
     if (!token) return;
-    getOrgDetail(token, activeOrgId).then(setOrgDetail).catch(() => {});
+    getOrgDetail(token, activeOrgId).then(setOrgDetail).catch(() => { });
   };
 
   const handleCreateOrg = async (name: string, slug: string) => {
@@ -817,10 +1047,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     if (!token) return;
     setOrgActionLoading(true);
     try {
-      await inviteMember(token, activeOrgId, { email, role });
-      refreshOrgDetail();
+      await createInvitation({ email, role, targetType: 'Organization', targetId: activeOrgId });
       setShowInviteOrgMember(false);
-      showToast(`Invited ${email} as ${role}`);
+      showToast(`Đã gửi email mời tham gia tổ chức tới ${email}`);
     } catch (err: any) {
       showToast(err.message || 'Failed to invite member', 'error');
     } finally {
@@ -848,6 +1077,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     try {
       await removeMember(token, activeOrgId, memberId);
       refreshOrgDetail();
+      await refreshProjectsList();
       showToast('Member removed');
     } catch (err: any) {
       showToast(err.message || 'Failed to remove member', 'error');
@@ -863,7 +1093,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const handleSignOut = async () => {
     await authLogout();
-    localStorage.removeItem(PROJECTS_STORAGE_KEY);
     showToast('Signed out successfully');
     setTimeout(() => {
       onNavigate?.('login');
@@ -899,22 +1128,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   }, [projects, activeProjectId]);
 
   const handleSaveProfile = (member: WorkspaceMember) => {
-    const nextMembers = workspaceMembers.some(entry => entry.id === member.id)
-      ? workspaceMembers.map(entry => (entry.id === member.id ? member : entry))
-      : [...workspaceMembers, member];
-
-    saveWorkspaceMembers(nextMembers);
-    setWorkspaceMembers(nextMembers);
-
-    const updatedUser = workspaceMemberToUser(member);
-    setProjects(prev => prev.map(project => ({
-      ...project,
-      tasks: project.tasks.map(task => (
-        task.assignee?.id === member.id
-          ? { ...task, assignee: updatedUser }
-          : task
-      )),
-    })));
+    // TODO: Phase 2 — call API to update user profile + skills
+    setWorkspaceMembers(prev => {
+      const next = prev.some(entry => entry.id === member.id)
+        ? prev.map(entry => (entry.id === member.id ? member : entry))
+        : [...prev, member];
+      return next;
+    });
   };
 
   return (
@@ -922,7 +1142,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       {/* Topbar */}
       <header className="h-16 bg-[#0F1A2A]/80 backdrop-blur-xl border-b border-[#22C55E]/10 flex items-center justify-between px-4 sticky top-0 z-20 relative">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="p-2 hover:bg-[#162032] rounded-lg lg:hidden text-slate-400"
           >
@@ -935,10 +1155,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           >
             <div className="vertex-mark w-8 h-8 rounded-lg flex items-center justify-center text-white">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="6" cy="6" r="3" fill="currentColor" fillOpacity="0.8"/>
-                <circle cx="18" cy="6" r="3" fill="currentColor" fillOpacity="0.8"/>
-                <circle cx="12" cy="18" r="3" fill="currentColor" fillOpacity="0.8"/>
-                <path d="M6 6L12 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="6" cy="6" r="3" fill="currentColor" fillOpacity="0.8" />
+                <circle cx="18" cy="6" r="3" fill="currentColor" fillOpacity="0.8" />
+                <circle cx="12" cy="18" r="3" fill="currentColor" fillOpacity="0.8" />
+                <path d="M6 6L12 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
             <span className="font-display text-lg hidden sm:inline-block vertex-wordmark">Vertex</span>
@@ -951,9 +1171,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         <div className={`flex-1 max-w-xl mx-4 hidden md:block transition-opacity ${activeTab === 'projects' || activeTab === 'dashboard' || activeTab === 'members' ? '' : 'invisible pointer-events-none'}`}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input 
-              type="text" 
-              placeholder={t.dashboard.searchPlaceholder} 
+            <input
+              type="text"
+              placeholder={t.dashboard.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-8 py-2 bg-[#162032] border-transparent focus:bg-[#0A0F1A] focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 rounded-lg outline-none transition-all text-sm text-white placeholder-slate-500"
@@ -1066,9 +1286,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          activeProject={activeProjectId} 
+        <Sidebar
+          isOpen={isSidebarOpen}
+          activeProject={activeProjectId}
           activeTab={activeTab}
           onSelectProject={(id) => { setActiveProjectId(id); setActiveTab('projects'); setProjectTab('board'); setProjectViewMode('kanban'); }}
           projects={projects.map(p => ({ id: p.id, name: p.name }))}
@@ -1081,16 +1301,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           onViewPlans={() => onNavigate?.('pricing')}
           userPlan={userPlan}
           workspaceName={orgDetail?.name || workspaceName}
-          workspaces={orgs.length > 0 ? orgs.map(o => ({ id: o.id, name: o.name })) : DEFAULT_WORKSPACES}
-          activeWorkspaceId={activeOrgId || activeWorkspaceId}
+          workspaces={orgs.map(o => ({ id: o.id, name: o.name }))}
+          activeWorkspaceId={activeOrgId || ''}
           onSwitchWorkspace={(id) => {
-            if (orgs.some(o => o.id === id)) {
-              handleSwitchOrg(id);
-            } else {
-              setActiveWorkspaceId(id);
-              const ws = DEFAULT_WORKSPACES.find(w => w.id === id);
-              if (ws) setWorkspaceName(ws.name);
-            }
+            handleSwitchOrg(id);
           }}
           onCreateWorkspace={() => setShowCreateOrg(true)}
         />
@@ -1117,49 +1331,49 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1 bg-[#162032] p-1 rounded-lg">
-                  {([
-                    { id: 'kanban', label: 'Board', icon: Kanban },
-                    { id: 'timeline', label: 'Timeline', icon: CalendarIcon },
-                    { id: 'calendar', label: 'Calendar', icon: CalendarDays },
-                  ] as const).map(tab => {
-                    const Icon = tab.icon;
-                    const isActive = projectTab === 'board' && projectViewMode === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => {
-                          setProjectTab('board');
-                          setProjectViewMode(tab.id);
-                        }}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${isActive ? 'bg-[#0F1A2A] text-[#22C55E] shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
-                      >
-                        <Icon size={13} />
-                        {tab.label}
-                      </button>
-                    );
-                  })}
+                    {([
+                      { id: 'kanban', label: 'Board', icon: Kanban },
+                      { id: 'timeline', label: 'Timeline', icon: CalendarIcon },
+                      { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+                    ] as const).map(tab => {
+                      const Icon = tab.icon;
+                      const isActive = projectTab === 'board' && projectViewMode === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => {
+                            setProjectTab('board');
+                            setProjectViewMode(tab.id);
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${isActive ? 'bg-[#0F1A2A] text-[#22C55E] shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                          <Icon size={13} />
+                          {tab.label}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <div className="flex items-center gap-1 bg-[#162032] p-1 rounded-lg">
-                  {([
-                    { id: 'ai-planner', label: 'AI Planner' },
-                    { id: 'insights', label: 'Insights' },
-                    { id: 'members', label: 'Members' },
-                    { id: 'files', label: 'Files' },
-                  ] as const).map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => {
-                        if (tab.id === 'ai-planner') {
-                          setGeneratedPlan(null);
-                        }
-                        setProjectTab(tab.id);
-                      }}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${projectTab === tab.id ? 'bg-[#0F1A2A] text-[#22C55E] shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
+                    {([
+                      { id: 'ai-planner', label: 'AI Planner' },
+                      { id: 'insights', label: 'Insights' },
+                      { id: 'members', label: 'Members' },
+                      { id: 'files', label: 'Files' },
+                    ] as const).map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          if (tab.id === 'ai-planner') {
+                            setGeneratedPlan(null);
+                          }
+                          setProjectTab(tab.id);
+                        }}
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${projectTab === tab.id ? 'bg-[#0F1A2A] text-[#22C55E] shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -1203,7 +1417,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             {activeTab === 'projects' && projectTab === 'board' && (
               <div className="flex-1 overflow-x-auto overflow-y-hidden bg-[#0A0F1A] p-6">
                 {projectViewMode === 'kanban' ? (
-                  <KanbanBoard project={displayProject} onTaskClick={handleTaskClick} onTaskDrop={handleTaskDrop} onAddTask={handleOpenAddTask} onDeleteTask={handleDeleteTask} />
+                  <KanbanBoard
+                    project={displayProject}
+                    currentUserRole={activeProject.members?.find(m => m.id === user?.id)?.role}
+                    onTaskClick={handleTaskClick}
+                    onTaskDrop={handleTaskDrop}
+                    onAddTask={handleOpenAddTask}
+                    onDeleteTask={handleDeleteTask}
+                  />
                 ) : projectViewMode === 'timeline' ? (
                   <TimelineView project={displayProject} onTaskClick={handleTaskClick} />
                 ) : (
@@ -1236,6 +1457,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
             {activeTab === 'projects' && projectTab === 'files' && (
               <ProjectFilesView
+                projectId={activeProjectId}
+                orgId={activeOrgId}
+                role={(activeProject?.members?.find(m => m.id === user?.id)?.role as string) || 'Member'}
                 files={projectFiles[activeProjectId] || []}
                 onUpload={handleUploadProjectFiles}
                 onDelete={handleDeleteProjectFile}
@@ -1273,12 +1497,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </div>
 
       {/* Task Detail Panel */}
-      <TaskPanel 
-        task={selectedTask} 
-        onClose={() => setSelectedTask(null)} 
+      <TaskPanel
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
         onDeleteTask={handleDeleteTask}
         onUpdateTask={handleUpdateTask}
         assigneeOptions={activeProjectMembers}
+        orgId={activeOrgId}
+        projectId={activeProject.id}
+        currentUserId={user?.id || null}
+        currentUserRole={activeProject.members?.find(m => m.id === user?.id)?.role || 'Member'}
       />
 
       <TeamModal
@@ -1302,6 +1530,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       <AddTaskModal
         isOpen={showAddTask}
         status={addTaskStatus}
+        assigneeOptions={activeProjectMembers}
         onClose={() => setShowAddTask(false)}
         onSubmit={handleAddTask}
       />
@@ -1335,6 +1564,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         onSubmit={handleInviteOrgMember}
         loading={orgActionLoading}
         orgName={orgDetail?.name || workspaceName}
+      />
+
+      {/* Prompt Comment Modal */}
+      <PromptCommentModal
+        isOpen={!!commentPrompt}
+        onClose={() => setCommentPrompt(null)}
+        onSubmit={handleCommentSubmit}
       />
     </div>
   );

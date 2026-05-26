@@ -18,8 +18,11 @@ export async function apiRequest<T>(
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`;
     try {
-      const data = (await response.json()) as { message?: string };
+      const data = (await response.json()) as { message?: string; error?: string; errors?: any };
+      console.error('API Error Response:', data);
       if (data?.message) message = data.message;
+      else if (data?.error) message = data.error;
+      else if (data?.errors) message = JSON.stringify(data.errors);
     } catch {
       // Ignore JSON parse errors.
     }
