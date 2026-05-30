@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OrgPlan } from '../../../types';
 import { useToast } from '../../ui/Toast';
-import { Moon, Sun, Bell, Palette, HardDrive, Sparkles, CalendarDays, Users, Shield, Zap, Trash2, ShieldCheck, MoreHorizontal, UserPlus, GraduationCap, Loader2 } from 'lucide-react';
+import { 
+  Moon, Sun, Bell, Palette, HardDrive, Sparkles, CalendarDays, 
+  Users, Shield, Zap, Trash2, ShieldCheck, MoreHorizontal, 
+  UserPlus, GraduationCap, Loader2, Check, X, ArrowRight, 
+  QrCode, ShieldAlert, BadgeCheck, CheckCircle2
+} from 'lucide-react';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
-import type { OrgDetail, OrgMember } from '../../../api/org';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  OrgDetail, 
+  OrgMember, 
+  createCheckoutSession, 
+  simulatePaymentSuccess 
+} from '../../../api/org';
+import { getAccessToken, getUserInfo } from '../../../utils/authStorage';
 
 interface SettingsViewProps {
   userPlan: OrgPlan;
@@ -14,6 +26,7 @@ interface SettingsViewProps {
   onInviteMember?: () => void;
   onUpdateMemberRole?: (memberId: string, role: string) => void;
   onRemoveMember?: (memberId: string) => void;
+  onUpgradeSuccess?: () => void;
 }
 
 const ROLE_OPTIONS = ['admin', 'lecturer', 'member'] as const;
@@ -30,21 +43,38 @@ const ToggleRow: React.FC<{ title: string; description?: string; enabled: boolea
   </div>
 );
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName, orgDetail, orgLoading, onInviteMember, onUpdateMemberRole, onRemoveMember }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ 
+  userPlan, orgName, orgDetail, orgLoading, 
+  onInviteMember, onUpdateMemberRole, onRemoveMember, onUpgradeSuccess 
+}) => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'notifications' | 'org-general' | 'org-members' | 'org-billing'>('profile');
   const [isDark, setIsDark] = useState(localStorage.getItem('theme') === 'dark');
   const [notifs, setNotifs] = useState({ assigned: true, overdue: true, comments: true });
   const [roleMenuOpen, setRoleMenuOpen] = useState<string | null>(null);
 
+  // ── Checkout Stepper States ──
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<1 | 2 | 3 | 4>(1);
+  const [selectedPlan, setSelectedPlan] = useState<'pro' | 'business'>('pro');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [checkoutResult, setCheckoutResult] = useState<any>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [simulatedProgressText, setSimulatedProgressText] = useState('Đang khởi tạo kết nối bảo mật...');
+
   const membersCount = orgDetail?.members.length ?? 0;
   const maxMembers = orgDetail?.maxMembers ?? 5;
   const aiQuota = orgDetail?.aiQuota ?? 20;
   const storageLimitBytes = orgDetail?.storageLimit ?? (1024 * 1024 * 1024);
   const storageLimitGB = storageLimitBytes / (1024 * 1024 * 1024);
-  const storageUsedGB = storageLimitGB * 0.34; // placeholder until backend tracks usage
+  const storageUsedGB = storageLimitGB * 0.34; 
   const storagePercent = Math.min(100, Math.round((storageUsedGB / storageLimitGB) * 100));
   const membersPercent = Math.min(100, Math.round((membersCount / maxMembers) * 100));
+
+  // Phân quyền: Kiểm tra người dùng hiện tại có quyền nâng cấp không
+  const currentUser = getUserInfo();
+  const currentMemberInOrg = orgDetail?.members?.find(m => m.userId === currentUser?.id);
+  const hasAdminAccess = currentMemberInOrg?.role === 'owner' || currentMemberInOrg?.role === 'admin';
 
   const toggleTheme = () => {
     const next = !isDark;
@@ -64,7 +94,86 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName, o
   ];
 
   const handleUpgrade = () => {
-    showToast('Redirecting to plans...');
+    if (!hasAdminAccess) {
+      showToast('Chỉ Chủ sở hữu hoặc Quản trị viên của tổ chức mới được phép nâng cấp gói.', 'error');
+      return;
+    }
+    setCheckoutStep(1);
+    setShowCheckout(true);
+  };
+
+  // ── Khởi tạo checkout đơn hàng ──
+  const handleStartCheckout = async () => {
+    const token = getAccessToken();
+    const orgId = orgDetail?.id;
+    if (!token || !orgId) {
+      showToast('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.', 'error');
+      return;
+    }
+
+    setCheckoutLoading(true);
+    try {
+      const result = await createCheckoutSession(token, orgId, {
+        plan: selectedPlan,
+        billingCycle: billingCycle
+      });
+      setCheckoutResult(result);
+      setCheckoutStep(2); // Đi đến bước quét VietQR
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Không thể tạo đơn hàng thanh toán.', 'error');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  // ── Giả lập xác nhận thanh toán thành công ──
+  const handleConfirmPayment = () => {
+    setCheckoutStep(3); // Đi đến màn hình Loading giả lập
+    
+    // Tạo chuỗi chạy chữ loading mô phỏng kết nối ngân hàng
+    const textSequence = [
+      { text: 'Kết nối an toàn tới hệ thống VietQR Napas...', delay: 0 },
+      { text: 'Đang kiểm tra giao dịch tài khoản MB Bank...', delay: 700 },
+      { text: 'Phát hiện biến động số dư: +Khớp đơn hàng! 🌟', delay: 1400 },
+      { text: 'Đang kích hoạt gói dịch vụ mới...', delay: 2000 }
+    ];
+
+    textSequence.forEach(step => {
+      setTimeout(() => {
+        setSimulatedProgressText(step.text);
+      }, step.delay);
+    });
+
+    // Sau 2.5 giây thì gọi API thành công thực tế xuống Backend
+    setTimeout(async () => {
+      const token = getAccessToken();
+      const orgId = orgDetail?.id;
+      if (!token || !orgId || !checkoutResult) {
+        showToast('Có lỗi xảy ra, vui lòng thử lại.', 'error');
+        setCheckoutStep(2);
+        return;
+      }
+
+      try {
+        await simulatePaymentSuccess(token, orgId, {
+          plan: selectedPlan,
+          transactionId: checkoutResult.transactionId
+        });
+
+        // Đồng bộ hóa trạng thái trên toàn ứng dụng
+        if (onUpgradeSuccess) {
+          onUpgradeSuccess();
+        }
+        
+        // Mở màn hình thành công
+        setCheckoutStep(4);
+      } catch (err: any) {
+        console.error(err);
+        showToast(err.message || 'Lỗi nâng cấp gói dịch vụ.', 'error');
+        setCheckoutStep(2);
+      }
+    }, 2600);
   };
 
   const renderContent = () => {
@@ -79,7 +188,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName, o
             <div className="bg-[#162032]/40 rounded-2xl border border-[#22C55E]/10 p-6 space-y-6">
               <div className="flex items-center gap-6">
                 <div className="w-20 h-20 rounded-2xl bg-[#22C55E]/10 border border-[#22C55E]/20 flex items-center justify-center overflow-hidden relative group cursor-pointer">
-                  <Avatar src="https://i.pravatar.cc/150?u=me" fallback="MN" size="lg" className="w-full h-full rounded-none" />
+                  <Avatar src={currentUser?.avatarUrl || "https://i.pravatar.cc/150?u=me"} fallback={currentUser?.name?.charAt(0) || "U"} size="lg" className="w-full h-full rounded-none" />
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                     <span className="text-xs font-semibold text-white">Upload</span>
                   </div>
@@ -96,11 +205,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName, o
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-300">Full Name</label>
-                  <input type="text" defaultValue="Minh Nguyen" className="w-full rounded-xl border border-[#22C55E]/10 bg-[#0F1A2A] px-4 py-2.5 text-sm text-white outline-none focus:border-[#22C55E]/35 focus:ring-1 focus:ring-[#22C55E]/30" />
+                  <input type="text" defaultValue={currentUser?.name || "Minh Nguyen"} className="w-full rounded-xl border border-[#22C55E]/10 bg-[#0F1A2A] px-4 py-2.5 text-sm text-white outline-none focus:border-[#22C55E]/35 focus:ring-1 focus:ring-[#22C55E]/30" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-300">Email Address</label>
-                  <input type="email" defaultValue="minh@university.edu" className="w-full rounded-xl border border-[#22C55E]/10 bg-[#0F1A2A] px-4 py-2.5 text-sm text-white outline-none focus:border-[#22C55E]/35 focus:ring-1 focus:ring-[#22C55E]/30" />
+                  <input type="email" defaultValue={currentUser?.email || "minh@university.edu"} className="w-full rounded-xl border border-[#22C55E]/10 bg-[#0F1A2A] px-4 py-2.5 text-sm text-white outline-none focus:border-[#22C55E]/35 focus:ring-1 focus:ring-[#22C55E]/30" disabled />
                 </div>
               </div>
               <Button onClick={() => showToast('Profile saved')}>Save Changes</Button>
@@ -269,6 +378,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName, o
         );
 
       case 'org-billing':
+        const activePlan = orgDetail?.plan || userPlan;
+        const isFree = activePlan === 'free';
+        
         return (
           <div className="space-y-6 max-w-3xl">
             <div>
@@ -277,31 +389,45 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName, o
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gradient-to-br from-[#162032] to-[#0F1A2A] rounded-2xl border border-[#22C55E]/20 p-6 flex flex-col justify-between">
+              <div className="bg-gradient-to-br from-[#162032] to-[#0F1A2A] rounded-2xl border border-[#22C55E]/20 p-6 flex flex-col justify-between relative overflow-hidden group">
+                <div className="absolute -right-8 -top-8 w-24 h-24 bg-[#22C55E]/5 rounded-full blur-xl group-hover:scale-125 transition-transform duration-300" />
                 <div>
                   <div className="flex items-center justify-between">
                     <span className={`inline-flex px-3 py-1 rounded-md border text-xs font-bold uppercase tracking-wider ${
-                      userPlan === 'pro' || userPlan === 'business' || userPlan === 'enterprise' 
-                        ? 'border-blue-500/35 bg-blue-500/10 text-blue-300'
+                      activePlan === 'pro' || activePlan === 'business' || activePlan === 'enterprise' 
+                        ? 'border-blue-500/35 bg-blue-500/10 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.1)]'
                         : 'border-[#22C55E]/35 bg-[#22C55E]/10 text-[#6EE7B7]'
                     }`}>
-                      {(orgDetail?.plan || userPlan).charAt(0).toUpperCase() + (orgDetail?.plan || userPlan).slice(1)} Plan
+                      {activePlan.charAt(0).toUpperCase() + activePlan.slice(1)} Plan
                     </span>
                   </div>
-                  <h3 className="text-2xl font-bold text-white mt-4">
-                    {userPlan === 'free' ? '$0' : userPlan === 'pro' ? '$5' : userPlan === 'business' ? '$15' : 'Custom'} <span className="text-sm font-normal text-slate-400">/mo</span>
+                  <h3 className="text-2xl font-bold text-white mt-4 flex items-baseline gap-1.5">
+                    {activePlan === 'free' ? '0 VNĐ' : activePlan === 'pro' ? '99.000 VNĐ' : activePlan === 'business' ? '249.000 VNĐ' : 'Custom'}
+                    <span className="text-sm font-normal text-slate-400">/tháng</span>
                   </h3>
-                  <p className="text-sm text-slate-400 mt-2">Active workspace subscription for {orgName}.</p>
+                  <p className="text-sm text-slate-400 mt-2">Active subscription for {orgName}.</p>
                 </div>
                 <div className="mt-6">
-                  <Button onClick={handleUpgrade} className="w-full" variant={userPlan === 'free' ? 'primary' : 'outline'}>
-                    {userPlan === 'free' ? 'Upgrade Plan' : 'Manage Subscription'}
-                  </Button>
+                  {isFree ? (
+                    <Button onClick={handleUpgrade} className="w-full flex items-center justify-center gap-2" variant="primary">
+                      <Sparkles size={14} className="text-yellow-300 animate-pulse" />
+                      Nâng Cấp Gói Dịch Vụ
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5 text-xs text-[#6EE7B7] bg-[#22C55E]/10 border border-[#22C55E]/20 px-3 py-2 rounded-xl">
+                        <Check size={14} /> Gói dịch vụ cao cấp đã hoạt động
+                      </div>
+                      <Button onClick={handleUpgrade} className="w-full" variant="outline">
+                        Thay Đổi Gói Cước
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/10 p-5">
+                <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/10 p-5 hover:border-[#22C55E]/20 transition-colors">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <HardDrive size={14} className="text-orange-400" />
@@ -314,23 +440,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName, o
                   </div>
                 </div>
 
-                <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/10 p-5">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/10 p-5 hover:border-[#22C55E]/20 transition-colors">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Zap size={14} className="text-yellow-400" />
                       <span className="text-sm font-medium text-slate-200">AI Quota</span>
                     </div>
-                    <span className="text-xs text-slate-400">{aiQuota > 1000 ? 'Unlimited' : `${aiQuota} requests`}</span>
+                    <span className="text-xs font-bold text-yellow-300">{aiQuota >= 9999 ? 'Không giới hạn' : `${aiQuota} yêu cầu`}</span>
                   </div>
                 </div>
 
-                <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/10 p-5">
+                <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/10 p-5 hover:border-[#22C55E]/20 transition-colors">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Users size={14} className="text-blue-400" />
                       <span className="text-sm font-medium text-slate-200">Members</span>
                     </div>
-                    <span className="text-xs text-slate-400">{membersCount} / {maxMembers > 100 ? 'Unlimited' : maxMembers}</span>
+                    <span className="text-xs text-slate-400">{membersCount} / {maxMembers >= 999 ? 'Không giới hạn' : maxMembers}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-[#0A0F1A] overflow-hidden">
                     <div className="h-full rounded-full bg-blue-400" style={{ width: `${membersPercent}%` }} />
@@ -347,7 +473,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName, o
   };
 
   return (
-    <div className="h-full w-full bg-[#0A0F1A] overflow-hidden flex">
+    <div className="h-full w-full bg-[#0A0F1A] overflow-hidden flex relative">
       {/* Sidebar Navigation */}
       <div className="w-64 border-r border-[#22C55E]/10 bg-[#0F1A2A] flex flex-col h-full overflow-y-auto">
         <div className="p-6">
@@ -397,6 +523,363 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userPlan, orgName, o
           {renderContent()}
         </div>
       </div>
+
+      {/* ─── Premium VietQR Simulated Checkout Overlay ─── */}
+      <AnimatePresence>
+        {showCheckout && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (checkoutStep !== 3) setShowCheckout(false);
+              }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md" 
+            />
+
+            {/* Stepper Modal Container */}
+            <motion.div
+              initial={{ scale: 0.9, y: 30, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 30, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative bg-[#0F1A2A]/95 border border-[#22C55E]/20 rounded-3xl w-[780px] max-w-full mx-4 overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-10 flex flex-col"
+            >
+              {/* Stepper Header */}
+              <div className="px-6 py-4 border-b border-[#22C55E]/10 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#22C55E]/10 flex items-center justify-center text-[#6EE7B7]">
+                    <QrCode size={16} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-md">Nâng Cấp Gói Dịch Vụ Tổ Chức</h3>
+                    <p className="text-xs text-slate-500">Giả lập thanh toán bảo mật VietQR</p>
+                  </div>
+                </div>
+                {checkoutStep !== 3 && (
+                  <button 
+                    onClick={() => setShowCheckout(false)} 
+                    className="w-8 h-8 rounded-xl hover:bg-[#162032] flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              {/* Progress Steps Indicators */}
+              <div className="px-8 py-4 bg-[#162032]/40 border-b border-[#22C55E]/5 flex justify-center items-center gap-2 text-xs font-semibold text-slate-400">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center ${checkoutStep >= 1 ? 'bg-[#22C55E] text-white' : 'bg-slate-700'}`}>1</span>
+                  <span className={checkoutStep >= 1 ? 'text-[#6EE7B7]' : ''}>Chọn gói</span>
+                </div>
+                <div className="w-12 h-0.5 bg-slate-700" />
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center ${checkoutStep >= 2 ? 'bg-[#22C55E] text-white' : 'bg-slate-700'}`}>2</span>
+                  <span className={checkoutStep >= 2 ? 'text-[#6EE7B7]' : ''}>Quét mã QR</span>
+                </div>
+                <div className="w-12 h-0.5 bg-slate-700" />
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center ${checkoutStep >= 3 ? 'bg-[#22C55E] text-white' : 'bg-slate-700'}`}>3</span>
+                  <span className={checkoutStep >= 3 ? 'text-[#6EE7B7]' : ''}>Xác nhận</span>
+                </div>
+              </div>
+
+              {/* Steps Body */}
+              <div className="p-6 md:p-8 flex-1 overflow-y-auto max-h-[64vh]">
+                
+                {/* ── STEP 1: Plan Selector ── */}
+                {checkoutStep === 1 && (
+                  <div className="space-y-6">
+                    <div className="text-center space-y-1">
+                      <h4 className="text-lg font-bold text-white">Chọn cấu hình nâng cấp</h4>
+                      <p className="text-sm text-slate-400">Gia tăng giới hạn thành viên, AI Quota và dung lượng cực nhanh</p>
+                    </div>
+
+                    {/* Cycle Toggle */}
+                    <div className="flex justify-center">
+                      <div className="inline-flex bg-[#162032] p-1 rounded-full border border-[#22C55E]/10">
+                        <button
+                          onClick={() => setBillingCycle('monthly')}
+                          className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${billingCycle === 'monthly' ? 'bg-[#22C55E] text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                          Theo Tháng
+                        </button>
+                        <button
+                          onClick={() => setBillingCycle('yearly')}
+                          className={`px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 transition-all ${billingCycle === 'yearly' ? 'bg-[#22C55E] text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                          Theo Năm
+                          <span className="bg-yellow-500/20 text-yellow-300 text-[10px] px-1.5 py-0.5 rounded-full font-bold">-20%</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Pricing Cards Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Gói Pro */}
+                      <div 
+                        onClick={() => setSelectedPlan('pro')}
+                        className={`rounded-2xl border p-5 cursor-pointer flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] ${
+                          selectedPlan === 'pro'
+                            ? 'border-[#22C55E] bg-[#22C55E]/5 shadow-[0_0_20px_rgba(34,197,94,0.15)]'
+                            : 'border-[#22C55E]/10 bg-[#162032]/30 hover:border-[#22C55E]/30'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex justify-between items-center">
+                            <h5 className="font-bold text-white text-md">Gói PRO</h5>
+                            {selectedPlan === 'pro' && <CheckCircle2 className="text-[#22C55E]" size={18} />}
+                          </div>
+                          <p className="text-slate-400 text-xs mt-1">Phù hợp cho cá nhân & nhóm học sinh FPT</p>
+                          <div className="mt-4">
+                            <span className="text-2xl font-bold text-white">
+                              {billingCycle === 'yearly' ? '79.000 VNĐ' : '99.000 VNĐ'}
+                            </span>
+                            <span className="text-xs text-slate-500">/tháng</span>
+                          </div>
+                          {billingCycle === 'yearly' && (
+                            <p className="text-[10px] text-yellow-300 mt-1 font-medium">Billed annually (948.000đ/năm)</p>
+                          )}
+                          <div className="mt-4 space-y-2 border-t border-[#22C55E]/10 pt-3 text-xs text-slate-300">
+                            <p>• Max **20 thành viên** (Gốc 5)</p>
+                            <p>• AI Quota **200 yêu cầu/tháng** (Gốc 20)</p>
+                            <p>• Bộ nhớ **10 GB** (Gốc 1 GB)</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Gói Business */}
+                      <div 
+                        onClick={() => setSelectedPlan('business')}
+                        className={`rounded-2xl border p-5 cursor-pointer flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] ${
+                          selectedPlan === 'business'
+                            ? 'border-[#22C55E] bg-[#22C55E]/5 shadow-[0_0_20px_rgba(34,197,94,0.15)]'
+                            : 'border-[#22C55E]/10 bg-[#162032]/30 hover:border-[#22C55E]/30'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex justify-between items-center">
+                            <h5 className="font-bold text-white text-md">Gói BUSINESS</h5>
+                            {selectedPlan === 'business' && <CheckCircle2 className="text-[#22C55E]" size={18} />}
+                          </div>
+                          <p className="text-slate-400 text-xs mt-1">Phù hợp cho lớp học hoặc doanh nghiệp</p>
+                          <div className="mt-4">
+                            <span className="text-2xl font-bold text-white">
+                              {billingCycle === 'yearly' ? '199.000 VNĐ' : '249.000 VNĐ'}
+                            </span>
+                            <span className="text-xs text-slate-500">/tháng</span>
+                          </div>
+                          {billingCycle === 'yearly' && (
+                            <p className="text-[10px] text-yellow-300 mt-1 font-medium">Billed annually (2.388.000đ/năm)</p>
+                          )}
+                          <div className="mt-4 space-y-2 border-t border-[#22C55E]/10 pt-3 text-xs text-slate-300">
+                            <p>• **Không giới hạn** thành viên</p>
+                            <p>• AI Quota **1000 yêu cầu/tháng**</p>
+                            <p>• Bộ nhớ **50 GB**</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Footer Step 1 */}
+                    <div className="flex justify-end gap-3 pt-3">
+                      <Button variant="ghost" onClick={() => setShowCheckout(false)}>Hủy bỏ</Button>
+                      <Button 
+                        onClick={handleStartCheckout} 
+                        loading={checkoutLoading} 
+                        icon={<ArrowRight size={14} />}
+                      >
+                        Tiến Hành Thanh Toán
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── STEP 2: VietQR Scanning Page (Y hệt mẫu ảnh) ── */}
+                {checkoutStep === 2 && checkoutResult && (
+                  <div className="space-y-6">
+                    <div className="text-center space-y-1">
+                      <h4 className="text-lg font-bold text-white">Quét mã QR để thanh toán</h4>
+                      <p className="text-sm text-slate-400">Mở app ngân hàng và quét mã bên dưới</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
+                      
+                      {/* QR Box - MB Bank template (Left) */}
+                      <div className="md:col-span-5 bg-[#0F1A2A] border border-[#22C55E]/15 rounded-2xl p-4 flex flex-col items-center justify-center space-y-3 relative group">
+                        <div className="w-48 h-48 bg-white p-2 rounded-xl flex items-center justify-center relative overflow-hidden shadow-lg shadow-black/10">
+                          {/* VietQR live image template from api.vietqr.io */}
+                          <img 
+                            src={`https://img.vietqr.io/image/MB-0358688688-compact.png?amount=${checkoutResult.amount}&addInfo=${checkoutResult.transactionId}&accountName=VERTEX%20APP`}
+                            alt="VietQR Chuyển khoản"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#6EE7B7] bg-[#22C55E]/10 border border-[#22C55E]/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          🛡️ BẢO MẬT VIETQR
+                        </span>
+                      </div>
+
+                      {/* Billing detail information (Right) */}
+                      <div className="md:col-span-7 flex flex-col justify-between space-y-4">
+                        <div className="space-y-3">
+                          <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/8 px-4 py-3 flex justify-between items-center">
+                            <div>
+                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Số tiền thanh toán</p>
+                              <p className="text-lg font-black text-yellow-400 mt-0.5">
+                                {checkoutResult.amount.toLocaleString('vi-VN')} VNĐ
+                              </p>
+                            </div>
+                            <span className="text-[10px] font-bold bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-md">
+                              {checkoutResult.billingCycle === 'yearly' ? 'Chu kỳ 1 Năm' : 'Chu kỳ 1 Tháng'}
+                            </span>
+                          </div>
+
+                          <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/8 px-4 py-3">
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Nội dung chuyển khoản</p>
+                            <div className="flex items-center justify-between gap-2 mt-1">
+                              <code className="text-sm font-mono font-bold text-white select-all">
+                                {checkoutResult.transactionId}
+                              </code>
+                              <span className="text-[9px] text-slate-400">Tự động sao chép</span>
+                            </div>
+                          </div>
+
+                          {/* Info Alert Box */}
+                          <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-xs text-blue-200 flex gap-2.5 items-start">
+                            <Sparkles size={16} className="text-blue-400 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-semibold text-white">SAU KHI NẠP THÀNH CÔNG</p>
+                              <p className="mt-1 text-slate-400 leading-relaxed">
+                                Hệ thống sẽ tự động nhận diện và nâng cấp tài khoản của bạn lên gói <strong>{checkoutResult.plan.toUpperCase()}</strong> ngay lập tức.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Guide workflow */}
+                        <div className="text-[10px] text-slate-500 border-t border-[#22C55E]/10 pt-3 flex justify-around">
+                          <div className="text-center">
+                            <p className="font-bold text-slate-300">1. Mở App</p>
+                            <p>Mở ứng dụng Banking</p>
+                          </div>
+                          <span className="text-slate-700">→</span>
+                          <div className="text-center">
+                            <p className="font-bold text-slate-300">2. Quét QR</p>
+                            <p>Quét mã VietQR MB Bank</p>
+                          </div>
+                          <span className="text-slate-700">→</span>
+                          <div className="text-center">
+                            <p className="font-bold text-slate-300">3. Hoàn tất</p>
+                            <p>Bấm nút Xác nhận ở dưới</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step 2 Action Buttons */}
+                    <div className="flex justify-between items-center pt-3 border-t border-[#22C55E]/10">
+                      <Button variant="ghost" onClick={() => setCheckoutStep(1)}>Quay lại</Button>
+                      
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={handleConfirmPayment}
+                          className="bg-gradient-to-r from-[#22C55E] to-[#16A34A] text-white hover:brightness-110 font-bold"
+                          icon={<Check size={16} />}
+                        >
+                          Xác nhận đã chuyển khoản thành công
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── STEP 3: Bank Loop Verification Loader (Simulated Webhook) ── */}
+                {checkoutStep === 3 && (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-6">
+                    <div className="relative">
+                      {/* Pulsing visual circles */}
+                      <div className="absolute inset-0 rounded-full bg-[#22C55E]/20 animate-ping" />
+                      <div className="w-16 h-16 rounded-full border-4 border-slate-700 border-t-[#22C55E] flex items-center justify-center animate-spin" />
+                    </div>
+
+                    <div className="text-center space-y-2">
+                      <h4 className="text-md font-bold text-white">Đang xác thực giao dịch...</h4>
+                      <p className="text-xs text-[#22C55E] font-mono h-5 animate-pulse">
+                        {simulatedProgressText}
+                      </p>
+                    </div>
+
+                    <div className="bg-[#162032]/30 px-4 py-3 rounded-xl border border-[#22C55E]/5 text-[11px] text-slate-500 max-w-sm text-center leading-relaxed">
+                      Hệ thống đang quét biến động số dư VietQR. Quá trình kiểm tra ngân hàng tự động mất khoảng vài giây. Vui lòng không đóng cửa sổ này.
+                    </div>
+                  </div>
+                )}
+
+                {/* ── STEP 4: Success Upgrade Confetti Screen ── */}
+                {checkoutStep === 4 && (
+                  <div className="py-6 flex flex-col items-center text-center space-y-6">
+                    
+                    {/* Pulsing check circle indicator */}
+                    <div className="w-20 h-20 rounded-full bg-[#22C55E]/15 border-2 border-[#22C55E] flex items-center justify-center text-[#22C55E] animate-bounce">
+                      <Check size={42} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="text-2xl font-bold text-white">Nâng Cấp Thành Công! 🎉</h4>
+                      <p className="text-sm text-[#6EE7B7]">
+                        Tổ chức của bạn đã được nâng cấp lên gói <strong>{selectedPlan.toUpperCase()}</strong> thành công!
+                      </p>
+                    </div>
+
+                    {/* Limits comparison overview */}
+                    <div className="bg-[#162032]/40 border border-[#22C55E]/20 rounded-2xl p-5 w-full max-w-md space-y-3.5 text-sm text-slate-300">
+                      <h5 className="font-semibold text-white text-xs border-b border-[#22C55E]/10 pb-2 text-left uppercase tracking-wider text-slate-500">Giới hạn dịch vụ mới</h5>
+                      
+                      <div className="flex justify-between items-center text-xs">
+                        <span>Số thành viên tối đa (Seats):</span>
+                        <span className="font-bold text-white">
+                          {selectedPlan === 'pro' ? '20 thành viên' : '200 thành viên (Không giới hạn)'}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs">
+                        <span>AI Planner Quota:</span>
+                        <span className="font-bold text-white">
+                          {selectedPlan === 'pro' ? '200 yêu cầu / tháng' : '1000 yêu cầu / tháng'}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs">
+                        <span>Dung lượng lưu trữ:</span>
+                        <span className="font-bold text-white">
+                          {selectedPlan === 'pro' ? '10 GB (Gốc 1 GB)' : '50 GB (Gốc 1 GB)'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-500 leading-relaxed max-w-sm">
+                      Mọi giới hạn lưu trữ dữ liệu, quota tính toán trí tuệ nhân tạo và dung lượng mới đã được kích hoạt ngay lập tức cho tổ chức của bạn.
+                    </p>
+
+                    <div className="pt-2">
+                      <Button 
+                        onClick={() => setShowCheckout(false)}
+                        className="bg-[#22C55E] text-white px-8"
+                      >
+                        Tuyệt vời, quay lại làm việc!
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

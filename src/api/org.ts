@@ -108,3 +108,52 @@ export async function removeMember(
     headers: authHeaders(token),
   });
 }
+
+// ── Billing APIs ──────────────────────────────────────────
+
+export interface CheckoutResult {
+  transactionId: string;
+  amount: number;
+  plan: string;
+  billingCycle: string;
+  message: string;
+}
+
+export interface SimulateSuccessResult {
+  success: boolean;
+  message: string;
+  org: {
+    id: string;
+    name: string;
+    plan: string;
+    maxMembers: number;
+    aiQuota: number;
+    storageLimit: number;
+  };
+}
+
+/** Create a billing checkout session (simulated) */
+export async function createCheckoutSession(
+  token: string,
+  orgId: string,
+  body: { plan: string; billingCycle: string },
+) {
+  return apiRequest<CheckoutResult>(`/api/orgs/${orgId}/billing/checkout`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+}
+
+/** Confirm simulated payment success and update organization limits */
+export async function simulatePaymentSuccess(
+  token: string,
+  orgId: string,
+  body: { plan: string; transactionId: string },
+) {
+  return apiRequest<SimulateSuccessResult>(`/api/orgs/${orgId}/billing/simulate-success`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+}
