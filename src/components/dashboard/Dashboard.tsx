@@ -1490,6 +1490,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 onInviteMember={() => setShowInviteOrgMember(true)}
                 onUpdateMemberRole={handleUpdateOrgMemberRole}
                 onRemoveMember={handleRemoveOrgMember}
+                onUpgradeSuccess={refreshProjectsList}
               />
             )}
           </div>
