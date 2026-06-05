@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { FloatingAiChat } from '../ai/FloatingAiChat';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -52,5 +53,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     return <Navigate to={roleRoute} replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <FloatingAiChat />
+    </>
+  );
 };

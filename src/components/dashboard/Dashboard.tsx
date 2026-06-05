@@ -39,6 +39,7 @@ import { listProjects, getProjectDetail, createProject, updateProject, deletePro
 import { mapProjectDetailToProject } from '../../utils/projectMapper';
 import { useSignalR } from '../../hooks/useSignalR';
 import { createInvitation } from '../../api/invitation';
+import { chatWithAi } from '../../api/ai';
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
@@ -877,70 +878,98 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   };
 
-  const generateAiPlan = (descriptionOverride?: string) => {
+  const generateAiPlan = async (descriptionOverride?: string) => {
+    const token = getAuthToken();
+    if (!token) return;
+
     const assignees = activeProjectMembers.length > 0 ? activeProjectMembers : workspaceUsers;
     const planningDescription = descriptionOverride ?? plannerInput.description;
-    const defaultStepsByCategory: Record<PlannerCategory, string[]> = {
-      Design: ['Research topic', 'Sketch ideas', 'Design poster', 'Presentation slides'],
-      Research: ['Define hypothesis', 'Collect sources', 'Analyze findings', 'Prepare report'],
-      Engineering: ['Define scope', 'Build core feature', 'Testing and fixes', 'Deployment prep'],
-      Marketing: ['Audience research', 'Campaign concept', 'Asset production', 'Performance report'],
-    };
-    const defaultSteps = defaultStepsByCategory[plannerInput.category];
     const weeks = Math.max(2, Math.min(8, plannerInput.deadlineWeeks));
-    const difficultyMultiplier: Record<PlannerDifficulty, number> = {
-      Easy: 0.8,
-      Medium: 1,
-      Hard: 1.35,
-    };
-    const baseHours = [6, 4, 10, 3, 5, 7, 8, 4];
-    const plan = Array.from({ length: weeks }).map((_, idx) => ({
-      week: `Week ${idx + 1}`,
-      task: defaultSteps[idx] || `Execution task ${idx + 1}`,
-      assignee: assignees[idx % assignees.length]?.name || 'Unassigned',
-      estHours: Math.max(2, Math.round((baseHours[idx] || 6) * difficultyMultiplier[plannerInput.difficulty])),
-      taskCount: plannerInput.difficulty === 'Hard' ? 3 : plannerInput.difficulty === 'Easy' ? 1 : 2,
-    }));
-    setGeneratedPlan(plan);
-    if (descriptionOverride) {
-      setPlannerInput(prev => ({ ...prev, description: planningDescription }));
+    
+    const assigneeNames = assignees.map(a => a.name).join(', ');
+    const systemPrompt = `You are an AI Project Planner for Vertex.
+Goal: ${plannerInput.projectGoal}
+Description: ${planningDescription}
+Category: ${plannerInput.category}
+Difficulty: ${plannerInput.difficulty}
+Duration: ${weeks} weeks
+Team size: ${plannerInput.teamSize}
+Available team members: ${assigneeNames}
+
+Generate a project plan. You MUST respond with ONLY valid JSON array. No markdown formatting, no backticks, no introduction.
+The JSON must be an array of objects, where each object has these exact fields:
+- week: string (e.g. "Week 1")
+- task: string (short actionable description)
+- assignee: string (must be one of the available team members, or "Unassigned")
+- estHours: number (estimated hours, e.g. 10)
+- taskCount: number (number of subtasks)
+Limit to ${weeks} items max.`;
+
+    try {
+      const response = await chatWithAi(token, systemPrompt);
+      let jsonText = response.planSummary || '[]';
+      // Clean up markdown block if Gemini still returns it
+      jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+      
+      const plan = JSON.parse(jsonText);
+      setGeneratedPlan(plan);
+      if (descriptionOverride) {
+        setPlannerInput(prev => ({ ...prev, description: planningDescription }));
+      }
+      showToast('AI plan generated successfully from Gemini!');
+    } catch (error) {
+      console.error("AI Generation error:", error);
+      showToast('Failed to connect to AI or invalid data format returned.', 'error');
     }
-    showToast('AI plan generated successfully!');
   };
 
   const regenerateAiPlan = () => {
     generateAiPlan();
   };
 
-  const createProjectBoardFromPlan = () => {
+  const createProjectBoardFromPlan = async () => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    const projectId = activeProjectId;
+    if (!token || !orgId || !projectId) {
+      showToast('Missing required info to save project plan', 'error');
+      return;
+    }
     if (!generatedPlan || generatedPlan.length === 0) return;
-    const newTasks: Task[] = generatedPlan.map((step, idx) => {
-      const assignee = activeProjectMembers.find(m => m.name === step.assignee) || activeProjectMembers[0];
-      const start = new Date();
-      start.setDate(start.getDate() + idx * 7);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 5);
-      return {
-        id: `p_${Date.now()}_${idx}`,
-        title: step.task,
-        status: idx === 0 ? 'in-progress' : idx === generatedPlan.length - 1 ? 'todo' : 'ready-for-review',
-        assignee,
-        priority: idx === 0 ? 'high' : 'medium',
-        startDate: start.toISOString().split('T')[0],
-        endDate: end.toISOString().split('T')[0],
-        description: `AI generated from planner: ${plannerInput.description}`,
-      };
-    });
 
-    setProjects(prev => prev.map(project =>
-      project.id === activeProjectId
-        ? { ...project, tasks: [...project.tasks, ...newTasks] }
-        : project
-    ));
-    setActiveTab('projects');
-    setProjectTab('board');
-    setProjectViewMode('kanban');
-    showToast('Project board created from AI plan!');
+    showToast('Saving AI generated tasks to database...');
+    
+    try {
+      // Create all tasks sequentially to preserve order
+      for (let idx = 0; idx < generatedPlan.length; idx++) {
+        const step = generatedPlan[idx];
+        const assignee = activeProjectMembers.find(m => m.name === step.assignee) || activeProjectMembers[0];
+        const start = new Date();
+        start.setDate(start.getDate() + idx * 7);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 5);
+        
+        await createTask(token, orgId, projectId, {
+          title: step.task,
+          description: `AI generated from planner: ${plannerInput.description}`,
+          status: 'todo',
+          priority: idx === 0 ? 'high' : 'medium',
+          assigneeId: assignee?.id || null,
+          startDate: start.toISOString(),
+          endDate: end.toISOString()
+        });
+      }
+      
+      await refreshProjectsList();
+      
+      setActiveTab('projects');
+      setProjectTab('board');
+      setProjectViewMode('kanban');
+      showToast('Project board created from AI plan!');
+    } catch (err) {
+      console.error('Failed to save AI plan', err);
+      showToast('Failed to save AI plan to database', 'error');
+    }
   };
 
   const handleGenerateTasksFromHeader = () => {

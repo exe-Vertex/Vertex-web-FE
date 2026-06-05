@@ -35,13 +35,14 @@ export const AiPlannerView: React.FC<{
     return risks.slice(0, 3);
   }, [plannerInput.deadlineWeeks, plannerInput.teamSize, plannerInput.difficulty, totalEstHours]);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (isGenerating) return;
     setIsGenerating(true);
-    window.setTimeout(() => {
-      onGenerate();
+    try {
+      await onGenerate();
+    } finally {
       setIsGenerating(false);
-    }, 700);
+    }
   };
 
   return (

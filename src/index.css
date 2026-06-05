@@ -327,3 +327,10 @@ body {
 .sitemap-stage svg g.node:hover path {
   filter: brightness(1.1);
 }
+
+/* AI Chat Animations */
+@keyframes aiBlink { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+.ai-typing-dot { animation: aiBlink 1.4s infinite both; }
+.ai-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.ai-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
