@@ -32,3 +32,13 @@ export async function getAiHistory(token: string): Promise<AiHistory[]> {
     },
   });
 }
+
+export async function syncProjectData(token: string, orgId: string): Promise<{ message: string; chunksCount: number }> {
+  return apiRequest<{ message: string; chunksCount: number }>(`/api/Ai/sync-data/${orgId}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+

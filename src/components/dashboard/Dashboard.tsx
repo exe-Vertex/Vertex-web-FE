@@ -39,7 +39,7 @@ import { listProjects, getProjectDetail, createProject, updateProject, deletePro
 import { mapProjectDetailToProject } from '../../utils/projectMapper';
 import { useSignalR } from '../../hooks/useSignalR';
 import { createInvitation } from '../../api/invitation';
-import { chatWithAi } from '../../api/ai';
+import { chatWithAi, syncProjectData } from '../../api/ai';
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
@@ -160,6 +160,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   // ── Load projects when activeOrgId changes ──
   useEffect(() => {
     refreshProjectsList();
+
+    // Tự động đồng bộ dữ liệu dự án lên RAM Vector Store của AI khi người dùng tải dashboard hoặc chuyển Org
+    const token = getAuthToken();
+    if (token && activeOrgId) {
+      syncProjectData(token, activeOrgId)
+        .then(res => console.log('AI Vector Store auto-synced:', res.message))
+        .catch(err => console.warn('AI Vector Store auto-sync failed:', err));
+    }
 
     // 2. Tự động làm mới dữ liệu khi người dùng chuyển lại tab này (Window Focus)
     const handleFocus = () => {
