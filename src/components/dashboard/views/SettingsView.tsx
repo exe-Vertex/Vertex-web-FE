@@ -688,7 +688,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Button variant="ghost" onClick={() => setShowCheckout(false)}>Hủy bỏ</Button>
                       <Button 
                         onClick={handleStartCheckout} 
-                        loading={checkoutLoading} 
+                        isLoading={checkoutLoading} 
                         icon={<ArrowRight size={14} />}
                       >
                         Tiến Hành Thanh Toán

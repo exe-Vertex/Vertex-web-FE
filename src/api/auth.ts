@@ -12,6 +12,7 @@ export interface MeResponse {
   name: string;
   email: string;
   role: string;
+  avatarUrl?: string;
 }
 
 export async function register(name: string, email: string, password: string) {

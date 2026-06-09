@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Sparkles, Bot, User, CalendarClock, ListTodo, BarChart3, Zap } from 'lucide-react';
 import { useLang } from '../../contexts/LanguageContext';
+import { chatWithAi } from '../../api/ai';
+import { getAccessToken } from '../../utils/authStorage';
 
 type ChatMessage = { role: 'user' | 'ai'; content: string; time: Date };
 
@@ -41,42 +43,32 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onSaveChat }) => {
   const formatTime = (d: Date) =>
     d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  const handleSend = (text?: string) => {
+  const handleSend = async (text?: string) => {
     const msg = text || inputValue;
     if (!msg.trim() || isTyping) return;
 
+    const token = getAccessToken();
     const isFirstUser = messages.filter(m => m.role === 'user').length === 0;
     setMessages(prev => [...prev, { role: 'user', content: msg, time: new Date() }]);
     setInputValue('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      let aiResponse: string = t.chat.processing;
-      const lower = msg.toLowerCase();
-      if (lower.includes('plan') || lower.includes('create') || lower.includes('sprint') ||
-          lower.includes('kế hoạch') || lower.includes('lên kế') || lower.includes('tạo')) {
-        aiResponse = t.chat.resp_plan;
-      } else if (lower.includes('deadline') || lower.includes('check') || lower.includes('schedule') ||
-                 lower.includes('hạn') || lower.includes('kiểm tra') || lower.includes('lịch')) {
-        aiResponse = t.chat.resp_deadline;
-      } else if (lower.includes('break') || lower.includes('task') || lower.includes('divide') ||
-                 lower.includes('phân chia') || lower.includes('công việc') || lower.includes('chia nhỏ')) {
-        aiResponse = t.chat.resp_task;
-      } else if (lower.includes('report') || lower.includes('progress') || lower.includes('status') ||
-                 lower.includes('báo cáo') || lower.includes('tiến độ') || lower.includes('trạng thái')) {
-        aiResponse = t.chat.resp_report;
-      } else if (lower.includes('help') || lower.includes('giúp') || lower.includes('hỗ trợ')) {
-        aiResponse = t.chat.resp_help;
-      }
+    let aiResponse: string;
+    try {
+      if (!token) throw new Error('Not authenticated');
+      const response = await chatWithAi(token, msg);
+      aiResponse = response.planSummary || t.chat.processing;
+    } catch {
+      aiResponse = '⚠️ Không thể kết nối tới AI. Vui lòng thử lại sau.';
+    }
 
-      setMessages(prev => [...prev, { role: 'ai', content: aiResponse, time: new Date() }]);
-      setIsTyping(false);
+    setMessages(prev => [...prev, { role: 'ai', content: aiResponse, time: new Date() }]);
+    setIsTyping(false);
 
-      if (isFirstUser && !savedRef.current) {
-        savedRef.current = true;
-        onSaveChat?.(msg.slice(0, 55), aiResponse.replace(/\n/g, ' ').slice(0, 65));
-      }
-    }, 1200);
+    if (isFirstUser && !savedRef.current) {
+      savedRef.current = true;
+      onSaveChat?.(msg.slice(0, 55), aiResponse.replace(/\n/g, ' ').slice(0, 65));
+    }
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {

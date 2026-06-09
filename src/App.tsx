@@ -12,6 +12,7 @@ import { LegalPage } from './pages/LegalPage';
 import { LecturerDashboardPage } from './pages/LecturerDashboardPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import AcceptInvite from './pages/AcceptInvite';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 // Wrapper components to extract URL :tab param
 function ResourcesPageWrapper({ onNavigate }: { onNavigate: (page: string) => void }) {
@@ -92,6 +93,7 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="*" element={<NotFoundPage onNavigate={handleNavigate} />} />
     </Routes>
   );
 }
