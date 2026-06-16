@@ -56,7 +56,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onSaveChat }) => {
     let aiResponse: string;
     try {
       if (!token) throw new Error('Not authenticated');
-      const response = await chatWithAi(token, msg);
+      const orgId = localStorage.getItem('vertex.activeOrgId') || '';
+      const response = await chatWithAi(token, msg, orgId);
       aiResponse = response.planSummary || t.chat.processing;
     } catch {
       aiResponse = '⚠️ Không thể kết nối tới AI. Vui lòng thử lại sau.';

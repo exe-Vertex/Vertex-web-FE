@@ -12,6 +12,7 @@ export const FloatingAiChat: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const token = getAccessToken() || '';
+  const orgId = localStorage.getItem('vertex.activeOrgId') || '';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -61,7 +62,7 @@ export const FloatingAiChat: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await chatWithAi(token, userPrompt);
+      const response = await chatWithAi(token, userPrompt, orgId);
       setMessages(prev => prev.map(m => m.id === tempId ? response : m));
     } catch (error) {
       console.error('AI Chat Error:', error);
