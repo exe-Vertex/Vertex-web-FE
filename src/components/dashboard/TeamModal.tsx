@@ -13,6 +13,7 @@ interface TeamModalProps {
   onAddMember: (user: User) => void;
   onRemoveMember: (userId: string) => void;
   onInvite: (payload: { email: string; role: TeamRole; projectCode: string; joinLink: string }) => void;
+  onUpdateMember?: (userId: string, role: TeamRole, skills: string | null) => Promise<void>;
 }
 
 type TeamRole = 'Leader' | 'Member' | 'Guest';
@@ -50,7 +51,7 @@ const makeProjectCode = (projectId: string, projectName: string) => {
   return `VTX-${classPart}${alpha}-${digits}`;
 };
 
-export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, projectName, members, onAddMember, onRemoveMember, onInvite }) => {
+export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, projectName, members, onAddMember, onRemoveMember, onInvite, onUpdateMember }) => {
   const [projectMembers, setProjectMembers] = useState<TeamMember[]>([]);
   const [available, setAvailable] = useState<User[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -140,8 +141,26 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
     }
   };
 
-  const changeRole = (id: string, r: TeamRole) => {
-    save(projectMembers.map(m => m.id === id ? { ...m, teamRole: r } : m));
+  const changeRole = async (id: string, r: TeamRole) => {
+    const next = projectMembers.map(m => m.id === id ? { ...m, teamRole: r } : m);
+    save(next);
+    if (onUpdateMember) {
+      const target = next.find(m => m.id === id);
+      await onUpdateMember(id, r, target?.projectSkills || null);
+    }
+  };
+
+  const handleSkillsChange = (id: string, val: string) => {
+    setProjectMembers(prev => prev.map(m => m.id === id ? { ...m, projectSkills: val } : m));
+  };
+
+  const handleSkillsSave = async (id: string) => {
+    const member = projectMembers.find(m => m.id === id);
+    if (!member) return;
+    save(projectMembers);
+    if (onUpdateMember) {
+      await onUpdateMember(id, member.teamRole, member.projectSkills || null);
+    }
   };
 
   if (!open) return null;
@@ -257,7 +276,20 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                       {m.teamRole}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 truncate">ID: {m.id}</p>
+                  <p className="text-[10px] text-slate-500">ID: {m.id}</p>
+                  <input
+                    type="text"
+                    value={m.projectSkills || ''}
+                    placeholder="Skills / Preferred tasks (e.g. Designer, Backend)"
+                    onChange={e => handleSkillsChange(m.id, e.target.value)}
+                    onBlur={() => handleSkillsSave(m.id)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }}
+                    className="mt-1 w-full px-2 py-1 rounded bg-[#0A0F1A]/60 border border-[#22C55E]/10 text-[11px] text-slate-300 outline-none focus:border-[#22C55E]/40 placeholder:text-slate-600 transition-colors"
+                  />
                 </div>
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <select

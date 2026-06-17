@@ -9,6 +9,7 @@ export interface ProjectMemberDto {
   email: string;
   avatarUrl: string;
   role: string;
+  projectSkills?: string | null;
 }
 
 export interface TaskDto {
@@ -204,7 +205,7 @@ export async function updateProjectMemberRole(
   orgId: string,
   projectId: string,
   memberId: string,
-  body: { role: string },
+  body: { role: string; projectSkills?: string | null },
 ) {
   return apiRequest<ProjectMemberDto>(`/api/orgs/${orgId}/projects/${projectId}/members/${memberId}`, {
     method: 'PATCH',

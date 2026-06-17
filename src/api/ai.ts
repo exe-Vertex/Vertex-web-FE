@@ -14,13 +14,13 @@ export interface ChatRequest {
   prompt: string;
 }
 
-export async function chatWithAi(token: string, prompt: string): Promise<AiHistory> {
+export async function chatWithAi(token: string, prompt: string, orgId?: string): Promise<AiHistory> {
   return apiRequest<AiHistory>('/api/Ai/chat', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, orgId: orgId || undefined }),
   });
 }
 

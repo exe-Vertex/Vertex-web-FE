@@ -137,29 +137,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!collapsed ? (
             <div className="px-3 pt-3 pb-1" ref={wsDropdownRef}>
               <div className="relative">
-                {isPro ? (
-                  <button
-                    onClick={() => setWsDropdownOpen(o => !o)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#162032] border border-[#22C55E]/15 hover:border-[#22C55E]/30 text-sm font-medium text-slate-200 transition-all"
-                  >
-                    <div className="w-6 h-6 rounded-md bg-[#22C55E]/20 flex items-center justify-center text-[#22C55E] text-xs font-bold flex-shrink-0">
-                      <Building2 size={13} />
-                    </div>
-                    <span className="flex-1 text-left truncate">{workspaceName}</span>
-                    <ChevronDown size={13} className={`text-slate-400 flex-shrink-0 transition-transform ${wsDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                ) : (
-                  <div className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#162032]/50 border border-[#22C55E]/8 text-sm text-slate-400">
-                    <div className="w-6 h-6 rounded-md bg-[#22C55E]/10 flex items-center justify-center text-[#22C55E]/60 flex-shrink-0">
-                      <Building2 size={13} />
-                    </div>
-                    <span className="flex-1 truncate">{workspaceName}</span>
+                <button
+                  onClick={() => setWsDropdownOpen(o => !o)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#162032] border border-[#22C55E]/15 hover:border-[#22C55E]/30 text-sm font-medium text-slate-200 transition-all"
+                >
+                  <div className="w-6 h-6 rounded-md bg-[#22C55E]/20 flex items-center justify-center text-[#22C55E] text-xs font-bold flex-shrink-0">
+                    <Building2 size={13} />
                   </div>
-                )}
+                  <span className="flex-1 text-left truncate">{workspaceName}</span>
+                  <ChevronDown size={13} className={`text-slate-400 flex-shrink-0 transition-transform ${wsDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
 
                 {/* Workspace dropdown */}
                 <AnimatePresence>
-                  {isPro && wsDropdownOpen && (
+                  {wsDropdownOpen && (
                     <motion.div
                       initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -233,9 +224,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <FolderOpen size={15} className={activeProject === project.id ? 'text-[#22C55E]' : 'text-slate-500'} />
                       <span className="truncate">{project.name}</span>
                     </button>
-                    {projects.length > 1 && (
+                    {onDeleteProject && (
                       <button
-                        onClick={() => onDeleteProject?.(project.id)}
+                        onClick={() => onDeleteProject(project.id)}
                         title="Delete project"
                         className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
                       >
