@@ -27,6 +27,8 @@ interface SettingsViewProps {
   onUpdateMemberRole?: (memberId: string, role: string) => void;
   onRemoveMember?: (memberId: string) => void;
   onUpgradeSuccess?: () => void;
+  initialCheckoutPlan?: 'pro' | 'business' | null;
+  onClearInitialCheckoutPlan?: () => void;
 }
 
 const ROLE_OPTIONS = ['admin', 'lecturer', 'member'] as const;
@@ -45,7 +47,8 @@ const ToggleRow: React.FC<{ title: string; description?: string; enabled: boolea
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
   userPlan, orgName, orgDetail, orgLoading, 
-  onInviteMember, onUpdateMemberRole, onRemoveMember, onUpgradeSuccess 
+  onInviteMember, onUpdateMemberRole, onRemoveMember, onUpgradeSuccess,
+  initialCheckoutPlan, onClearInitialCheckoutPlan
 }) => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'notifications' | 'org-general' | 'org-members' | 'org-billing'>('profile');
@@ -75,6 +78,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const currentUser = getUserInfo();
   const currentMemberInOrg = orgDetail?.members?.find(m => m.userId === currentUser?.id);
   const hasAdminAccess = currentMemberInOrg?.role === 'owner' || currentMemberInOrg?.role === 'admin';
+
+  // ── Auto open checkout flow from redirect ──
+  useEffect(() => {
+    if (initialCheckoutPlan) {
+      if (!hasAdminAccess) {
+        showToast('Chỉ Chủ sở hữu hoặc Quản trị viên của tổ chức mới được phép nâng cấp gói.', 'error');
+        onClearInitialCheckoutPlan?.();
+        return;
+      }
+      setSelectedPlan(initialCheckoutPlan);
+      setActiveTab('org-billing');
+      setCheckoutStep(1);
+      setShowCheckout(true);
+      onClearInitialCheckoutPlan?.();
+    }
+  }, [initialCheckoutPlan, hasAdminAccess]);
 
   const toggleTheme = () => {
     const next = !isDark;
@@ -643,9 +662,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <p className="text-[10px] text-yellow-300 mt-1 font-medium">Billed annually (948.000đ/năm)</p>
                           )}
                           <div className="mt-4 space-y-2 border-t border-[#22C55E]/10 pt-3 text-xs text-slate-300">
-                            <p>• Max **20 thành viên** (Gốc 5)</p>
-                            <p>• AI Quota **200 yêu cầu/tháng** (Gốc 20)</p>
-                            <p>• Bộ nhớ **10 GB** (Gốc 1 GB)</p>
+                            <p>• Tối đa <strong className="text-white">20 thành viên</strong> (Gốc 5)</p>
+                            <p>• Tạo tối đa <strong className="text-white">15 dự án</strong> (Gốc 3)</p>
+                            <p>• AI Quota <strong className="text-white">200 yêu cầu/tháng</strong> (Gốc 20)</p>
+                            <p>• Bộ nhớ <strong className="text-white">10 GB</strong> (Gốc 1 GB)</p>
                           </div>
                         </div>
                       </div>
@@ -675,9 +695,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <p className="text-[10px] text-yellow-300 mt-1 font-medium">Billed annually (2.388.000đ/năm)</p>
                           )}
                           <div className="mt-4 space-y-2 border-t border-[#22C55E]/10 pt-3 text-xs text-slate-300">
-                            <p>• **Không giới hạn** thành viên</p>
-                            <p>• AI Quota **1000 yêu cầu/tháng**</p>
-                            <p>• Bộ nhớ **50 GB**</p>
+                            <p>• Tối đa <strong className="text-white">200 thành viên</strong> (Gốc 5)</p>
+                            <p>• Tạo tối đa <strong className="text-white">100 dự án</strong> (Gốc 3)</p>
+                            <p>• AI Quota <strong className="text-white">1000 yêu cầu/tháng</strong></p>
+                            <p>• Bộ nhớ <strong className="text-white">50 GB</strong></p>
                           </div>
                         </div>
                       </div>

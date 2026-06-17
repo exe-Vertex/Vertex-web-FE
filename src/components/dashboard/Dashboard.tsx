@@ -31,11 +31,12 @@ import { SignOutConfirmDialog } from './modals/SignOutConfirmDialog';
 import { CreateOrgModal } from './modals/CreateOrgModal';
 import { InviteOrgMemberModal } from './modals/InviteOrgMemberModal';
 import { PromptCommentModal } from './modals/PromptCommentModal';
+import { DeleteConfirmDialog } from './modals/DeleteConfirmDialog';
 import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, GeneratedPlanStep, ProjectFileItem, MemberWorkloadLabel, MemberAssignmentSuggestion, MembersDatabaseRow, BaseMembersDatabaseRow, ProjectWithMembers, InviteRole } from './utils/dashboardTypes';
 import { getStoredUserPlan, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel, getAuthToken, getActiveOrgId, setActiveOrgId } from './utils/dashboardUtils';
 import { listMyOrgs, getOrgDetail, createOrg, inviteMember, updateMemberRole, removeMember } from '../../api/org';
 import type { OrgSummary, OrgDetail } from '../../api/org';
-import { listProjects, getProjectDetail, createProject, updateProject, deleteProject, createTask, updateTask, deleteTask, addProjectMember, removeProjectMember, listProjectFiles, uploadProjectFile, deleteProjectFile, TaskDto } from '../../api/project';
+import { listProjects, getProjectDetail, createProject, updateProject, deleteProject, createTask, updateTask, deleteTask, addProjectMember, updateProjectMemberRole, removeProjectMember, listProjectFiles, uploadProjectFile, deleteProjectFile, TaskDto } from '../../api/project';
 import { mapProjectDetailToProject } from '../../utils/projectMapper';
 import { useSignalR } from '../../hooks/useSignalR';
 import { createInvitation } from '../../api/invitation';
@@ -90,6 +91,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [showInviteOrgMember, setShowInviteOrgMember] = useState(false);
   const [orgActionLoading, setOrgActionLoading] = useState(false);
   const [commentPrompt, setCommentPrompt] = useState<{ taskId: string, newStatus: Status, taskDescription: string } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<{ id: string, name: string } | null>(null);
+  const [initialCheckoutPlan, setInitialCheckoutPlan] = useState<'pro' | 'business' | null>(null);
+
+  useEffect(() => {
+    const pendingPlan = localStorage.getItem('checkout_plan_on_mount');
+    if (pendingPlan === 'pro' || pendingPlan === 'business') {
+      localStorage.removeItem('checkout_plan_on_mount');
+      setActiveTab('settings');
+      setInitialCheckoutPlan(pendingPlan);
+    }
+  }, []);
 
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -762,7 +775,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   };
 
-  const handleDeleteProject = async (projectId: string) => {
+  const handleDeleteProject = (projectId: string) => {
+    const projectToDeleteObj = projects.find(p => p.id === projectId);
+    if (!projectToDeleteObj) return;
+
+    setProjectToDelete({ id: projectToDeleteObj.id, name: projectToDeleteObj.name });
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDeleteProject = async () => {
+    if (!projectToDelete) return;
     const token = getAuthToken();
     const orgId = activeOrgId;
     if (!token || !orgId) {
@@ -770,20 +792,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       return;
     }
 
-    if (projects.length <= 1) {
-      showToast('You must keep at least one project.', 'error');
-      return;
-    }
-    const projectToDelete = projects.find(p => p.id === projectId);
-    if (!projectToDelete) return;
-
     try {
-      await deleteProject(token, orgId, projectId);
+      await deleteProject(token, orgId, projectToDelete.id);
       showToast(`Deleted project "${projectToDelete.name}"`);
       await refreshProjectsList();
     } catch (err) {
       console.error('Error deleting project:', err);
       showToast('Không thể xóa dự án', 'error');
+    } finally {
+      setShowDeleteConfirm(false);
+      setProjectToDelete(null);
     }
   };
 
@@ -855,6 +873,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleUpdateProjectMember = async (userId: string, role: string, skills: string | null) => {
+    const token = getAuthToken();
+    const orgId = activeOrgId;
+    const projectId = activeProjectId;
+    if (!token || !orgId || !projectId) return;
+
+    try {
+      await updateProjectMemberRole(token, orgId, projectId, userId, { role, projectSkills: skills });
+      await refreshProjectsList();
+    } catch (err) {
+      console.error('Error updating project member:', err);
+      showToast('Không thể cập nhật thông tin thành viên', 'error');
+    }
+  };
+
   const handleAddProject = async (name: string) => {
     const token = getAuthToken();
     const orgId = activeOrgId;
@@ -880,9 +913,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       setProjectTab('board');
       setProjectViewMode('kanban');
       setShowCreateProject(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating project:', err);
-      showToast('Không thể tạo dự án mới', 'error');
+      showToast(err.message || 'Không thể tạo dự án mới', 'error');
     }
   };
 
@@ -894,7 +927,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const planningDescription = descriptionOverride ?? plannerInput.description;
     const weeks = Math.max(2, Math.min(8, plannerInput.deadlineWeeks));
     
-    const assigneeNames = assignees.map(a => a.name).join(', ');
+    const assigneeDetails = assignees.map(a => {
+      const skillsText = a.projectSkills && a.projectSkills.trim().length > 0
+        ? ` (Skills: ${a.projectSkills.trim()})`
+        : '';
+      return `- ${a.name}${skillsText}`;
+    }).join('\n');
+
     const systemPrompt = `You are an AI Project Planner for Vertex.
 Goal: ${plannerInput.projectGoal}
 Description: ${planningDescription}
@@ -902,13 +941,14 @@ Category: ${plannerInput.category}
 Difficulty: ${plannerInput.difficulty}
 Duration: ${weeks} weeks
 Team size: ${plannerInput.teamSize}
-Available team members: ${assigneeNames}
+Available team members:
+${assigneeDetails}
 
 Generate a project plan. You MUST respond with ONLY valid JSON array. No markdown formatting, no backticks, no introduction.
 The JSON must be an array of objects, where each object has these exact fields:
 - week: string (e.g. "Week 1")
 - task: string (short actionable description)
-- assignee: string (must be one of the available team members, or "Unassigned")
+- assignee: string (must be one of the available team members' exact name, or "Unassigned". You MUST assign tasks based on matching skills, e.g. design tasks to members with Design skills)
 - estHours: number (estimated hours, e.g. 10)
 - taskCount: number (number of subtasks)
 Limit to ${weeks} items max.`;
@@ -1528,6 +1568,8 @@ Limit to ${weeks} items max.`;
                 onUpdateMemberRole={handleUpdateOrgMemberRole}
                 onRemoveMember={handleRemoveOrgMember}
                 onUpgradeSuccess={refreshProjectsList}
+                initialCheckoutPlan={initialCheckoutPlan}
+                onClearInitialCheckoutPlan={() => setInitialCheckoutPlan(null)}
               />
             )}
           </div>
@@ -1556,6 +1598,7 @@ Limit to ${weeks} items max.`;
         onAddMember={handleAddProjectMember}
         onRemoveMember={handleRemoveProjectMember}
         onInvite={handleInviteMember}
+        onUpdateMember={handleUpdateProjectMember}
       />
       <ProfileModal
         open={showProfileModal}
@@ -1585,6 +1628,18 @@ Limit to ${weeks} items max.`;
         isOpen={showSignOutConfirm}
         onClose={() => setShowSignOutConfirm(false)}
         onConfirm={handleSignOut}
+      />
+
+      {/* Delete Project Confirmation */}
+      <DeleteConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Xóa dự án"
+        message={`Bạn có chắc chắn muốn xóa dự án "${projectToDelete?.name || ''}"? Mọi dữ liệu công việc và tệp đính kèm liên quan sẽ bị xóa vĩnh viễn và không thể hoàn tác.`}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setProjectToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteProject}
       />
 
       {/* Create Organization Modal */}

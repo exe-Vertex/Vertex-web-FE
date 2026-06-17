@@ -11,6 +11,7 @@ export interface User {
   avatar: string;
   email?: string;
   role?: Role;
+  projectSkills?: string | null;
 }
 
 export type WorkspaceMemberAvailability = 'available' | 'busy' | 'away';

@@ -5,6 +5,7 @@ import { useToast } from '../components/ui/Toast';
 import { Check, X, Minus, ArrowRight, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Button } from '../components/ui/Button';
+import { getAccessToken } from '../utils/authStorage';
 
 interface PricingPageProps {
   onNavigate: (page: string) => void;
@@ -115,13 +116,29 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   const handleChoosePlan = (planName: string) => {
+    const token = getAccessToken();
+    
     if (planName === 'Enterprise') {
-      showToast('Redirecting to contact sales...', 'info');
-      // In a real app, redirect to a contact form
-    } else {
-      showToast(`Selected ${planName} plan! Redirecting to signup...`);
-      setTimeout(() => onNavigate('dashboard'), 800);
+      showToast('Đang chuyển hướng liên hệ bộ phận kinh doanh...', 'info');
+      return;
     }
+
+    if (!token) {
+      showToast('Vui lòng đăng nhập để nâng cấp gói dịch vụ.', 'info');
+      setTimeout(() => onNavigate('login'), 800);
+      return;
+    }
+
+    if (planName === 'Free') {
+      showToast('Gói Free mặc định đã được kích hoạt.');
+      setTimeout(() => onNavigate('dashboard'), 800);
+      return;
+    }
+
+    // Lưu gói muốn nâng cấp vào localStorage và chuyển hướng sang dashboard
+    localStorage.setItem('checkout_plan_on_mount', planName.toLowerCase());
+    showToast(`Đang chuyển hướng tới trang thanh toán gói ${planName}...`, 'success');
+    setTimeout(() => onNavigate('dashboard'), 800);
   };
 
   const getPrice = (plan: typeof plans[0]) => {
