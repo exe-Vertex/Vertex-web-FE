@@ -42,3 +42,25 @@ export async function syncProjectData(token: string, orgId: string): Promise<{ m
   });
 }
 
+export interface GeneratePlanRequest {
+  projectGoal: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  durationWeeks: number;
+  teamSize: number;
+  teamMembers: { name: string; targetSkills?: string | null; coreSkills?: string[] }[];
+}
+
+export async function generateProjectPlan(token: string, request: GeneratePlanRequest): Promise<{ planSummary: string }> {
+  return apiRequest<{ planSummary: string }>('/api/Ai/generate-plan', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+}
+
+

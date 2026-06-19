@@ -8,12 +8,23 @@ export type ProjectTab = 'board' | 'ai-planner' | 'insights' | 'members' | 'file
 export type PlannerDifficulty = 'Easy' | 'Medium' | 'Hard';
 export type PlannerCategory = 'Design' | 'Research' | 'Engineering' | 'Marketing';
 
-export type GeneratedPlanStep = {
-  week: string;
-  task: string;
+export type GeneratedPlanSubtask = {
+  title: string;
+  description: string;
   assignee: string;
   estHours: number;
-  taskCount: number;
+  priority: 'High' | 'Medium' | 'Low';
+};
+
+export type GeneratedPlanStep = {
+  week: string;
+  milestone: string;
+  subtasks: GeneratedPlanSubtask[];
+};
+
+export type GeneratedPlanResponse = {
+  plan: GeneratedPlanStep[];
+  risks: string[];
 };
 
 export interface ProjectLinkItem {
