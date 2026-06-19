@@ -13,6 +13,7 @@ export interface VerifyInvitationResponse {
   targetType: string;
   targetId: string;
   role: string;
+  orgId?: string;
 }
 
 export const createInvitation = async (data: CreateInvitationRequest) => {

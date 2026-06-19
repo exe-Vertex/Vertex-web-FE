@@ -51,3 +51,23 @@ export async function logout(refreshToken: string) {
     body: JSON.stringify({ refreshToken }),
   });
 }
+
+export async function getUserSkills(accessToken: string) {
+  return apiRequest<string[]>('/api/auth/skills', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export async function updateUserSkills(accessToken: string, skills: string[]) {
+  return apiRequest<{ message: string }>('/api/auth/skills', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(skills),
+  });
+}

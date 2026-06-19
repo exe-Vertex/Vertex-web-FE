@@ -32,7 +32,7 @@ import { CreateOrgModal } from './modals/CreateOrgModal';
 import { InviteOrgMemberModal } from './modals/InviteOrgMemberModal';
 import { PromptCommentModal } from './modals/PromptCommentModal';
 import { DeleteConfirmDialog } from './modals/DeleteConfirmDialog';
-import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, GeneratedPlanStep, ProjectFileItem, MemberWorkloadLabel, MemberAssignmentSuggestion, MembersDatabaseRow, BaseMembersDatabaseRow, ProjectWithMembers, InviteRole } from './utils/dashboardTypes';
+import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, GeneratedPlanStep, GeneratedPlanResponse, ProjectFileItem, MemberWorkloadLabel, MemberAssignmentSuggestion, MembersDatabaseRow, BaseMembersDatabaseRow, ProjectWithMembers, InviteRole } from './utils/dashboardTypes';
 import { getStoredUserPlan, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel, getAuthToken, getActiveOrgId, setActiveOrgId } from './utils/dashboardUtils';
 import { listMyOrgs, getOrgDetail, createOrg, inviteMember, updateMemberRole, removeMember } from '../../api/org';
 import type { OrgSummary, OrgDetail } from '../../api/org';
@@ -40,7 +40,9 @@ import { listProjects, getProjectDetail, createProject, updateProject, deletePro
 import { mapProjectDetailToProject } from '../../utils/projectMapper';
 import { useSignalR } from '../../hooks/useSignalR';
 import { createInvitation } from '../../api/invitation';
-import { chatWithAi, syncProjectData } from '../../api/ai';
+import { chatWithAi, syncProjectData, generateProjectPlan } from '../../api/ai';
+import { getUserSkills, updateUserSkills } from '../../api/auth';
+import { OnboardingSkillsModal } from './modals/OnboardingSkillsModal';
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
@@ -78,9 +80,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     difficulty: 'Medium' as PlannerDifficulty,
     category: 'Design' as PlannerCategory,
   });
-  const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlanStep[] | null>(null);
+  const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlanResponse | null>(null);
   const { t } = useLang();
   const { user, logout: authLogout } = useAuth();
+
+  // ── Skills state ──
+  const [userSkills, setUserSkills] = useState<string[]>([]);
+  const [showOnboardingSkills, setShowOnboardingSkills] = useState(false);
 
   // ── Org state ──
   const [orgs, setOrgs] = useState<OrgSummary[]>([]);
@@ -121,6 +127,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       }
     }).catch(() => { /* token expired or API down */ });
   }, []);
+
+  // ── Load user skills on mount ──
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+    getUserSkills(token)
+      .then(skills => {
+        setUserSkills(skills);
+        if (!skills || skills.length === 0) {
+          setShowOnboardingSkills(true);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch user skills on mount:', err);
+      });
+  }, []);
+
+  const handleOnboardingSkillsSubmit = async (skills: string[]) => {
+    const token = getAuthToken();
+    if (!token) return;
+    await updateUserSkills(token, skills);
+    setUserSkills(skills);
+    setShowOnboardingSkills(false);
+    showToast('Kỹ năng của bạn đã được cập nhật thành công!');
+  };
 
   // ── Load org detail when activeOrgId changes ──
   useEffect(() => {
@@ -919,6 +950,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   };
 
+  const matchAssignee = (name: string, members: User[]): User | null => {
+    if (!name || name.toLowerCase().trim() === 'unassigned') return null;
+    const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+    const cleanName = clean(name);
+    // 1. Exact match after cleaning
+    let matched = members.find(m => clean(m.name) === cleanName);
+    if (matched) return matched;
+    // 2. Contains match
+    matched = members.find(m => clean(m.name).includes(cleanName) || cleanName.includes(clean(m.name)));
+    if (matched) return matched;
+    // 3. Fallback to null
+    return null;
+  };
+
   const generateAiPlan = async (descriptionOverride?: string) => {
     const token = getAuthToken();
     if (!token) return;
@@ -926,41 +971,93 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const assignees = activeProjectMembers.length > 0 ? activeProjectMembers : workspaceUsers;
     const planningDescription = descriptionOverride ?? plannerInput.description;
     const weeks = Math.max(2, Math.min(8, plannerInput.deadlineWeeks));
-    
-    const assigneeDetails = assignees.map(a => {
-      const skillsText = a.projectSkills && a.projectSkills.trim().length > 0
-        ? ` (Skills: ${a.projectSkills.trim()})`
-        : '';
-      return `- ${a.name}${skillsText}`;
-    }).join('\n');
 
-    const systemPrompt = `You are an AI Project Planner for Vertex.
-Goal: ${plannerInput.projectGoal}
-Description: ${planningDescription}
-Category: ${plannerInput.category}
-Difficulty: ${plannerInput.difficulty}
-Duration: ${weeks} weeks
-Team size: ${plannerInput.teamSize}
-Available team members:
-${assigneeDetails}
-
-Generate a project plan. You MUST respond with ONLY valid JSON array. No markdown formatting, no backticks, no introduction.
-The JSON must be an array of objects, where each object has these exact fields:
-- week: string (e.g. "Week 1")
-- task: string (short actionable description)
-- assignee: string (must be one of the available team members' exact name, or "Unassigned". You MUST assign tasks based on matching skills, e.g. design tasks to members with Design skills)
-- estHours: number (estimated hours, e.g. 10)
-- taskCount: number (number of subtasks)
-Limit to ${weeks} items max.`;
+    const teamMembersDto = assignees.map(a => {
+      const isCurrentUser = a.id === user?.id;
+      const coreSkillsList = isCurrentUser ? userSkills : [];
+      return {
+        name: a.name,
+        targetSkills: a.projectSkills || null,
+        coreSkills: coreSkillsList
+      };
+    });
 
     try {
-      const response = await chatWithAi(token, systemPrompt);
-      let jsonText = response.planSummary || '[]';
+      const response = await generateProjectPlan(token, {
+        projectGoal: plannerInput.projectGoal,
+        description: planningDescription,
+        category: plannerInput.category,
+        difficulty: plannerInput.difficulty,
+        durationWeeks: weeks,
+        teamSize: plannerInput.teamSize,
+        teamMembers: teamMembersDto
+      });
+
+      console.log('AI raw response:', response);
+
+      let jsonText = response?.planSummary;
+      if (!jsonText || typeof jsonText !== 'string' || jsonText.trim().length === 0) {
+        console.error('AI returned empty or invalid planSummary:', response);
+        showToast('AI returned an empty response. Please try again.', 'error');
+        return;
+      }
+
       // Clean up markdown block if Gemini still returns it
       jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
-      
-      const plan = JSON.parse(jsonText);
-      setGeneratedPlan(plan);
+
+      let parsedJson;
+      try {
+        parsedJson = JSON.parse(jsonText);
+      } catch (parseError) {
+        console.error('Failed to parse AI response as JSON:', parseError);
+        console.error('Raw text was:', jsonText);
+        showToast('AI returned invalid JSON format. Please try again.', 'error');
+        return;
+      }
+
+      // Backward compatibility / robust normalization:
+      let finalPlan: GeneratedPlanResponse;
+      if (Array.isArray(parsedJson)) {
+        // If it's a flat array of weekly steps (old structure)
+        finalPlan = {
+          plan: parsedJson.map((step: any) => ({
+            week: step.week || "Week",
+            milestone: step.task || "Milestone",
+            subtasks: [
+              {
+                title: step.task || "Task",
+                description: `AI generated from planner: ${planningDescription}`,
+                assignee: step.assignee || "Unassigned",
+                estHours: step.estHours || 10,
+                priority: "Medium"
+              }
+            ]
+          })),
+          risks: []
+        };
+      } else if (parsedJson && Array.isArray(parsedJson.plan)) {
+        // Correct new structure
+        finalPlan = {
+          plan: parsedJson.plan.map((step: any) => ({
+            week: step.week || "Week",
+            milestone: step.milestone || step.task || "Milestone",
+            subtasks: Array.isArray(step.subtasks) ? step.subtasks.map((st: any) => ({
+              title: st.title || st.task || "Task",
+              description: st.description || `AI generated: ${st.title || st.task || "Task"}`,
+              assignee: st.assignee || "Unassigned",
+              estHours: typeof st.estHours === 'number' ? st.estHours : 10,
+              priority: (st.priority === 'High' || st.priority === 'Medium' || st.priority === 'Low') ? st.priority : 'Medium'
+            })) : []
+          })),
+          risks: Array.isArray(parsedJson.risks) ? parsedJson.risks.map((r: any) => String(r)) : []
+        };
+      } else {
+        console.error('Invalid plan structure:', parsedJson);
+        showToast('AI returned plan in unexpected format. Please try again.', 'error');
+        return;
+      }
+
+      setGeneratedPlan(finalPlan);
       if (descriptionOverride) {
         setPlannerInput(prev => ({ ...prev, description: planningDescription }));
       }
@@ -983,29 +1080,40 @@ Limit to ${weeks} items max.`;
       showToast('Missing required info to save project plan', 'error');
       return;
     }
-    if (!generatedPlan || generatedPlan.length === 0) return;
+    if (!generatedPlan || !generatedPlan.plan || generatedPlan.plan.length === 0) return;
 
     showToast('Saving AI generated tasks to database...');
     
     try {
+      const assigneesList = activeProjectMembers.length > 0 ? activeProjectMembers : workspaceUsers;
+      let tasksCreated = 0;
+
       // Create all tasks sequentially to preserve order
-      for (let idx = 0; idx < generatedPlan.length; idx++) {
-        const step = generatedPlan[idx];
-        const assignee = activeProjectMembers.find(m => m.name === step.assignee) || activeProjectMembers[0];
-        const start = new Date();
-        start.setDate(start.getDate() + idx * 7);
-        const end = new Date(start);
-        end.setDate(end.getDate() + 5);
+      for (let weekIdx = 0; weekIdx < generatedPlan.plan.length; weekIdx++) {
+        const weekStep = generatedPlan.plan[weekIdx];
+        const weekSubtasks = weekStep.subtasks || [];
         
-        await createTask(token, orgId, projectId, {
-          title: step.task,
-          description: `AI generated from planner: ${plannerInput.description}`,
-          status: 'todo',
-          priority: idx === 0 ? 'high' : 'medium',
-          assigneeId: assignee?.id || null,
-          startDate: start.toISOString(),
-          endDate: end.toISOString()
-        });
+        for (let subIdx = 0; subIdx < weekSubtasks.length; subIdx++) {
+          const subtask = weekSubtasks[subIdx];
+          const matchedMember = matchAssignee(subtask.assignee, assigneesList);
+          
+          const start = new Date();
+          start.setDate(start.getDate() + weekIdx * 7);
+          const end = new Date(start);
+          end.setDate(end.getDate() + 5);
+          
+          await createTask(token, orgId, projectId, {
+            title: subtask.title,
+            description: subtask.description || `AI generated: ${subtask.title}`,
+            status: 'todo',
+            priority: (subtask.priority?.toLowerCase() || 'medium') as Priority,
+            assigneeId: matchedMember?.id || null,
+            startDate: start.toISOString(),
+            endDate: end.toISOString()
+          });
+
+          tasksCreated++;
+        }
       }
       
       await refreshProjectsList();
@@ -1013,7 +1121,7 @@ Limit to ${weeks} items max.`;
       setActiveTab('projects');
       setProjectTab('board');
       setProjectViewMode('kanban');
-      showToast('Project board created from AI plan!');
+      showToast(`Project board created with ${tasksCreated} tasks from AI plan!`);
     } catch (err) {
       console.error('Failed to save AI plan', err);
       showToast('Failed to save AI plan to database', 'error');
@@ -1515,9 +1623,11 @@ Limit to ${weeks} items max.`;
                 plannerInput={plannerInput}
                 setPlannerInput={setPlannerInput}
                 generatedPlan={generatedPlan}
+                setGeneratedPlan={setGeneratedPlan}
                 onGenerate={generateAiPlan}
                 onRegenerate={regenerateAiPlan}
                 onCreateBoard={createProjectBoardFromPlan}
+                workspaceMembers={activeProjectMembers.length > 0 ? activeProjectMembers : workspaceUsers}
               />
             )}
 
@@ -1665,6 +1775,15 @@ Limit to ${weeks} items max.`;
         onClose={() => setCommentPrompt(null)}
         onSubmit={handleCommentSubmit}
       />
+
+      {/* Onboarding Skills Modal */}
+      <OnboardingSkillsModal
+        isOpen={showOnboardingSkills}
+        onSubmit={handleOnboardingSkillsSubmit}
+        isClosable={userSkills && userSkills.length > 0}
+        onClose={() => setShowOnboardingSkills(false)}
+      />
     </div>
   );
 };
+
