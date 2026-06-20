@@ -175,6 +175,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       const summaries = await listProjects(token, orgId);
       if (!summaries || summaries.length === 0) {
         setProjects([]);
+        setActiveProjectId('');
         return;
       }
 
@@ -186,7 +187,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       const orgDet = await getOrgDetail(token, orgId);
       if (orgDet) setOrgDetail(orgDet);
 
-      const mappedProjects = details.map(mapProjectDetailToProject);
+      const currentOrgRole = orgDet?.members.find(member => member.userId === user?.id)?.role;
+      const canSeeAllOrgProjects = ['owner', 'admin', 'lecturer'].includes((currentOrgRole || '').toLowerCase());
+      const mappedProjects = details
+        .map(mapProjectDetailToProject)
+        .filter(project => canSeeAllOrgProjects || !user?.id || project.memberIds.includes(user.id));
       setProjects(mappedProjects);
 
       setActiveProjectId(prevId => {
@@ -389,6 +394,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const activeProjectMembers = useMemo(() => {
     return activeProject ? getProjectMembers(activeProject) : [];
   }, [activeProject, memberLookup]);
+  const currentProjectMember = activeProjectMembers.find(member => member.id === user?.id);
+  const isCurrentProjectLeader = (currentProjectMember?.role as string) === 'Leader';
   const activeProjectWithMembers: ProjectWithMembers = {
     ...activeProject,
     members: activeProjectMembers,
@@ -965,6 +972,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   };
 
   const generateAiPlan = async (descriptionOverride?: string) => {
+    if (!isCurrentProjectLeader) {
+      showToast('Chỉ Leader mới có quyền tạo AI plan', 'error');
+      return;
+    }
+
     const token = getAuthToken();
     if (!token) return;
 
@@ -1073,6 +1085,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   };
 
   const createProjectBoardFromPlan = async () => {
+    if (!isCurrentProjectLeader) {
+      showToast('Chỉ Leader mới có quyền tạo task từ AI plan', 'error');
+      return;
+    }
+
     const token = getAuthToken();
     const orgId = activeOrgId;
     const projectId = activeProjectId;
@@ -1129,6 +1146,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   };
 
   const handleGenerateTasksFromHeader = () => {
+    if (!isCurrentProjectLeader) {
+      showToast('Chỉ Leader mới có quyền tạo AI plan', 'error');
+      return;
+    }
+
     setGeneratedPlan(null);
     setProjectTab('ai-planner');
   };
@@ -1541,7 +1563,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
                   <div className="flex items-center gap-1 bg-[#162032] p-1 rounded-lg">
                     {([
-                      { id: 'ai-planner', label: 'AI Planner' },
+                      ...(isCurrentProjectLeader ? [{ id: 'ai-planner', label: 'AI Planner' } as const] : []),
                       { id: 'insights', label: 'Insights' },
                       { id: 'members', label: 'Members' },
                       { id: 'files', label: 'Files' },
@@ -1569,7 +1591,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   >
                     + Invite
                   </button>
-                  <Button size="sm" icon={<WandSparkles size={14} />} onClick={handleGenerateTasksFromHeader}>AI Generate</Button>
+                  {isCurrentProjectLeader && (
+                    <Button size="sm" icon={<WandSparkles size={14} />} onClick={handleGenerateTasksFromHeader}>AI Generate</Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1618,7 +1642,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               </div>
             )}
 
-            {activeTab === 'projects' && projectTab === 'ai-planner' && (
+            {activeTab === 'projects' && projectTab === 'ai-planner' && isCurrentProjectLeader && (
               <AiPlannerView
                 plannerInput={plannerInput}
                 setPlannerInput={setPlannerInput}

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar, Flag, Paperclip, MessageSquare, CheckSquare, Trash2, Plus, ChevronDown, Sparkles, Link as LinkIcon, File as FileIcon, ExternalLink, Star, Loader2 } from 'lucide-react';
+import { X, Calendar, Flag, Paperclip, MessageSquare, CheckSquare, Trash2, Plus, ChevronDown, Sparkles, Link as LinkIcon, File as FileIcon, ExternalLink, Star, Loader2, GripVertical } from 'lucide-react';
 import { Task, User, Priority } from '../../types';
 import { Avatar } from '../ui/Avatar';
 import { Badge } from '../ui/Badge';
@@ -29,6 +29,8 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   const [comments, setComments] = useState<Array<{ id: string; text: string; time: string }>>([]);
   const [newSubtask, setNewSubtask] = useState('');
   const [subtasks, setSubtasks] = useState<SubtaskDto[]>([]);
+  const [draggedSubtaskId, setDraggedSubtaskId] = useState<string | null>(null);
+  const [dragOverSubtaskId, setDragOverSubtaskId] = useState<string | null>(null);
   const [isGeneratingSubtasks, setIsGeneratingSubtasks] = useState(false);
   const [attachments, setAttachments] = useState<TaskAttachmentDto[]>([]);
   const [isAddingLink, setIsAddingLink] = useState(false);
@@ -46,6 +48,8 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     setComments([]);
     setAttachments([]);
     setSubtasks([]);
+    setDraggedSubtaskId(null);
+    setDragOverSubtaskId(null);
     setAssigneeOpen(false);
     setIsAddingLink(false);
     setNewLinkUrl('');
@@ -190,13 +194,6 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     }
   };
 
-  const handleSuggestDeadline = () => {
-    const base = new Date(task.endDate);
-    const safeBase = Number.isNaN(base.getTime()) ? new Date() : base;
-    safeBase.setDate(safeBase.getDate() + 2);
-    updateTask({ endDate: safeBase.toISOString().split('T')[0] });
-  };
-
   const handleRewriteDescription = () => {
     const text = task.description?.trim()
       ? `${task.description.trim()} Refined by AI for clarity and execution.`
@@ -207,14 +204,6 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   const handleSetAssignee = (assignee?: User) => {
     updateTask({ assignee });
     setAssigneeOpen(false);
-  };
-
-  const handleSuggestAssignee = () => {
-    if (assigneeOptions.length === 0) return;
-    const currentId = task.assignee?.id;
-    const currentIndex = assigneeOptions.findIndex(member => member.id === currentId);
-    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % assigneeOptions.length : 0;
-    handleSetAssignee(assigneeOptions[nextIndex]);
   };
 
   const handleSubmitForReview = () => {
@@ -265,6 +254,48 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     }
   };
 
+  const handleSubtaskDragStart = (event: React.DragEvent<HTMLDivElement>, subtaskId: string) => {
+    if (!canManageSubtasks) return;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', subtaskId);
+    setDraggedSubtaskId(subtaskId);
+  };
+
+  const handleSubtaskDrop = async (event: React.DragEvent<HTMLDivElement>, targetSubtaskId: string) => {
+    event.preventDefault();
+    if (!task || !orgId || !projectId || !canManageSubtasks) return;
+
+    const sourceSubtaskId = draggedSubtaskId || event.dataTransfer.getData('text/plain');
+    setDraggedSubtaskId(null);
+    setDragOverSubtaskId(null);
+
+    if (!sourceSubtaskId || sourceSubtaskId === targetSubtaskId) return;
+
+    const currentOrder = [...subtasks].sort((a, b) => a.position - b.position);
+    const sourceIndex = currentOrder.findIndex(subtask => subtask.id === sourceSubtaskId);
+    const targetIndex = currentOrder.findIndex(subtask => subtask.id === targetSubtaskId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const nextOrder = [...currentOrder];
+    const [movedSubtask] = nextOrder.splice(sourceIndex, 1);
+    nextOrder.splice(targetIndex, 0, movedSubtask);
+    const reorderedSubtasks = nextOrder.map((subtask, index) => ({ ...subtask, position: index }));
+
+    setSubtasks(reorderedSubtasks);
+
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      await Promise.all(
+        reorderedSubtasks.map(subtask => updateSubtask(token, orgId, projectId, task.id, subtask.id, { position: subtask.position }))
+      );
+    } catch (err: any) {
+      setSubtasks(currentOrder);
+      showToast(err.message || 'Failed to reorder subtasks', 'error');
+      await loadSubtasks();
+    }
+  };
   const handleAddAttachments = (files: FileList | null) => {
     // Read-only
   };
@@ -296,20 +327,17 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
         className="fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#101928]/96 backdrop-blur-xl shadow-2xl shadow-black/35 border-l border-white/6 z-40 flex flex-col"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-white/6 flex items-center justify-between bg-[#0B1220]">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center gap-2">
-              <Badge variant={task.status === 'done' ? 'success' : task.status === 'in-progress' ? 'info' : task.status === 'ready-for-review' ? 'warning' : 'default'}>
+        <div className="px-6 py-4 border-b border-white/6 flex items-center justify-between gap-3 bg-[#0B1220]">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <Badge variant={task.status === 'done' ? 'success' : task.status === 'in-progress' ? 'info' : task.status === 'ready-for-review' ? 'warning' : 'default'} className="shrink-0">
                 {task.status === 'done' ? 'Done' : task.status === 'in-progress' ? 'In Progress' : task.status === 'ready-for-review' ? 'Ready for Review' : 'Todo'}
-              </Badge>
-              <span className="text-xs text-slate-500 font-mono">#{task.id}</span>
-            </div>
+            </Badge>
             <div className="flex items-center gap-2 min-w-0">
-              <Avatar src={task.assignee?.avatar} fallback={task.assignee?.name?.charAt(0) || '?'} size="sm" className="w-6 h-6" />
+              <Avatar src={task.assignee?.avatar} fallback={task.assignee?.name?.charAt(0) || '?'} size="sm" className="w-6 h-6 shrink-0" />
               <span className="text-xs text-slate-300 truncate">{task.assignee?.name || 'Unassigned'}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {task.status !== 'ready-for-review' && task.status !== 'done' && (
               <button
                 onClick={handleSubmitForReview}
@@ -556,22 +584,13 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
             {/* Quick actions */}
             <div>
               <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 block">Quick Actions</label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 {canManageSubtasks && (
                   <button disabled={isGeneratingSubtasks} onClick={handleGenerateSubtasks} className="px-3 py-2.5 text-xs rounded-xl bg-[#121C2C] border border-white/6 text-slate-300 hover:text-white hover:border-slate-500/40 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                     {isGeneratingSubtasks ? <Loader2 size={14} className="animate-spin" /> : null}
                     Generate subtasks
                   </button>
                 )}
-                <button onClick={handleSuggestDeadline} className="px-3 py-2.5 text-xs rounded-xl bg-[#121C2C] border border-white/6 text-slate-300 hover:text-white hover:border-slate-500/40 transition-colors">
-                  Suggest deadline
-                </button>
-                <button onClick={handleSuggestAssignee} className="px-3 py-2.5 text-xs rounded-xl bg-[#121C2C] border border-white/6 text-slate-300 hover:text-white hover:border-slate-500/40 transition-colors">
-                  Suggest assignee
-                </button>
-                <button onClick={handleRewriteDescription} className="px-3 py-2.5 text-xs rounded-xl bg-[#121C2C] border border-white/6 text-slate-300 hover:text-white hover:border-slate-500/40 transition-colors">
-                  Rewrite description
-                </button>
               </div>
             </div>
 
@@ -584,8 +603,30 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                 </span>
               </div>
               <div className="space-y-2">
-                {subtasks.map(subtask => (
-                  <div key={subtask.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-[#121C2C] border border-white/6 group">
+                {subtasks.map((subtask, index) => (
+                  <div
+                    key={subtask.id}
+                    draggable={canManageSubtasks}
+                    onDragStart={(event) => handleSubtaskDragStart(event, subtask.id)}
+                    onDragOver={(event) => {
+                      if (!canManageSubtasks) return;
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'move';
+                      setDragOverSubtaskId(subtask.id);
+                    }}
+                    onDrop={(event) => handleSubtaskDrop(event, subtask.id)}
+                    onDragEnd={() => {
+                      setDraggedSubtaskId(null);
+                      setDragOverSubtaskId(null);
+                    }}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border group transition-all ${
+                      dragOverSubtaskId === subtask.id && draggedSubtaskId !== subtask.id
+                        ? 'bg-[#162032] border-[#22C55E]/45 shadow-[0_0_0_1px_rgba(34,197,94,0.12)]'
+                        : 'bg-[#121C2C] border-white/6'
+                    } ${draggedSubtaskId === subtask.id ? 'opacity-50' : ''} ${canManageSubtasks ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                  >
+                    {canManageSubtasks && <GripVertical size={14} className="text-slate-600 group-hover:text-slate-400 shrink-0" />}
+                    <span className="w-5 text-center text-[11px] font-mono text-slate-500 shrink-0">{index + 1}</span>
                     <button disabled={!canManageSubtasks} onClick={() => handleToggleSubtask(subtask.id, subtask.isCompleted)} className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0 disabled:cursor-not-allowed ${
                       subtask.isCompleted ? 'bg-[#22C55E] border-[#22C55E] text-white' : canManageSubtasks ? 'border-[#22C55E]/20 hover:border-[#22C55E]' : 'border-[#22C55E]/20'
                     }`}>

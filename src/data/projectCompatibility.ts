@@ -21,7 +21,7 @@ export const normalizeProjectRecord = (project: LegacyProjectRecord): Project =>
   return {
     ...project,
     memberIds,
-    members: undefined,
+    members: project.members,
   };
 };
 
@@ -34,12 +34,20 @@ export const normalizeProjects = (projects: unknown): Project[] => {
 };
 
 export const resolveProjectMembers = (project: Project, memberLookup: Map<string, User>): User[] => {
-  const fromIds = project.memberIds
+  const projectMembers = Array.isArray(project.members) ? project.members : [];
+  if (projectMembers.length > 0) {
+    return projectMembers.map(member => {
+      const profile = memberLookup.get(member.id);
+      return {
+        ...profile,
+        ...member,
+        avatar: member.avatar || profile?.avatar || '',
+        email: member.email || profile?.email,
+      };
+    });
+  }
+
+  return project.memberIds
     .map(memberId => memberLookup.get(memberId))
     .filter((member): member is User => Boolean(member));
-
-  if (fromIds.length > 0) return fromIds;
-
-  const legacyMembers = Array.isArray(project.members) ? project.members : [];
-  return legacyMembers;
 };
