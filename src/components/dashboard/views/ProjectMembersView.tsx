@@ -19,12 +19,12 @@ export const ProjectMembersView: React.FC<{
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {project.members.map((member, index) => (
+          {project.members.map((member) => (
             <div key={member.id} className="bg-[#0F1A2A] border border-[#22C55E]/12 rounded-xl p-4 flex items-center gap-3">
               <Avatar src={member.avatar} fallback={member.name.charAt(0)} size="sm" className="w-10 h-10" />
               <div>
                 <p className="text-sm font-semibold text-white">{member.name}</p>
-                <p className="text-xs text-slate-500">{index === 0 ? 'Leader' : 'Member'}</p>
+                <p className="text-xs text-slate-500">{(member.role as string) || 'Member'}</p>
               </div>
             </div>
           ))}

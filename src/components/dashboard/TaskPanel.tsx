@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar, Flag, Paperclip, MessageSquare, CheckSquare, Trash2, Plus, ChevronDown, Sparkles, Link as LinkIcon, File as FileIcon, ExternalLink, Star } from 'lucide-react';
+import { X, Calendar, Flag, Paperclip, MessageSquare, CheckSquare, Trash2, Plus, ChevronDown, Sparkles, Link as LinkIcon, File as FileIcon, ExternalLink, Star, Loader2, GripVertical } from 'lucide-react';
 import { Task, User, Priority } from '../../types';
 import { Avatar } from '../ui/Avatar';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { listTaskAttachments, uploadTaskFile, addTaskLink, deleteTaskAttachment, promoteTaskAttachment, TaskAttachmentDto } from '../../api/project';
+import { listTaskAttachments, uploadTaskFile, addTaskLink, deleteTaskAttachment, promoteTaskAttachment, TaskAttachmentDto, listSubtasks, createSubtask, updateSubtask, deleteSubtask, SubtaskDto } from '../../api/project';
+import { generateSubtasks } from '../../api/ai';
 import { getAuthToken } from './utils/dashboardUtils';
 import { useToast } from '../ui/Toast';
 
@@ -27,6 +28,10 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   const [commentInput, setCommentInput] = useState('');
   const [comments, setComments] = useState<Array<{ id: string; text: string; time: string }>>([]);
   const [newSubtask, setNewSubtask] = useState('');
+  const [subtasks, setSubtasks] = useState<SubtaskDto[]>([]);
+  const [draggedSubtaskId, setDraggedSubtaskId] = useState<string | null>(null);
+  const [dragOverSubtaskId, setDragOverSubtaskId] = useState<string | null>(null);
+  const [isGeneratingSubtasks, setIsGeneratingSubtasks] = useState(false);
   const [attachments, setAttachments] = useState<TaskAttachmentDto[]>([]);
   const [isAddingLink, setIsAddingLink] = useState(false);
   const [newLinkUrl, setNewLinkUrl] = useState('');
@@ -42,6 +47,9 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     setNewSubtask('');
     setComments([]);
     setAttachments([]);
+    setSubtasks([]);
+    setDraggedSubtaskId(null);
+    setDragOverSubtaskId(null);
     setAssigneeOpen(false);
     setIsAddingLink(false);
     setNewLinkUrl('');
@@ -49,6 +57,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     
     if (orgId && projectId) {
       loadAttachments();
+      loadSubtasks();
     }
   }, [task?.id, orgId, projectId]);
 
@@ -61,6 +70,18 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
       setAttachments(data);
     } catch (err) {
       console.error('Failed to load task attachments:', err);
+    }
+  };
+
+  const loadSubtasks = async () => {
+    if (!task || !orgId || !projectId) return;
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const data = await listSubtasks(token, orgId, projectId, task.id);
+      setSubtasks(data.sort((a, b) => a.position - b.position));
+    } catch (err) {
+      console.error('Failed to load subtasks:', err);
     }
   };
 
@@ -121,6 +142,8 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 
   if (!task) return null;
 
+  const canManageSubtasks = currentUserId === task.assignee?.id || currentUserRole === 'Leader';
+
   const deadlineMeta = (() => {
     const due = new Date(task.endDate);
     if (Number.isNaN(due.getTime())) return { label: task.endDate, hint: 'No deadline status' };
@@ -152,15 +175,23 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     onUpdateTask({ ...task, ...patch });
   };
 
-  const handleGenerateSubtasks = () => {
-    // Read-only: API not implemented yet
-  };
-
-  const handleSuggestDeadline = () => {
-    const base = new Date(task.endDate);
-    const safeBase = Number.isNaN(base.getTime()) ? new Date() : base;
-    safeBase.setDate(safeBase.getDate() + 2);
-    updateTask({ endDate: safeBase.toISOString().split('T')[0] });
+  const handleGenerateSubtasks = async () => {
+    if (!task || !orgId || !projectId || isGeneratingSubtasks || !canManageSubtasks) return;
+    const token = getAuthToken();
+    if (!token) return;
+    setIsGeneratingSubtasks(true);
+    try {
+      const generatedList = await generateSubtasks(token, task.title, task.description || '');
+      for (const title of generatedList) {
+        await createSubtask(token, orgId, projectId, task.id, { title });
+      }
+      await loadSubtasks();
+      showToast('Subtasks generated successfully', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to generate subtasks', 'error');
+    } finally {
+      setIsGeneratingSubtasks(false);
+    }
   };
 
   const handleRewriteDescription = () => {
@@ -175,26 +206,96 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     setAssigneeOpen(false);
   };
 
-  const handleSuggestAssignee = () => {
-    if (assigneeOptions.length === 0) return;
-    const currentId = task.assignee?.id;
-    const currentIndex = assigneeOptions.findIndex(member => member.id === currentId);
-    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % assigneeOptions.length : 0;
-    handleSetAssignee(assigneeOptions[nextIndex]);
-  };
-
   const handleSubmitForReview = () => {
     updateTask({ status: 'ready-for-review' });
   };
 
-  const handleToggleSubtask = (subtaskId: string) => {
-    // Read-only
+  const handleToggleSubtask = async (subtaskId: string, currentCompleted: boolean) => {
+    if (!task || !orgId || !projectId || !canManageSubtasks) return;
+    const token = getAuthToken();
+    if (!token) return;
+    
+    setSubtasks(prev => prev.map(s => s.id === subtaskId ? { ...s, isCompleted: !currentCompleted } : s));
+    
+    try {
+      await updateSubtask(token, orgId, projectId, task.id, subtaskId, { isCompleted: !currentCompleted });
+    } catch (err: any) {
+      showToast(err.message || 'Failed to toggle subtask', 'error');
+      await loadSubtasks();
+    }
   };
 
-  const handleAddSubtask = () => {
-    // Read-only
+  const handleAddSubtask = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!task || !orgId || !projectId || !newSubtask.trim() || !canManageSubtasks) return;
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      await createSubtask(token, orgId, projectId, task.id, { title: newSubtask.trim() });
+      setNewSubtask('');
+      await loadSubtasks();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to add subtask', 'error');
+    }
   };
 
+  const handleDeleteSubtaskLocal = async (subtaskId: string) => {
+    if (!task || !orgId || !projectId || !canManageSubtasks) return;
+    const token = getAuthToken();
+    if (!token) return;
+    
+    setSubtasks(prev => prev.filter(s => s.id !== subtaskId));
+    
+    try {
+      await deleteSubtask(token, orgId, projectId, task.id, subtaskId);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete subtask', 'error');
+      await loadSubtasks();
+    }
+  };
+
+  const handleSubtaskDragStart = (event: React.DragEvent<HTMLDivElement>, subtaskId: string) => {
+    if (!canManageSubtasks) return;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', subtaskId);
+    setDraggedSubtaskId(subtaskId);
+  };
+
+  const handleSubtaskDrop = async (event: React.DragEvent<HTMLDivElement>, targetSubtaskId: string) => {
+    event.preventDefault();
+    if (!task || !orgId || !projectId || !canManageSubtasks) return;
+
+    const sourceSubtaskId = draggedSubtaskId || event.dataTransfer.getData('text/plain');
+    setDraggedSubtaskId(null);
+    setDragOverSubtaskId(null);
+
+    if (!sourceSubtaskId || sourceSubtaskId === targetSubtaskId) return;
+
+    const currentOrder = [...subtasks].sort((a, b) => a.position - b.position);
+    const sourceIndex = currentOrder.findIndex(subtask => subtask.id === sourceSubtaskId);
+    const targetIndex = currentOrder.findIndex(subtask => subtask.id === targetSubtaskId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const nextOrder = [...currentOrder];
+    const [movedSubtask] = nextOrder.splice(sourceIndex, 1);
+    nextOrder.splice(targetIndex, 0, movedSubtask);
+    const reorderedSubtasks = nextOrder.map((subtask, index) => ({ ...subtask, position: index }));
+
+    setSubtasks(reorderedSubtasks);
+
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      await Promise.all(
+        reorderedSubtasks.map(subtask => updateSubtask(token, orgId, projectId, task.id, subtask.id, { position: subtask.position }))
+      );
+    } catch (err: any) {
+      setSubtasks(currentOrder);
+      showToast(err.message || 'Failed to reorder subtasks', 'error');
+      await loadSubtasks();
+    }
+  };
   const handleAddAttachments = (files: FileList | null) => {
     // Read-only
   };
@@ -226,20 +327,17 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
         className="fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#101928]/96 backdrop-blur-xl shadow-2xl shadow-black/35 border-l border-white/6 z-40 flex flex-col"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-white/6 flex items-center justify-between bg-[#0B1220]">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center gap-2">
-              <Badge variant={task.status === 'done' ? 'success' : task.status === 'in-progress' ? 'info' : task.status === 'ready-for-review' ? 'warning' : 'default'}>
+        <div className="px-6 py-4 border-b border-white/6 flex items-center justify-between gap-3 bg-[#0B1220]">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <Badge variant={task.status === 'done' ? 'success' : task.status === 'in-progress' ? 'info' : task.status === 'ready-for-review' ? 'warning' : 'default'} className="shrink-0">
                 {task.status === 'done' ? 'Done' : task.status === 'in-progress' ? 'In Progress' : task.status === 'ready-for-review' ? 'Ready for Review' : 'Todo'}
-              </Badge>
-              <span className="text-xs text-slate-500 font-mono">#{task.id}</span>
-            </div>
+            </Badge>
             <div className="flex items-center gap-2 min-w-0">
-              <Avatar src={task.assignee?.avatar} fallback={task.assignee?.name?.charAt(0) || '?'} size="sm" className="w-6 h-6" />
+              <Avatar src={task.assignee?.avatar} fallback={task.assignee?.name?.charAt(0) || '?'} size="sm" className="w-6 h-6 shrink-0" />
               <span className="text-xs text-slate-300 truncate">{task.assignee?.name || 'Unassigned'}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {task.status !== 'ready-for-review' && task.status !== 'done' && (
               <button
                 onClick={handleSubmitForReview}
@@ -486,19 +584,13 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
             {/* Quick actions */}
             <div>
               <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 block">Quick Actions</label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <button onClick={handleGenerateSubtasks} className="px-3 py-2.5 text-xs rounded-xl bg-[#121C2C] border border-white/6 text-slate-300 hover:text-white hover:border-slate-500/40 transition-colors">
-                  Generate subtasks
-                </button>
-                <button onClick={handleSuggestDeadline} className="px-3 py-2.5 text-xs rounded-xl bg-[#121C2C] border border-white/6 text-slate-300 hover:text-white hover:border-slate-500/40 transition-colors">
-                  Suggest deadline
-                </button>
-                <button onClick={handleSuggestAssignee} className="px-3 py-2.5 text-xs rounded-xl bg-[#121C2C] border border-white/6 text-slate-300 hover:text-white hover:border-slate-500/40 transition-colors">
-                  Suggest assignee
-                </button>
-                <button onClick={handleRewriteDescription} className="px-3 py-2.5 text-xs rounded-xl bg-[#121C2C] border border-white/6 text-slate-300 hover:text-white hover:border-slate-500/40 transition-colors">
-                  Rewrite description
-                </button>
+              <div className="grid grid-cols-1 gap-2">
+                {canManageSubtasks && (
+                  <button disabled={isGeneratingSubtasks} onClick={handleGenerateSubtasks} className="px-3 py-2.5 text-xs rounded-xl bg-[#121C2C] border border-white/6 text-slate-300 hover:text-white hover:border-slate-500/40 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isGeneratingSubtasks ? <Loader2 size={14} className="animate-spin" /> : null}
+                    Generate subtasks
+                  </button>
+                )}
               </div>
             </div>
 
@@ -507,24 +599,67 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block">Subtasks</label>
                 <span className="text-xs text-slate-500">
-                  {task.subtasks?.filter(t => t.completed).length || 0}/{task.subtasks?.length || 0}
+                  {subtasks.filter(t => t.isCompleted).length}/{subtasks.length}
                 </span>
               </div>
               <div className="space-y-2">
-                {task.subtasks?.map(subtask => (
-                  <div key={subtask.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-[#121C2C] border border-white/6">
-                    <button onClick={() => handleToggleSubtask(subtask.id)} className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                      subtask.completed ? 'bg-green-500 border-green-500 text-white' : 'border-[#22C55E]/10 hover:border-[#22C55E]'
+                {subtasks.map((subtask, index) => (
+                  <div
+                    key={subtask.id}
+                    draggable={canManageSubtasks}
+                    onDragStart={(event) => handleSubtaskDragStart(event, subtask.id)}
+                    onDragOver={(event) => {
+                      if (!canManageSubtasks) return;
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'move';
+                      setDragOverSubtaskId(subtask.id);
+                    }}
+                    onDrop={(event) => handleSubtaskDrop(event, subtask.id)}
+                    onDragEnd={() => {
+                      setDraggedSubtaskId(null);
+                      setDragOverSubtaskId(null);
+                    }}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border group transition-all ${
+                      dragOverSubtaskId === subtask.id && draggedSubtaskId !== subtask.id
+                        ? 'bg-[#162032] border-[#22C55E]/45 shadow-[0_0_0_1px_rgba(34,197,94,0.12)]'
+                        : 'bg-[#121C2C] border-white/6'
+                    } ${draggedSubtaskId === subtask.id ? 'opacity-50' : ''} ${canManageSubtasks ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                  >
+                    {canManageSubtasks && <GripVertical size={14} className="text-slate-600 group-hover:text-slate-400 shrink-0" />}
+                    <span className="w-5 text-center text-[11px] font-mono text-slate-500 shrink-0">{index + 1}</span>
+                    <button disabled={!canManageSubtasks} onClick={() => handleToggleSubtask(subtask.id, subtask.isCompleted)} className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0 disabled:cursor-not-allowed ${
+                      subtask.isCompleted ? 'bg-[#22C55E] border-[#22C55E] text-white' : canManageSubtasks ? 'border-[#22C55E]/20 hover:border-[#22C55E]' : 'border-[#22C55E]/20'
                     }`}>
-                      {subtask.completed && <CheckSquare size={12} />}
+                      {subtask.isCompleted && <CheckSquare size={12} />}
                     </button>
-                    <span className={`text-sm flex-1 ${subtask.completed ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
+                    <span className={`text-sm flex-1 break-words ${subtask.isCompleted ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
                       {subtask.title}
                     </span>
+                    {canManageSubtasks && (
+                      <button onClick={() => handleDeleteSubtaskLocal(subtask.id)} className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 hover:bg-[#0B1220] rounded-lg transition-all shrink-0">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 ))}
-                {(!task.subtasks || task.subtasks.length === 0) && (
-                  <p className="text-sm text-slate-500 py-2">No subtasks yet.</p>
+                
+                {canManageSubtasks ? (
+                  <form onSubmit={handleAddSubtask} className="flex items-center gap-2 mt-2">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        value={newSubtask}
+                        onChange={(e) => setNewSubtask(e.target.value)}
+                        placeholder="Add a subtask..."
+                        className="w-full bg-[#121C2C] border border-white/6 rounded-xl pl-3 pr-10 py-2.5 text-sm text-slate-300 placeholder:text-slate-600 focus:border-[#22C55E]/50 focus:outline-none"
+                      />
+                      <button type="submit" disabled={!newSubtask.trim()} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-white disabled:opacity-50 disabled:hover:text-slate-400 transition-colors bg-[#0B1220] rounded-lg">
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="text-xs text-slate-500 mt-2">Only the assignee or project Leader can manage subtasks.</p>
                 )}
               </div>
             </div>

@@ -63,4 +63,26 @@ export async function generateProjectPlan(token: string, request: GeneratePlanRe
   });
 }
 
+export async function generateSubtasks(token: string, taskTitle: string, taskDescription: string): Promise<string[]> {
+  const result = await apiRequest<string | string[]>('/api/Ai/generate-subtasks', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ taskTitle, taskDescription }),
+  });
+  
+  // The backend might return a JSON string that we need to parse if apiRequest didn't do it automatically,
+  // or it might return the array directly. Handle both.
+  if (typeof result === 'string') {
+    try {
+      return JSON.parse(result);
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(result) ? result : [];
+}
+
 

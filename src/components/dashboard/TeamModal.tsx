@@ -28,15 +28,8 @@ const roleConfig: Record<TeamRole, { icon: React.ReactNode; color: string }> = {
   Guest: { icon: <UserPlus size={12} />, color: 'text-sky-300 bg-sky-500/10 border-sky-500/20' },
 };
 
-const ROLE_STORAGE_KEY = 'ppt_project_member_roles';
-
-const readStoredRoles = (): Record<string, Record<string, TeamRole>> => {
-  try {
-    const raw = localStorage.getItem(ROLE_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+const toTeamRole = (role?: string): TeamRole => {
+  return role === 'Leader' || role === 'Guest' ? role : 'Member';
 };
 
 const makeProjectCode = (projectId: string, projectName: string) => {
@@ -63,11 +56,9 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
 
   useEffect(() => {
     if (!open) return;
-    const storedRoles = readStoredRoles();
-    const projectRoles = storedRoles[projectId] || {};
-    setProjectMembers(members.map((member, index) => ({
+    setProjectMembers(members.map(member => ({
       ...member,
-      teamRole: projectRoles[member.id] || (index === 0 ? 'Leader' : 'Member'),
+      teamRole: toTeamRole(member.role),
     })));
 
     const memberIds = new Set(members.map(member => member.id));
@@ -79,12 +70,6 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
 
   const save = (next: TeamMember[]) => {
     setProjectMembers(next);
-    const storedRoles = readStoredRoles();
-    storedRoles[projectId] = next.reduce<Record<string, TeamRole>>((acc, member) => {
-      acc[member.id] = member.teamRole;
-      return acc;
-    }, {});
-    localStorage.setItem(ROLE_STORAGE_KEY, JSON.stringify(storedRoles));
   };
 
   const handleRemove = (id: string) => {
@@ -142,6 +127,9 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
   };
 
   const changeRole = async (id: string, r: TeamRole) => {
+    const current = projectMembers.find(m => m.id === id);
+    if (!current || current.teamRole === 'Leader' || r === 'Leader') return;
+
     const next = projectMembers.map(m => m.id === id ? { ...m, teamRole: r } : m);
     save(next);
     if (onUpdateMember) {
@@ -240,7 +228,6 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                 onChange={e => setInviteRole(e.target.value as TeamRole)}
                 className="w-full px-3 py-2 rounded-lg bg-[#0A0F1A] border border-[#22C55E]/10 text-sm text-white outline-none focus:border-[#22C55E]"
               >
-                <option>Leader</option>
                 <option>Member</option>
                 <option>Guest</option>
               </select>
@@ -276,11 +263,11 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                       {m.teamRole}
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-500">ID: {m.id}</p>
+                  <label className="mt-1 block text-[10px] uppercase tracking-wide text-slate-500">Project skills</label>
                   <input
                     type="text"
                     value={m.projectSkills || ''}
-                    placeholder="Skills / Preferred tasks (e.g. Designer, Backend)"
+                    placeholder="e.g. UI Design, React, Backend"
                     onChange={e => handleSkillsChange(m.id, e.target.value)}
                     onBlur={() => handleSkillsSave(m.id)}
                     onKeyDown={e => {
@@ -292,15 +279,20 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                   />
                 </div>
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <select
-                    value={m.teamRole}
-                    onChange={e => changeRole(m.id, e.target.value as TeamRole)}
-                    className="px-2 py-1 rounded-lg text-xs bg-[#0A0F1A] border border-[#22C55E]/10 text-slate-300 outline-none focus:border-[#22C55E]"
-                  >
-                    <option>Leader</option>
-                    <option>Member</option>
-                    <option>Guest</option>
-                  </select>
+                  {m.teamRole === 'Leader' ? (
+                    <span className="px-2 py-1 rounded-lg text-xs bg-[#0A0F1A] border border-[#EAB308]/20 text-[#EAB308]">
+                      Project creator
+                    </span>
+                  ) : (
+                    <select
+                      value={m.teamRole}
+                      onChange={e => changeRole(m.id, e.target.value as TeamRole)}
+                      className="px-2 py-1 rounded-lg text-xs bg-[#0A0F1A] border border-[#22C55E]/10 text-slate-300 outline-none focus:border-[#22C55E]"
+                    >
+                      <option>Member</option>
+                      <option>Guest</option>
+                    </select>
+                  )}
                   <button
                     onClick={() => handleRemove(m.id)}
                     className="text-xs text-red-400/70 hover:text-red-400 transition-colors px-2 py-1"
