@@ -40,6 +40,14 @@ export interface TaskAttachmentDto {
   uploadedAt: string;
 }
 
+export interface SubtaskDto {
+  id: string;
+  taskId: string;
+  title: string;
+  isCompleted: boolean;
+  position: number;
+}
+
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -395,6 +403,56 @@ export async function promoteTaskAttachment(
 ) {
   return apiRequest<void>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/attachments/${attachmentId}/promote?role=${role}`, {
     method: 'POST',
+    headers: authHeaders(token),
+  });
+}
+
+// ── Subtasks ──────────────────────────────────────────────
+
+export async function listSubtasks(token: string, orgId: string, projectId: string, taskId: string) {
+  return apiRequest<SubtaskDto[]>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/subtasks`, {
+    headers: authHeaders(token),
+  });
+}
+
+export async function createSubtask(
+  token: string,
+  orgId: string,
+  projectId: string,
+  taskId: string,
+  body: { title: string }
+) {
+  return apiRequest<SubtaskDto>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/subtasks`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateSubtask(
+  token: string,
+  orgId: string,
+  projectId: string,
+  taskId: string,
+  subtaskId: string,
+  body: { title?: string; isCompleted?: boolean; position?: number }
+) {
+  return apiRequest<SubtaskDto>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/subtasks/${subtaskId}`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteSubtask(
+  token: string,
+  orgId: string,
+  projectId: string,
+  taskId: string,
+  subtaskId: string
+) {
+  return apiRequest<void>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/subtasks/${subtaskId}`, {
+    method: 'DELETE',
     headers: authHeaders(token),
   });
 }
