@@ -419,8 +419,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </span>
                   </div>
                   <h3 className="text-2xl font-bold text-white mt-4 flex items-baseline gap-1.5">
-                    {activePlan === 'free' ? '0 VNÄ' : activePlan === 'pro' ? '99.000 VNÄ' : activePlan === 'business' ? '249.000 VNÄ' : 'Custom'}
-                    <span className="text-sm font-normal text-slate-400">/thÃ¡ng</span>
+                    {activePlan === 'free' ? '0 VNĐ' : activePlan === 'pro' ? '99.000 VNĐ' : activePlan === 'business' ? '249.000 VNĐ' : 'Custom'}
+                    <span className="text-sm font-normal text-slate-400">/tháng</span>
                   </h3>
                   <p className="text-sm text-slate-400 mt-2">Active subscription for {orgName}.</p>
                 </div>
@@ -428,15 +428,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   {isFree ? (
                     <Button onClick={handleUpgrade} className="w-full flex items-center justify-center gap-2" variant="primary">
                       <Sparkles size={14} className="text-yellow-300 animate-pulse" />
-                      NÃ¢ng Cáº¥p GÃ³i Dá»‹ch Vá»¥
+                      Nâng cấp gói dịch vụ
                     </Button>
                   ) : (
                     <div className="space-y-2">
                       <div className="flex items-center gap-1.5 text-xs text-[#6EE7B7] bg-[#22C55E]/10 border border-[#22C55E]/20 px-3 py-2 rounded-xl">
-                        <Check size={14} /> GÃ³i dá»‹ch vá»¥ cao cáº¥p Ä‘Ã£ hoáº¡t Ä‘á»™ng
+                        <Check size={14} /> Gói dịch vụ cao cấp đã hoạt động
                       </div>
                       <Button onClick={handleUpgrade} className="w-full" variant="outline">
-                        Thay Äá»•i GÃ³i CÆ°á»›c
+                        Thay đổi gói cước
                       </Button>
                     </div>
                   )}
@@ -463,7 +463,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Zap size={14} className="text-yellow-400" />
                       <span className="text-sm font-medium text-slate-200">AI Quota</span>
                     </div>
-                    <span className="text-xs font-bold text-yellow-300">{aiQuota >= 9999 ? 'KhÃ´ng giá»›i háº¡n' : `${aiQuota} yÃªu cáº§u`}</span>
+                    <span className="text-xs font-bold text-yellow-300">{aiQuota >= 9999 ? 'Không giới hạn' : `${aiQuota} yêu cầu`}</span>
                   </div>
                 </div>
 
@@ -473,7 +473,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Users size={14} className="text-blue-400" />
                       <span className="text-sm font-medium text-slate-200">Members</span>
                     </div>
-                    <span className="text-xs text-slate-400">{membersCount} / {maxMembers >= 999 ? 'KhÃ´ng giá»›i háº¡n' : maxMembers}</span>
+                    <span className="text-xs text-slate-400">{membersCount} / {maxMembers >= 999 ? 'Không giới hạn' : maxMembers}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-[#0A0F1A] overflow-hidden">
                     <div className="h-full rounded-full bg-blue-400" style={{ width: `${membersPercent}%` }} />
@@ -541,7 +541,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* â”€â”€â”€ Premium VietQR Simulated Checkout Overlay â”€â”€â”€ */}
+      {/* Premium PayOS Checkout Overlay */}
       <AnimatePresence>
         {showCheckout && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -571,8 +571,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <QrCode size={16} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-md">NÃ¢ng Cáº¥p GÃ³i Dá»‹ch Vá»¥ Tá»• Chá»©c</h3>
-                    <p className="text-xs text-slate-500">Giáº£ láº­p thanh toÃ¡n báº£o máº­t VietQR</p>
+                    <h3 className="font-bold text-white text-md">Nâng cấp gói dịch vụ tổ chức</h3>
+                    <p className="text-xs text-slate-500">Thanh toán bảo mật qua PayOS</p>
                   </div>
                 </div>
                 {checkoutStep !== 3 && (
@@ -589,29 +589,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="px-8 py-4 bg-[#162032]/40 border-b border-[#22C55E]/5 flex justify-center items-center gap-2 text-xs font-semibold text-slate-400">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-5 h-5 rounded-full flex items-center justify-center ${checkoutStep >= 1 ? 'bg-[#22C55E] text-white' : 'bg-slate-700'}`}>1</span>
-                  <span className={checkoutStep >= 1 ? 'text-[#6EE7B7]' : ''}>Chá»n gÃ³i</span>
+                  <span className={checkoutStep >= 1 ? 'text-[#6EE7B7]' : ''}>Chọn gói</span>
                 </div>
                 <div className="w-12 h-0.5 bg-slate-700" />
                 <div className="flex items-center gap-1.5">
                   <span className={`w-5 h-5 rounded-full flex items-center justify-center ${checkoutStep >= 2 ? 'bg-[#22C55E] text-white' : 'bg-slate-700'}`}>2</span>
-                  <span className={checkoutStep >= 2 ? 'text-[#6EE7B7]' : ''}>QuÃ©t mÃ£ QR</span>
+                  <span className={checkoutStep >= 2 ? 'text-[#6EE7B7]' : ''}>Quét mã QR</span>
                 </div>
                 <div className="w-12 h-0.5 bg-slate-700" />
                 <div className="flex items-center gap-1.5">
                   <span className={`w-5 h-5 rounded-full flex items-center justify-center ${checkoutStep >= 3 ? 'bg-[#22C55E] text-white' : 'bg-slate-700'}`}>3</span>
-                  <span className={checkoutStep >= 3 ? 'text-[#6EE7B7]' : ''}>XÃ¡c nháº­n</span>
+                  <span className={checkoutStep >= 3 ? 'text-[#6EE7B7]' : ''}>Xác nhận</span>
                 </div>
               </div>
 
               {/* Steps Body */}
               <div className="p-6 md:p-8 flex-1 overflow-y-auto max-h-[64vh]">
                 
-                {/* â”€â”€ STEP 1: Plan Selector â”€â”€ */}
+                {/* STEP 1: Plan Selector */}
                 {checkoutStep === 1 && (
                   <div className="space-y-6">
                     <div className="text-center space-y-1">
-                      <h4 className="text-lg font-bold text-white">Chá»n cáº¥u hÃ¬nh nÃ¢ng cáº¥p</h4>
-                      <p className="text-sm text-slate-400">Gia tÄƒng giá»›i háº¡n thÃ nh viÃªn, AI Quota vÃ  dung lÆ°á»£ng cá»±c nhanh</p>
+                      <h4 className="text-lg font-bold text-white">Chọn cấu hình nâng cấp</h4>
+                      <p className="text-sm text-slate-400">Tăng giới hạn thành viên, AI quota và dung lượng lưu trữ</p>
                     </div>
 
                     {/* Cycle Toggle */}
@@ -621,13 +621,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           onClick={() => setBillingCycle('monthly')}
                           className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${billingCycle === 'monthly' ? 'bg-[#22C55E] text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
                         >
-                          Theo ThÃ¡ng
+                          Theo tháng
                         </button>
                         <button
                           onClick={() => setBillingCycle('yearly')}
                           className={`px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 transition-all ${billingCycle === 'yearly' ? 'bg-[#22C55E] text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
                         >
-                          Theo NÄƒm
+                          Theo năm
                           <span className="bg-yellow-500/20 text-yellow-300 text-[10px] px-1.5 py-0.5 rounded-full font-bold">-20%</span>
                         </button>
                       </div>
@@ -635,7 +635,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                     {/* Pricing Cards Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* GÃ³i Pro */}
+                      {/* Gói Pro */}
                       <div 
                         onClick={() => setSelectedPlan('pro')}
                         className={`rounded-2xl border p-5 cursor-pointer flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] ${
@@ -646,29 +646,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       >
                         <div>
                           <div className="flex justify-between items-center">
-                            <h5 className="font-bold text-white text-md">GÃ³i PRO</h5>
+                            <h5 className="font-bold text-white text-md">Gói PRO</h5>
                             {selectedPlan === 'pro' && <CheckCircle2 className="text-[#22C55E]" size={18} />}
                           </div>
-                          <p className="text-slate-400 text-xs mt-1">PhÃ¹ há»£p cho cÃ¡ nhÃ¢n & nhÃ³m há»c sinh FPT</p>
+                          <p className="text-slate-400 text-xs mt-1">Phù hợp cho cá nhân và nhóm học sinh FPT</p>
                           <div className="mt-4">
                             <span className="text-2xl font-bold text-white">
-                              {billingCycle === 'yearly' ? '79.000 VNÄ' : '99.000 VNÄ'}
+                              {billingCycle === 'yearly' ? '79.000 VNĐ' : '99.000 VNĐ'}
                             </span>
-                            <span className="text-xs text-slate-500">/thÃ¡ng</span>
+                            <span className="text-xs text-slate-500">/tháng</span>
                           </div>
                           {billingCycle === 'yearly' && (
-                            <p className="text-[10px] text-yellow-300 mt-1 font-medium">Billed annually (948.000Ä‘/nÄƒm)</p>
+                            <p className="text-[10px] text-yellow-300 mt-1 font-medium">Thanh toán hằng năm (948.000đ/năm)</p>
                           )}
                           <div className="mt-4 space-y-2 border-t border-[#22C55E]/10 pt-3 text-xs text-slate-300">
-                            <p>â€¢ Tá»‘i Ä‘a <strong className="text-white">20 thÃ nh viÃªn</strong> (Gá»‘c 5)</p>
-                            <p>â€¢ Táº¡o tá»‘i Ä‘a <strong className="text-white">15 dá»± Ã¡n</strong> (Gá»‘c 3)</p>
-                            <p>â€¢ AI Quota <strong className="text-white">200 yÃªu cáº§u/thÃ¡ng</strong> (Gá»‘c 20)</p>
-                            <p>â€¢ Bá»™ nhá»› <strong className="text-white">10 GB</strong> (Gá»‘c 1 GB)</p>
+                            <p>• Tối đa <strong className="text-white">20 thành viên</strong> (Gốc 5)</p>
+                            <p>• Tạo tối đa <strong className="text-white">15 dự án</strong> (Gốc 3)</p>
+                            <p>• AI Quota <strong className="text-white">200 yêu cầu/tháng</strong> (Gốc 20)</p>
+                            <p>• Bộ nhớ <strong className="text-white">10 GB</strong> (Gốc 1 GB)</p>
                           </div>
                         </div>
                       </div>
 
-                      {/* GÃ³i Business */}
+                      {/* Gói Business */}
                       <div 
                         onClick={() => setSelectedPlan('business')}
                         className={`rounded-2xl border p-5 cursor-pointer flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] ${
@@ -679,24 +679,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       >
                         <div>
                           <div className="flex justify-between items-center">
-                            <h5 className="font-bold text-white text-md">GÃ³i BUSINESS</h5>
+                            <h5 className="font-bold text-white text-md">Gói BUSINESS</h5>
                             {selectedPlan === 'business' && <CheckCircle2 className="text-[#22C55E]" size={18} />}
                           </div>
-                          <p className="text-slate-400 text-xs mt-1">PhÃ¹ há»£p cho lá»›p há»c hoáº·c doanh nghiá»‡p</p>
+                          <p className="text-slate-400 text-xs mt-1">Phù hợp cho lớp học hoặc doanh nghiệp</p>
                           <div className="mt-4">
                             <span className="text-2xl font-bold text-white">
-                              {billingCycle === 'yearly' ? '199.000 VNÄ' : '249.000 VNÄ'}
+                              {billingCycle === 'yearly' ? '199.000 VNĐ' : '249.000 VNĐ'}
                             </span>
-                            <span className="text-xs text-slate-500">/thÃ¡ng</span>
+                            <span className="text-xs text-slate-500">/tháng</span>
                           </div>
                           {billingCycle === 'yearly' && (
-                            <p className="text-[10px] text-yellow-300 mt-1 font-medium">Billed annually (2.388.000Ä‘/nÄƒm)</p>
+                            <p className="text-[10px] text-yellow-300 mt-1 font-medium">Thanh toán hằng năm (2.388.000đ/năm)</p>
                           )}
                           <div className="mt-4 space-y-2 border-t border-[#22C55E]/10 pt-3 text-xs text-slate-300">
-                            <p>â€¢ Tá»‘i Ä‘a <strong className="text-white">200 thÃ nh viÃªn</strong> (Gá»‘c 5)</p>
-                            <p>â€¢ Táº¡o tá»‘i Ä‘a <strong className="text-white">100 dá»± Ã¡n</strong> (Gá»‘c 3)</p>
-                            <p>â€¢ AI Quota <strong className="text-white">1000 yÃªu cáº§u/thÃ¡ng</strong></p>
-                            <p>â€¢ Bá»™ nhá»› <strong className="text-white">50 GB</strong></p>
+                            <p>• Tối đa <strong className="text-white">200 thành viên</strong> (Gốc 5)</p>
+                            <p>• Tạo tối đa <strong className="text-white">100 dự án</strong> (Gốc 3)</p>
+                            <p>• AI Quota <strong className="text-white">1000 yêu cầu/tháng</strong></p>
+                            <p>• Bộ nhớ <strong className="text-white">50 GB</strong></p>
                           </div>
                         </div>
                       </div>
@@ -704,13 +704,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                     {/* Action Footer Step 1 */}
                     <div className="flex justify-end gap-3 pt-3">
-                      <Button variant="ghost" onClick={() => setShowCheckout(false)}>Há»§y bá»</Button>
+                      <Button variant="ghost" onClick={() => setShowCheckout(false)}>Hủy bỏ</Button>
                       <Button 
                         onClick={handleStartCheckout} 
                         isLoading={checkoutLoading} 
                         icon={<ArrowRight size={14} />}
                       >
-                        Tiáº¿n HÃ nh Thanh ToÃ¡n
+                        Tiến hành thanh toán
                       </Button>
                     </div>
                   </div>
@@ -741,13 +741,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <div className="space-y-3">
                           <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/8 px-4 py-3 flex justify-between items-center">
                             <div>
-                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Sá»‘ tiá»n thanh toÃ¡n</p>
+                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Số tiền thanh toán</p>
                               <p className="text-lg font-black text-yellow-400 mt-0.5">
-                                {checkoutResult.amount.toLocaleString('vi-VN')} VNÄ
+                                {checkoutResult.amount.toLocaleString('vi-VN')} VNĐ
                               </p>
                             </div>
                             <span className="text-[10px] font-bold bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-md">
-                              {checkoutResult.billingCycle === 'yearly' ? 'Chu ká»³ 1 NÄƒm' : 'Chu ká»³ 1 ThÃ¡ng'}
+                              {checkoutResult.billingCycle === 'yearly' ? 'Chu kỳ 1 năm' : 'Chu kỳ 1 tháng'}
                             </span>
                           </div>
 
@@ -765,9 +765,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-xs text-blue-200 flex gap-2.5 items-start">
                             <Sparkles size={16} className="text-blue-400 flex-shrink-0 mt-0.5" />
                             <div>
-                              <p className="font-semibold text-white">SAU KHI Náº P THÃ€NH CÃ”NG</p>
+                              <p className="font-semibold text-white">SAU KHI THANH TOÁN THÀNH CÔNG</p>
                               <p className="mt-1 text-slate-400 leading-relaxed">
-                                Há»‡ thá»‘ng sáº½ tá»± Ä‘á»™ng nháº­n diá»‡n vÃ  nÃ¢ng cáº¥p tÃ i khoáº£n cá»§a báº¡n lÃªn gÃ³i <strong>{checkoutResult.plan.toUpperCase()}</strong> ngay láº­p tá»©c.
+                                Hệ thống sẽ tự động nhận diện và nâng cấp tổ chức của bạn lên gói <strong>{checkoutResult.plan.toUpperCase()}</strong> ngay lập tức.
                               </p>
                             </div>
                           </div>
@@ -776,17 +776,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {/* Guide workflow */}
                         <div className="text-[10px] text-slate-500 border-t border-[#22C55E]/10 pt-3 flex justify-around">
                           <div className="text-center">
-                            <p className="font-bold text-slate-300">1. Má»Ÿ App</p>
+                            <p className="font-bold text-slate-300">1. Mở PayOS</p>
                               <p>Mở checkout PayOS</p>
                           </div>
-                          <span className="text-slate-700">â†’</span>
+                          <span className="text-slate-700">→</span>
                           <div className="text-center">
-                            <p className="font-bold text-slate-300">2. QuÃ©t QR</p>
+                            <p className="font-bold text-slate-300">2. Quét QR</p>
                             <p>Quét QR trong PayOS</p>
                           </div>
-                          <span className="text-slate-700">â†’</span>
+                          <span className="text-slate-700">→</span>
                           <div className="text-center">
-                            <p className="font-bold text-slate-300">3. HoÃ n táº¥t</p>
+                            <p className="font-bold text-slate-300">3. Hoàn tất</p>
                             <p>Webhook tự nâng gói</p>
                           </div>
                         </div>
@@ -795,7 +795,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                     {/* Step 2 Action Buttons */}
                     <div className="flex justify-between items-center pt-3 border-t border-[#22C55E]/10">
-                      <Button variant="ghost" onClick={() => setCheckoutStep(1)}>Quay láº¡i</Button>
+                      <Button variant="ghost" onClick={() => setCheckoutStep(1)}>Quay lại</Button>
                       
                       <div className="flex gap-2">
                         <Button 
@@ -832,7 +832,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 )}
 
-                {/* â”€â”€ STEP 4: Success Upgrade Confetti Screen â”€â”€ */}
+                {/* STEP 4: Success Upgrade Screen */}
                 {checkoutStep === 4 && (
                   <div className="py-6 flex flex-col items-center text-center space-y-6">
                     
@@ -842,40 +842,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div className="space-y-2">
-                      <h4 className="text-2xl font-bold text-white">NÃ¢ng Cáº¥p ThÃ nh CÃ´ng! ðŸŽ‰</h4>
+                      <h4 className="text-2xl font-bold text-white">Nâng cấp thành công!</h4>
                       <p className="text-sm text-[#6EE7B7]">
-                        Tá»• chá»©c cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c nÃ¢ng cáº¥p lÃªn gÃ³i <strong>{selectedPlan.toUpperCase()}</strong> thÃ nh cÃ´ng!
+                        Tổ chức của bạn đã được nâng cấp lên gói <strong>{selectedPlan.toUpperCase()}</strong> thành công!
                       </p>
                     </div>
 
                     {/* Limits comparison overview */}
                     <div className="bg-[#162032]/40 border border-[#22C55E]/20 rounded-2xl p-5 w-full max-w-md space-y-3.5 text-sm text-slate-300">
-                      <h5 className="font-semibold text-white text-xs border-b border-[#22C55E]/10 pb-2 text-left uppercase tracking-wider text-slate-500">Giá»›i háº¡n dá»‹ch vá»¥ má»›i</h5>
+                      <h5 className="font-semibold text-white text-xs border-b border-[#22C55E]/10 pb-2 text-left uppercase tracking-wider text-slate-500">Giới hạn dịch vụ mới</h5>
                       
                       <div className="flex justify-between items-center text-xs">
-                        <span>Sá»‘ thÃ nh viÃªn tá»‘i Ä‘a (Seats):</span>
+                        <span>Số thành viên tối đa (Seats):</span>
                         <span className="font-bold text-white">
-                          {selectedPlan === 'pro' ? '20 thÃ nh viÃªn' : '200 thÃ nh viÃªn (KhÃ´ng giá»›i háº¡n)'}
+                          {selectedPlan === 'pro' ? '20 thành viên' : '200 thành viên (Không giới hạn)'}
                         </span>
                       </div>
 
                       <div className="flex justify-between items-center text-xs">
                         <span>AI Planner Quota:</span>
                         <span className="font-bold text-white">
-                          {selectedPlan === 'pro' ? '200 yÃªu cáº§u / thÃ¡ng' : '1000 yÃªu cáº§u / thÃ¡ng'}
+                          {selectedPlan === 'pro' ? '200 yêu cầu / tháng' : '1000 yêu cầu / tháng'}
                         </span>
                       </div>
 
                       <div className="flex justify-between items-center text-xs">
-                        <span>Dung lÆ°á»£ng lÆ°u trá»¯:</span>
+                        <span>Dung lượng lưu trữ:</span>
                         <span className="font-bold text-white">
-                          {selectedPlan === 'pro' ? '10 GB (Gá»‘c 1 GB)' : '50 GB (Gá»‘c 1 GB)'}
+                          {selectedPlan === 'pro' ? '10 GB (Gốc 1 GB)' : '50 GB (Gốc 1 GB)'}
                         </span>
                       </div>
                     </div>
 
                     <p className="text-xs text-slate-500 leading-relaxed max-w-sm">
-                      Má»i giá»›i háº¡n lÆ°u trá»¯ dá»¯ liá»‡u, quota tÃ­nh toÃ¡n trÃ­ tuá»‡ nhÃ¢n táº¡o vÃ  dung lÆ°á»£ng má»›i Ä‘Ã£ Ä‘Æ°á»£c kÃ­ch hoáº¡t ngay láº­p tá»©c cho tá»• chá»©c cá»§a báº¡n.
+                      Mọi giới hạn lưu trữ dữ liệu, quota AI và dung lượng mới đã được kích hoạt ngay lập tức cho tổ chức của bạn.
                     </p>
 
                     <div className="pt-2">
@@ -883,7 +883,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         onClick={() => setShowCheckout(false)}
                         className="bg-[#22C55E] text-white px-8"
                       >
-                        Tuyá»‡t vá»i, quay láº¡i lÃ m viá»‡c!
+                        Tuyệt vời, quay lại làm việc!
                       </Button>
                     </div>
                   </div>
