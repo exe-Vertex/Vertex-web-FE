@@ -100,13 +100,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<{ id: string, name: string } | null>(null);
   const [initialCheckoutPlan, setInitialCheckoutPlan] = useState<'pro' | 'business' | null>(null);
+  const [initialCheckoutCycle, setInitialCheckoutCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
     const pendingPlan = localStorage.getItem('checkout_plan_on_mount');
+    const pendingCycle = localStorage.getItem('checkout_cycle_on_mount');
     if (pendingPlan === 'pro' || pendingPlan === 'business') {
       localStorage.removeItem('checkout_plan_on_mount');
+      localStorage.removeItem('checkout_cycle_on_mount');
       setActiveTab('settings');
       setInitialCheckoutPlan(pendingPlan);
+      setInitialCheckoutCycle(pendingCycle === 'yearly' ? 'yearly' : 'monthly');
     }
   }, []);
 
@@ -1703,6 +1707,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 onRemoveMember={handleRemoveOrgMember}
                 onUpgradeSuccess={refreshProjectsList}
                 initialCheckoutPlan={initialCheckoutPlan}
+                initialCheckoutCycle={initialCheckoutCycle}
                 onClearInitialCheckoutPlan={() => setInitialCheckoutPlan(null)}
               />
             )}

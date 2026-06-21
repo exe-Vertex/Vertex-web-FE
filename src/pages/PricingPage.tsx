@@ -137,6 +137,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
 
     // Lưu gói muốn nâng cấp vào localStorage và chuyển hướng sang dashboard
     localStorage.setItem('checkout_plan_on_mount', planName.toLowerCase());
+    localStorage.setItem('checkout_cycle_on_mount', billingCycle);
     showToast(`Đang chuyển hướng tới trang thanh toán gói ${planName}...`, 'success');
     setTimeout(() => onNavigate('dashboard'), 800);
   };

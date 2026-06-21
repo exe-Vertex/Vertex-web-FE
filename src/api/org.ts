@@ -113,26 +113,33 @@ export async function removeMember(
 
 export interface CheckoutResult {
   transactionId: string;
+  orderCode: number;
+  paymentLinkId: string;
   amount: number;
+  currency: string;
   plan: string;
   billingCycle: string;
+  checkoutUrl: string;
+  qrCode: string;
+  status: string;
+  expiredAt: string;
   message: string;
 }
 
-export interface SimulateSuccessResult {
-  success: boolean;
-  message: string;
-  org: {
-    id: string;
-    name: string;
-    plan: string;
-    maxMembers: number;
-    aiQuota: number;
-    storageLimit: number;
-  };
+export interface BillingTransactionResult {
+  transactionId: string;
+  orderCode: number;
+  plan: string;
+  billingCycle: string;
+  amount: number;
+  currency: string;
+  status: string;
+  checkoutUrl?: string;
+  paidAt?: string;
+  expiredAt: string;
 }
 
-/** Create a billing checkout session (simulated) */
+/** Create a PayOS billing checkout session */
 export async function createCheckoutSession(
   token: string,
   orgId: string,
@@ -145,15 +152,14 @@ export async function createCheckoutSession(
   });
 }
 
-/** Confirm simulated payment success and update organization limits */
-export async function simulatePaymentSuccess(
+/** Get payment transaction status after PayOS webhook processing */
+export async function getBillingTransaction(
   token: string,
   orgId: string,
-  body: { plan: string; transactionId: string },
+  transactionId: string,
 ) {
-  return apiRequest<SimulateSuccessResult>(`/api/orgs/${orgId}/billing/simulate-success`, {
-    method: 'POST',
+  return apiRequest<BillingTransactionResult>(`/api/orgs/${orgId}/billing/transactions/${transactionId}`, {
+    method: 'GET',
     headers: authHeaders(token),
-    body: JSON.stringify(body),
   });
 }
