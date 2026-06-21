@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Sidebar } from './Sidebar';
 import { TaskPanel } from './TaskPanel';
 import { Task, Project, Status, Priority, User, WorkspaceMember, Role } from '../../types';
@@ -52,7 +52,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { showToast } = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
-  const [userPlan] = useState<OrgPlan>(getStoredUserPlan);
+  const [storedUserPlan] = useState<OrgPlan>(getStoredUserPlan);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
   const [activeProjectId, setActiveProjectId] = useState<string>('');
@@ -100,13 +100,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<{ id: string, name: string } | null>(null);
   const [initialCheckoutPlan, setInitialCheckoutPlan] = useState<'pro' | 'business' | null>(null);
+  const [initialCheckoutCycle, setInitialCheckoutCycle] = useState<'monthly' | 'yearly'>('monthly');
+
+  const currentPlan = useMemo<OrgPlan>(() => {
+    const plan = orgDetail?.plan?.toLowerCase();
+    if (plan === 'free' || plan === 'pro' || plan === 'business' || plan === 'enterprise') {
+      return plan;
+    }
+    return storedUserPlan;
+  }, [orgDetail?.plan, storedUserPlan]);
+
+  useEffect(() => {
+    if (orgDetail?.plan) {
+      localStorage.setItem('userPlan', currentPlan);
+    }
+  }, [currentPlan, orgDetail?.plan]);
 
   useEffect(() => {
     const pendingPlan = localStorage.getItem('checkout_plan_on_mount');
+    const pendingCycle = localStorage.getItem('checkout_cycle_on_mount');
     if (pendingPlan === 'pro' || pendingPlan === 'business') {
       localStorage.removeItem('checkout_plan_on_mount');
+      localStorage.removeItem('checkout_cycle_on_mount');
       setActiveTab('settings');
       setInitialCheckoutPlan(pendingPlan);
+      setInitialCheckoutCycle(pendingCycle === 'yearly' ? 'yearly' : 'monthly');
     }
   }, []);
 
@@ -1323,8 +1341,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
-  const planBadgeLabel = userPlan.charAt(0).toUpperCase() + userPlan.slice(1);
-  const planBadgeClass = userPlan === 'pro' || userPlan === 'business' || userPlan === 'enterprise'
+  const planBadgeLabel = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
+  const planBadgeClass = currentPlan === 'pro' || currentPlan === 'business' || currentPlan === 'enterprise'
     ? 'border-blue-500/35 bg-blue-500/10 text-blue-300'
     : 'border-[#22C55E]/35 bg-[#22C55E]/10 text-[#6EE7B7]';
 
@@ -1506,7 +1524,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           onCreateProject={() => setShowCreateProject(true)}
           onDeleteProject={(id) => handleDeleteProject(id)}
           onViewPlans={() => onNavigate?.('pricing')}
-          userPlan={userPlan}
+          userPlan={currentPlan}
           workspaceName={orgDetail?.name || workspaceName}
           workspaces={orgs.map(o => ({ id: o.id, name: o.name }))}
           activeWorkspaceId={activeOrgId || ''}
@@ -1694,7 +1712,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
             {activeTab === 'settings' && (
               <SettingsView
-                userPlan={userPlan}
+                userPlan={currentPlan}
                 orgName={orgDetail?.name || workspaceName}
                 orgDetail={orgDetail}
                 orgLoading={orgLoading}
@@ -1703,6 +1721,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 onRemoveMember={handleRemoveOrgMember}
                 onUpgradeSuccess={refreshProjectsList}
                 initialCheckoutPlan={initialCheckoutPlan}
+                initialCheckoutCycle={initialCheckoutCycle}
                 onClearInitialCheckoutPlan={() => setInitialCheckoutPlan(null)}
               />
             )}

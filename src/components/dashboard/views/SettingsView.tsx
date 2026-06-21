@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { OrgPlan } from '../../../types';
 import { useToast } from '../../ui/Toast';
 import { 
@@ -14,7 +14,7 @@ import {
   OrgDetail, 
   OrgMember, 
   createCheckoutSession, 
-  simulatePaymentSuccess 
+  getBillingTransaction 
 } from '../../../api/org';
 import { getAccessToken, getUserInfo } from '../../../utils/authStorage';
 
@@ -28,6 +28,7 @@ interface SettingsViewProps {
   onRemoveMember?: (memberId: string) => void;
   onUpgradeSuccess?: () => void;
   initialCheckoutPlan?: 'pro' | 'business' | null;
+  initialCheckoutCycle?: 'monthly' | 'yearly';
   onClearInitialCheckoutPlan?: () => void;
 }
 
@@ -48,7 +49,7 @@ const ToggleRow: React.FC<{ title: string; description?: string; enabled: boolea
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
   userPlan, orgName, orgDetail, orgLoading, 
   onInviteMember, onUpdateMemberRole, onRemoveMember, onUpgradeSuccess,
-  initialCheckoutPlan, onClearInitialCheckoutPlan
+  initialCheckoutPlan, initialCheckoutCycle = 'monthly', onClearInitialCheckoutPlan
 }) => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'notifications' | 'org-general' | 'org-members' | 'org-billing'>('profile');
@@ -56,7 +57,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [notifs, setNotifs] = useState({ assigned: true, overdue: true, comments: true });
   const [roleMenuOpen, setRoleMenuOpen] = useState<string | null>(null);
 
-  // ── Checkout Stepper States ──
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<1 | 2 | 3 | 4>(1);
   const [selectedPlan, setSelectedPlan] = useState<'pro' | 'business'>('pro');
@@ -70,16 +70,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const aiQuota = orgDetail?.aiQuota ?? 20;
   const storageLimitBytes = orgDetail?.storageLimit ?? (1024 * 1024 * 1024);
   const storageLimitGB = storageLimitBytes / (1024 * 1024 * 1024);
-  const storageUsedGB = storageLimitGB * 0.34; 
+  const storageUsedGB = storageLimitGB * 0.34;
   const storagePercent = Math.min(100, Math.round((storageUsedGB / storageLimitGB) * 100));
   const membersPercent = Math.min(100, Math.round((membersCount / maxMembers) * 100));
 
-  // Phân quyền: Kiểm tra người dùng hiện tại có quyền nâng cấp không
   const currentUser = getUserInfo();
   const currentMemberInOrg = orgDetail?.members?.find(m => m.userId === currentUser?.id);
   const hasAdminAccess = currentMemberInOrg?.role === 'owner' || currentMemberInOrg?.role === 'admin';
 
-  // ── Auto open checkout flow from redirect ──
   useEffect(() => {
     if (initialCheckoutPlan) {
       if (!hasAdminAccess) {
@@ -88,12 +86,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         return;
       }
       setSelectedPlan(initialCheckoutPlan);
+      setBillingCycle(initialCheckoutCycle);
       setActiveTab('org-billing');
       setCheckoutStep(1);
       setShowCheckout(true);
       onClearInitialCheckoutPlan?.();
     }
-  }, [initialCheckoutPlan, hasAdminAccess]);
+  }, [initialCheckoutPlan, initialCheckoutCycle, hasAdminAccess]);
 
   const toggleTheme = () => {
     const next = !isDark;
@@ -118,10 +117,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       return;
     }
     setCheckoutStep(1);
+    setCheckoutResult(null);
     setShowCheckout(true);
   };
 
-  // ── Khởi tạo checkout đơn hàng ──
   const handleStartCheckout = async () => {
     const token = getAccessToken();
     const orgId = orgDetail?.id;
@@ -134,65 +133,64 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     try {
       const result = await createCheckoutSession(token, orgId, {
         plan: selectedPlan,
-        billingCycle: billingCycle
+        billingCycle
       });
       setCheckoutResult(result);
-      setCheckoutStep(2); // Đi đến bước quét VietQR
+      setCheckoutStep(2);
     } catch (err: any) {
       console.error(err);
-      showToast(err.message || 'Không thể tạo đơn hàng thanh toán.', 'error');
+      showToast(err.message || 'Không thể tạo đơn hàng thanh toán PayOS.', 'error');
     } finally {
       setCheckoutLoading(false);
     }
   };
 
-  // ── Giả lập xác nhận thanh toán thành công ──
-  const handleConfirmPayment = () => {
-    setCheckoutStep(3); // Đi đến màn hình Loading giả lập
-    
-    // Tạo chuỗi chạy chữ loading mô phỏng kết nối ngân hàng
-    const textSequence = [
-      { text: 'Kết nối an toàn tới hệ thống VietQR Napas...', delay: 0 },
-      { text: 'Đang kiểm tra giao dịch tài khoản MB Bank...', delay: 700 },
-      { text: 'Phát hiện biến động số dư: +Khớp đơn hàng! 🌟', delay: 1400 },
-      { text: 'Đang kích hoạt gói dịch vụ mới...', delay: 2000 }
-    ];
+  const handleOpenPayOSCheckout = () => {
+    const token = getAccessToken();
+    const orgId = orgDetail?.id;
+    if (!token || !orgId || !checkoutResult) {
+      showToast('Không thể mở thanh toán, vui lòng thử lại.', 'error');
+      return;
+    }
 
-    textSequence.forEach(step => {
-      setTimeout(() => {
-        setSimulatedProgressText(step.text);
-      }, step.delay);
-    });
+    if (checkoutResult.checkoutUrl) {
+      window.open(checkoutResult.checkoutUrl, '_blank', 'noopener,noreferrer');
+    }
 
-    // Sau 2.5 giây thì gọi API thành công thực tế xuống Backend
-    setTimeout(async () => {
-      const token = getAccessToken();
-      const orgId = orgDetail?.id;
-      if (!token || !orgId || !checkoutResult) {
-        showToast('Có lỗi xảy ra, vui lòng thử lại.', 'error');
-        setCheckoutStep(2);
-        return;
-      }
+    setCheckoutStep(3);
+    setSimulatedProgressText('Đang chờ PayOS xác nhận thanh toán...');
 
+    let attempts = 0;
+    const poller = window.setInterval(async () => {
+      attempts += 1;
       try {
-        await simulatePaymentSuccess(token, orgId, {
-          plan: selectedPlan,
-          transactionId: checkoutResult.transactionId
-        });
-
-        // Đồng bộ hóa trạng thái trên toàn ứng dụng
-        if (onUpgradeSuccess) {
-          onUpgradeSuccess();
+        const status = await getBillingTransaction(token, orgId, checkoutResult.transactionId);
+        if (status.status === 'paid') {
+          window.clearInterval(poller);
+          setSimulatedProgressText('Thanh toán thành công, đang cập nhật gói...');
+          await onUpgradeSuccess?.();
+          setCheckoutStep(4);
+          return;
         }
-        
-        // Mở màn hình thành công
-        setCheckoutStep(4);
+
+        if (status.status === 'failed' || status.status === 'expired' || status.status === 'cancelled') {
+          window.clearInterval(poller);
+          showToast(`Thanh toán ${status.status}. Vui lòng tạo lại đơn thanh toán.`, 'error');
+          setCheckoutStep(2);
+          return;
+        }
+
+        setSimulatedProgressText('Chưa nhận được webhook PayOS. Hệ thống sẽ tự cập nhật khi giao dịch hoàn tất...');
       } catch (err: any) {
         console.error(err);
-        showToast(err.message || 'Lỗi nâng cấp gói dịch vụ.', 'error');
+      }
+
+      if (attempts >= 60) {
+        window.clearInterval(poller);
+        showToast('Chưa thấy giao dịch hoàn tất. Bạn có thể quay lại kiểm tra sau.', 'info');
         setCheckoutStep(2);
       }
-    }, 2600);
+    }, 3000);
   };
 
   const renderContent = () => {
@@ -430,7 +428,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   {isFree ? (
                     <Button onClick={handleUpgrade} className="w-full flex items-center justify-center gap-2" variant="primary">
                       <Sparkles size={14} className="text-yellow-300 animate-pulse" />
-                      Nâng Cấp Gói Dịch Vụ
+                      Nâng cấp gói dịch vụ
                     </Button>
                   ) : (
                     <div className="space-y-2">
@@ -438,7 +436,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <Check size={14} /> Gói dịch vụ cao cấp đã hoạt động
                       </div>
                       <Button onClick={handleUpgrade} className="w-full" variant="outline">
-                        Thay Đổi Gói Cước
+                        Thay đổi gói cước
                       </Button>
                     </div>
                   )}
@@ -543,7 +541,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* ─── Premium VietQR Simulated Checkout Overlay ─── */}
+      {/* Premium PayOS Checkout Overlay */}
       <AnimatePresence>
         {showCheckout && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -573,8 +571,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <QrCode size={16} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-md">Nâng Cấp Gói Dịch Vụ Tổ Chức</h3>
-                    <p className="text-xs text-slate-500">Giả lập thanh toán bảo mật VietQR</p>
+                    <h3 className="font-bold text-white text-md">Nâng cấp gói dịch vụ tổ chức</h3>
+                    <p className="text-xs text-slate-500">Thanh toán bảo mật qua PayOS</p>
                   </div>
                 </div>
                 {checkoutStep !== 3 && (
@@ -608,12 +606,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {/* Steps Body */}
               <div className="p-6 md:p-8 flex-1 overflow-y-auto max-h-[64vh]">
                 
-                {/* ── STEP 1: Plan Selector ── */}
+                {/* STEP 1: Plan Selector */}
                 {checkoutStep === 1 && (
                   <div className="space-y-6">
                     <div className="text-center space-y-1">
                       <h4 className="text-lg font-bold text-white">Chọn cấu hình nâng cấp</h4>
-                      <p className="text-sm text-slate-400">Gia tăng giới hạn thành viên, AI Quota và dung lượng cực nhanh</p>
+                      <p className="text-sm text-slate-400">Tăng giới hạn thành viên, AI quota và dung lượng lưu trữ</p>
                     </div>
 
                     {/* Cycle Toggle */}
@@ -623,13 +621,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           onClick={() => setBillingCycle('monthly')}
                           className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${billingCycle === 'monthly' ? 'bg-[#22C55E] text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
                         >
-                          Theo Tháng
+                          Theo tháng
                         </button>
                         <button
                           onClick={() => setBillingCycle('yearly')}
                           className={`px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 transition-all ${billingCycle === 'yearly' ? 'bg-[#22C55E] text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
                         >
-                          Theo Năm
+                          Theo năm
                           <span className="bg-yellow-500/20 text-yellow-300 text-[10px] px-1.5 py-0.5 rounded-full font-bold">-20%</span>
                         </button>
                       </div>
@@ -651,7 +649,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <h5 className="font-bold text-white text-md">Gói PRO</h5>
                             {selectedPlan === 'pro' && <CheckCircle2 className="text-[#22C55E]" size={18} />}
                           </div>
-                          <p className="text-slate-400 text-xs mt-1">Phù hợp cho cá nhân & nhóm học sinh FPT</p>
+                          <p className="text-slate-400 text-xs mt-1">Phù hợp cho cá nhân và nhóm học sinh FPT</p>
                           <div className="mt-4">
                             <span className="text-2xl font-bold text-white">
                               {billingCycle === 'yearly' ? '79.000 VNĐ' : '99.000 VNĐ'}
@@ -659,7 +657,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <span className="text-xs text-slate-500">/tháng</span>
                           </div>
                           {billingCycle === 'yearly' && (
-                            <p className="text-[10px] text-yellow-300 mt-1 font-medium">Billed annually (948.000đ/năm)</p>
+                            <p className="text-[10px] text-yellow-300 mt-1 font-medium">Thanh toán hằng năm (948.000đ/năm)</p>
                           )}
                           <div className="mt-4 space-y-2 border-t border-[#22C55E]/10 pt-3 text-xs text-slate-300">
                             <p>• Tối đa <strong className="text-white">20 thành viên</strong> (Gốc 5)</p>
@@ -692,7 +690,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <span className="text-xs text-slate-500">/tháng</span>
                           </div>
                           {billingCycle === 'yearly' && (
-                            <p className="text-[10px] text-yellow-300 mt-1 font-medium">Billed annually (2.388.000đ/năm)</p>
+                            <p className="text-[10px] text-yellow-300 mt-1 font-medium">Thanh toán hằng năm (2.388.000đ/năm)</p>
                           )}
                           <div className="mt-4 space-y-2 border-t border-[#22C55E]/10 pt-3 text-xs text-slate-300">
                             <p>• Tối đa <strong className="text-white">200 thành viên</strong> (Gốc 5)</p>
@@ -712,34 +710,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         isLoading={checkoutLoading} 
                         icon={<ArrowRight size={14} />}
                       >
-                        Tiến Hành Thanh Toán
+                        Tiến hành thanh toán
                       </Button>
                     </div>
                   </div>
                 )}
 
-                {/* ── STEP 2: VietQR Scanning Page (Y hệt mẫu ảnh) ── */}
+                {/* STEP 2: PayOS checkout */}
                 {checkoutStep === 2 && checkoutResult && (
                   <div className="space-y-6">
                     <div className="text-center space-y-1">
-                      <h4 className="text-lg font-bold text-white">Quét mã QR để thanh toán</h4>
-                      <p className="text-sm text-slate-400">Mở app ngân hàng và quét mã bên dưới</p>
+                      <h4 className="text-lg font-bold text-white">Thanh toán qua PayOS</h4>
+                      <p className="text-sm text-slate-400">Mở trang checkout PayOS để quét QR và hoàn tất thanh toán.</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
                       
-                      {/* QR Box - MB Bank template (Left) */}
                       <div className="md:col-span-5 bg-[#0F1A2A] border border-[#22C55E]/15 rounded-2xl p-4 flex flex-col items-center justify-center space-y-3 relative group">
-                        <div className="w-48 h-48 bg-white p-2 rounded-xl flex items-center justify-center relative overflow-hidden shadow-lg shadow-black/10">
-                          {/* VietQR live image template from api.vietqr.io */}
-                          <img 
-                            src={`https://img.vietqr.io/image/MB-0358688688-compact.png?amount=${checkoutResult.amount}&addInfo=${checkoutResult.transactionId}&accountName=VERTEX%20APP`}
-                            alt="VietQR Chuyển khoản"
-                            className="w-full h-full object-contain"
-                          />
+                        <div className="w-48 h-48 rounded-xl flex flex-col items-center justify-center relative overflow-hidden border border-[#22C55E]/20 bg-[#162032] text-[#6EE7B7] shadow-lg shadow-black/10">
+                          <QrCode size={72} />
+                          <span className="mt-3 px-3 text-center text-xs font-semibold text-slate-300">QR nằm trong trang PayOS</span>
                         </div>
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#6EE7B7] bg-[#22C55E]/10 border border-[#22C55E]/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                          🛡️ BẢO MẬT VIETQR
+                          PAYOS SECURE CHECKOUT
                         </span>
                       </div>
 
@@ -754,17 +747,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               </p>
                             </div>
                             <span className="text-[10px] font-bold bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-md">
-                              {checkoutResult.billingCycle === 'yearly' ? 'Chu kỳ 1 Năm' : 'Chu kỳ 1 Tháng'}
+                              {checkoutResult.billingCycle === 'yearly' ? 'Chu kỳ 1 năm' : 'Chu kỳ 1 tháng'}
                             </span>
                           </div>
 
                           <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/8 px-4 py-3">
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Nội dung chuyển khoản</p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Mã đơn PayOS</p>
                             <div className="flex items-center justify-between gap-2 mt-1">
                               <code className="text-sm font-mono font-bold text-white select-all">
-                                {checkoutResult.transactionId}
+                                {checkoutResult.orderCode}
                               </code>
-                              <span className="text-[9px] text-slate-400">Tự động sao chép</span>
+                              <span className="text-[9px] text-slate-400">Dùng để đối soát webhook</span>
                             </div>
                           </div>
 
@@ -772,9 +765,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-xs text-blue-200 flex gap-2.5 items-start">
                             <Sparkles size={16} className="text-blue-400 flex-shrink-0 mt-0.5" />
                             <div>
-                              <p className="font-semibold text-white">SAU KHI NẠP THÀNH CÔNG</p>
+                              <p className="font-semibold text-white">SAU KHI THANH TOÁN THÀNH CÔNG</p>
                               <p className="mt-1 text-slate-400 leading-relaxed">
-                                Hệ thống sẽ tự động nhận diện và nâng cấp tài khoản của bạn lên gói <strong>{checkoutResult.plan.toUpperCase()}</strong> ngay lập tức.
+                                Hệ thống sẽ tự động nhận diện và nâng cấp tổ chức của bạn lên gói <strong>{checkoutResult.plan.toUpperCase()}</strong> ngay lập tức.
                               </p>
                             </div>
                           </div>
@@ -783,18 +776,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {/* Guide workflow */}
                         <div className="text-[10px] text-slate-500 border-t border-[#22C55E]/10 pt-3 flex justify-around">
                           <div className="text-center">
-                            <p className="font-bold text-slate-300">1. Mở App</p>
-                            <p>Mở ứng dụng Banking</p>
+                            <p className="font-bold text-slate-300">1. Mở PayOS</p>
+                              <p>Mở checkout PayOS</p>
                           </div>
                           <span className="text-slate-700">→</span>
                           <div className="text-center">
                             <p className="font-bold text-slate-300">2. Quét QR</p>
-                            <p>Quét mã VietQR MB Bank</p>
+                            <p>Quét QR trong PayOS</p>
                           </div>
                           <span className="text-slate-700">→</span>
                           <div className="text-center">
                             <p className="font-bold text-slate-300">3. Hoàn tất</p>
-                            <p>Bấm nút Xác nhận ở dưới</p>
+                            <p>Webhook tự nâng gói</p>
                           </div>
                         </div>
                       </div>
@@ -806,18 +799,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       
                       <div className="flex gap-2">
                         <Button 
-                          onClick={handleConfirmPayment}
+                          onClick={handleOpenPayOSCheckout}
                           className="bg-gradient-to-r from-[#22C55E] to-[#16A34A] text-white hover:brightness-110 font-bold"
                           icon={<Check size={16} />}
                         >
-                          Xác nhận đã chuyển khoản thành công
+                          Mở trang thanh toán PayOS
                         </Button>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* ── STEP 3: Bank Loop Verification Loader (Simulated Webhook) ── */}
+                {/* STEP 3: PayOS webhook waiting state */}
                 {checkoutStep === 3 && (
                   <div className="py-12 flex flex-col items-center justify-center space-y-6">
                     <div className="relative">
@@ -834,12 +827,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div className="bg-[#162032]/30 px-4 py-3 rounded-xl border border-[#22C55E]/5 text-[11px] text-slate-500 max-w-sm text-center leading-relaxed">
-                      Hệ thống đang quét biến động số dư VietQR. Quá trình kiểm tra ngân hàng tự động mất khoảng vài giây. Vui lòng không đóng cửa sổ này.
+                      Hệ thống đang chờ webhook PayOS. Khi PayOS xác nhận thanh toán hợp lệ, backend sẽ tự động nâng gói cho tổ chức.
                     </div>
                   </div>
                 )}
 
-                {/* ── STEP 4: Success Upgrade Confetti Screen ── */}
+                {/* STEP 4: Success Upgrade Screen */}
                 {checkoutStep === 4 && (
                   <div className="py-6 flex flex-col items-center text-center space-y-6">
                     
@@ -849,7 +842,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div className="space-y-2">
-                      <h4 className="text-2xl font-bold text-white">Nâng Cấp Thành Công! 🎉</h4>
+                      <h4 className="text-2xl font-bold text-white">Nâng cấp thành công!</h4>
                       <p className="text-sm text-[#6EE7B7]">
                         Tổ chức của bạn đã được nâng cấp lên gói <strong>{selectedPlan.toUpperCase()}</strong> thành công!
                       </p>
@@ -882,7 +875,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <p className="text-xs text-slate-500 leading-relaxed max-w-sm">
-                      Mọi giới hạn lưu trữ dữ liệu, quota tính toán trí tuệ nhân tạo và dung lượng mới đã được kích hoạt ngay lập tức cho tổ chức của bạn.
+                      Mọi giới hạn lưu trữ dữ liệu, quota AI và dung lượng mới đã được kích hoạt ngay lập tức cho tổ chức của bạn.
                     </p>
 
                     <div className="pt-2">
@@ -904,3 +897,4 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     </div>
   );
 };
+
