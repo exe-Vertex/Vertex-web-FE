@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Users, Calendar, CheckCircle, Clock, AlertTriangle,
   MessageSquare, GitBranch, LayoutGrid, Send, CheckCheck, RotateCcw, BarChart3,
+  Eye,
 } from 'lucide-react';
 import { GroupComment, LecturerGroup, LecturerTask, TaskStatus } from '../../../data/lecturerTypes';
 import { approveTask, requestChanges, addComment } from '../../../api/lecturer';
@@ -15,7 +16,7 @@ interface GroupDetailProps {
   onBack: () => void;
 }
 
-// ── Task status config ────────────────────────────────────────────────────────
+// â”€â”€ Task status config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const statusConfig: Record<TaskStatus, { label: string; color: string; dot: string }> = {
   'todo':              { label: 'To Do',             color: 'border-slate-600/50 bg-[#162032]',               dot: 'bg-slate-600' },
   'in-progress':       { label: 'In Progress',       color: 'border-blue-500/20  bg-blue-500/5',              dot: 'bg-blue-400'  },
@@ -71,13 +72,23 @@ const getContributionNote = (member: MemberContribution): string => {
   return 'Low visible progress. Rebalance tasks or set a focused short-term target.';
 };
 
-// ── Kanban Task Card ──────────────────────────────────────────────────────────
+// â”€â”€ Kanban Task Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const KanbanCard: React.FC<{
   task: LecturerTask;
+  isSelected?: boolean;
+  onOpen?: (task: LecturerTask) => void;
   onApprove?: (id: string) => void;
   onRequestChanges?: (id: string) => void;
-}> = ({ task, onApprove, onRequestChanges }) => (
-  <div className={`rounded-lg p-3 border ${statusConfig[task.status].color} mb-2`}>
+}> = ({ task, isSelected, onOpen, onApprove, onRequestChanges }) => (
+  <div
+    role="button"
+    tabIndex={0}
+    onClick={() => onOpen?.(task)}
+    onKeyDown={(event) => {
+      if (event.key === 'Enter' || event.key === ' ') onOpen?.(task);
+    }}
+    className={`w-full cursor-pointer rounded-lg p-3 border ${statusConfig[task.status].color} mb-2 transition-all duration-200 hover:border-[#F59E0B]/45 ${isSelected ? 'ring-1 ring-[#22C55E]/70 border-[#22C55E]/60' : ''}`}
+  >
     <div className="flex items-start justify-between gap-2 mb-2">
       <p className="text-xs font-medium text-white leading-snug">{task.title}</p>
       <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${priorityColors[task.priority]}`}>
@@ -94,14 +105,13 @@ const KanbanCard: React.FC<{
       <span className="flex items-center gap-0.5"><Calendar size={9} />{task.deadline}</span>
     </div>
 
-    {/* Approve / Request Changes buttons */}
     {task.status === 'ready-for-review' && (
       <div className="flex gap-1.5 mt-2.5 pt-2.5 border-t border-[#F59E0B]/15">
-        <button onClick={() => onApprove?.(task.id)}
+        <button type="button" onClick={(event) => { event.stopPropagation(); onApprove?.(task.id); }}
           className="flex-1 flex items-center justify-center gap-1 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-300 text-[10px] font-semibold rounded-md border border-amber-500/30 hover:border-amber-400/40 hover:shadow-[0_10px_22px_rgba(34,197,94,0.18)] transition-all duration-200">
           <CheckCheck size={10} />Approve
         </button>
-        <button onClick={() => onRequestChanges?.(task.id)}
+        <button type="button" onClick={(event) => { event.stopPropagation(); onRequestChanges?.(task.id); }}
           className="flex-1 flex items-center justify-center gap-1 py-1 bg-[#22C55E]/10 hover:bg-[#22C55E]/20 text-[#6EE7B7] text-[10px] font-semibold rounded-md border border-[#F59E0B]/30 hover:border-[#FCD34D]/45 hover:shadow-[0_10px_22px_rgba(34,197,94,0.18)] transition-all duration-200">
           <RotateCcw size={10} />Request Changes
         </button>
@@ -109,14 +119,14 @@ const KanbanCard: React.FC<{
     )}
   </div>
 );
-
-// ── Kanban Column ─────────────────────────────────────────────────────────────
 const KanbanColumn: React.FC<{
   status: TaskStatus;
   tasks: LecturerTask[];
+  selectedTaskId?: string | null;
+  onOpenTask: (task: LecturerTask) => void;
   onApprove: (id: string) => void;
   onRequestChanges: (id: string) => void;
-}> = ({ status, tasks, onApprove, onRequestChanges }) => (
+}> = ({ status, tasks, selectedTaskId, onOpenTask, onApprove, onRequestChanges }) => (
   <div className="flex flex-col min-w-[200px] flex-1">
     <div className="flex items-center gap-2 mb-3">
       <div className={`w-2 h-2 rounded-full ${statusConfig[status].dot}`} />
@@ -130,14 +140,19 @@ const KanbanColumn: React.FC<{
         </div>
       ) : (
         tasks.map(task => (
-          <KanbanCard key={task.id} task={task} onApprove={onApprove} onRequestChanges={onRequestChanges} />
+          <KanbanCard
+            key={task.id}
+            task={task}
+            isSelected={task.id === selectedTaskId}
+            onOpen={onOpenTask}
+            onApprove={onApprove}
+            onRequestChanges={onRequestChanges}
+          />
         ))
       )}
     </div>
   </div>
 );
-
-// ── Tab: Overview ─────────────────────────────────────────────────────────────
 const OverviewTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
   <div className="p-6 space-y-5">
     <div className="bg-[#0F1A2A] rounded-xl p-4 border border-[#3A3317]">
@@ -218,19 +233,22 @@ const OverviewTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
   </div>
 );
 
-// ── Tab: Tasks (Kanban) ───────────────────────────────────────────────────────
+// â”€â”€ Tab: Tasks (Kanban) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TasksTab: React.FC<{
   tasks: LecturerTask[];
-  comments: GroupComment[];
-  onAddComment: (text: string) => void;
+  selectedTask: LecturerTask | null;
+  selectedTaskId: string | null;
+  taskComments: GroupComment[];
+  onSelectTask: (task: LecturerTask) => void;
+  onAddComment: (taskId: string, text: string) => void;
   onApprove: (id: string) => void;
   onRequestChanges: (id: string) => void;
-}> = ({ tasks, comments, onAddComment, onApprove, onRequestChanges }) => {
+}> = ({ tasks, selectedTask, selectedTaskId, taskComments, onSelectTask, onAddComment, onApprove, onRequestChanges }) => {
   const [newComment, setNewComment] = useState('');
 
   const handleSend = () => {
-    if (!newComment.trim()) return;
-    onAddComment(newComment.trim());
+    if (!selectedTask || !newComment.trim()) return;
+    onAddComment(selectedTask.id, newComment.trim());
     setNewComment('');
   };
 
@@ -239,61 +257,130 @@ const TasksTab: React.FC<{
   return (
     <div className="p-6">
       <div className="flex items-center gap-2 mb-4">
-        <span className="text-xs text-slate-500 bg-[#22C55E]/10 border border-[#F59E0B]/30 px-2 py-1 rounded-lg text-[#22C55E] font-medium">Review tasks and leave contextual feedback in the same workspace</span>
+        <span className="text-xs text-slate-500 bg-[#22C55E]/10 border border-[#F59E0B]/30 px-2 py-1 rounded-lg text-[#22C55E] font-medium">Select a task to review details, status, and task-specific feedback</span>
       </div>
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {columns.map(status => (
-          <KanbanColumn key={status} status={status}
-            tasks={tasks.filter(t => t.status === status)}
-            onApprove={onApprove}
-            onRequestChanges={onRequestChanges}
-          />
-        ))}
-      </div>
-
-      <div className="mt-5 rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h4 className="text-sm font-bold text-white flex items-center gap-2">
-            <MessageSquare size={13} className="text-[#22C55E]" />Task Feedback
-          </h4>
-          <span className="text-[11px] text-slate-500">{comments.length} comments</span>
-        </div>
-
-        <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-          {comments.map(c => (
-            <div key={c.id} className={`flex gap-2 ${c.role === 'lecturer' ? 'flex-row-reverse' : ''}`}>
-              <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold ${c.role === 'lecturer' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#F59E0B]/35' : 'bg-[#162032] text-slate-400 border border-slate-700'}`}>
-                {c.author[0]}
-              </div>
-              <div className={`max-w-xl ${c.role === 'lecturer' ? 'items-end' : ''} flex flex-col`}>
-                <div className={`px-3 py-2 rounded-xl text-xs leading-relaxed ${c.role === 'lecturer' ? 'bg-[#22C55E]/10 border border-[#F59E0B]/30 text-emerald-100 rounded-tr-sm' : 'bg-[#162032] border border-slate-700 text-slate-300 rounded-tl-sm'}`}>
-                  {c.taskRef && <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1"><GitBranch size={8} />{c.taskRef}</p>}
-                  {c.text}
-                </div>
-                <p className="text-[10px] text-slate-600 mt-1 px-1">{c.author} · {c.time}</p>
-              </div>
-            </div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4">
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {columns.map(status => (
+            <KanbanColumn key={status} status={status}
+              tasks={tasks.filter(t => t.status === status)}
+              selectedTaskId={selectedTaskId}
+              onOpenTask={onSelectTask}
+              onApprove={onApprove}
+              onRequestChanges={onRequestChanges}
+            />
           ))}
         </div>
 
-        <div className="mt-3 flex gap-2 border-t border-[#F59E0B]/15 pt-3">
-          <input
-            value={newComment}
-            onChange={e => setNewComment(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            placeholder="Leave feedback for this group..."
-            className="flex-1 px-3 py-2 bg-[#162032] border border-[#3A3317] rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#F59E0B]/45"
-          />
-          <button onClick={handleSend}
-            className="px-3 py-2 bg-gradient-to-r from-[#22C55E] to-[#EAB308] text-white rounded-lg border border-[#F59E0B]/40 hover:border-[#FDE68A]/70 transition-all duration-200 flex items-center gap-1.5 text-xs font-semibold flex-shrink-0">
-            <Send size={12} />Send
-          </button>
+        <div className="rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-4">
+          {selectedTask ? (
+            <>
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500">Selected task</p>
+                  <h3 className="mt-1 text-sm font-bold text-white leading-snug">{selectedTask.title}</h3>
+                </div>
+                <span className={`text-[9px] font-semibold px-2 py-1 rounded-full border flex-shrink-0 ${priorityColors[selectedTask.priority]}`}>
+                  {selectedTask.priority}
+                </span>
+              </div>
+
+              <div className="space-y-3 border-b border-[#F59E0B]/15 pb-4">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
+                    <p className="text-[10px] text-slate-500">Status</p>
+                    <p className="mt-0.5 font-semibold text-[#6EE7B7]">{statusConfig[selectedTask.status].label}</p>
+                  </div>
+                  <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
+                    <p className="text-[10px] text-slate-500">Assignee</p>
+                    <p className="mt-0.5 font-semibold text-white">{selectedTask.assignee}</p>
+                  </div>
+                  <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
+                    <p className="text-[10px] text-slate-500">Start</p>
+                    <p className="mt-0.5 font-semibold text-white">{selectedTask.startDate || '-'}</p>
+                  </div>
+                  <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
+                    <p className="text-[10px] text-slate-500">Deadline</p>
+                    <p className="mt-0.5 font-semibold text-white">{selectedTask.deadline}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Description</p>
+                  <p className="text-xs leading-relaxed text-slate-300">
+                    {selectedTask.description || 'No description provided.'}
+                  </p>
+                </div>
+
+                {selectedTask.status === 'ready-for-review' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => onApprove(selectedTask.id)}
+                      className="flex items-center justify-center gap-1.5 py-2 bg-green-500/10 hover:bg-green-500/20 text-green-300 text-xs font-semibold rounded-lg border border-amber-500/30 transition-all duration-200">
+                      <CheckCheck size={12} />Approve
+                    </button>
+                    <button type="button" onClick={() => onRequestChanges(selectedTask.id)}
+                      className="flex items-center justify-center gap-1.5 py-2 bg-[#22C55E]/10 hover:bg-[#22C55E]/20 text-[#6EE7B7] text-xs font-semibold rounded-lg border border-[#F59E0B]/30 transition-all duration-200">
+                      <RotateCcw size={12} />Changes
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-3 mt-4 flex items-center justify-between gap-2">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <MessageSquare size={13} className="text-[#22C55E]" />Task Feedback
+                </h4>
+                <span className="text-[11px] text-slate-500">{taskComments.length} comments</span>
+              </div>
+
+              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                {taskComments.length === 0 && (
+                  <div className="rounded-lg border border-dashed border-slate-700 p-3 text-center">
+                    <p className="text-[11px] text-slate-500">No feedback for this task yet.</p>
+                  </div>
+                )}
+                {taskComments.map(c => (
+                  <div key={c.id} className={`flex gap-2 ${c.role === 'lecturer' ? 'flex-row-reverse' : ''}`}>
+                    <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold ${c.role === 'lecturer' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#F59E0B]/35' : 'bg-[#162032] text-slate-400 border border-slate-700'}`}>
+                      {c.author[0]}
+                    </div>
+                    <div className={`max-w-xl ${c.role === 'lecturer' ? 'items-end' : ''} flex flex-col`}>
+                      <div className={`px-3 py-2 rounded-xl text-xs leading-relaxed ${c.role === 'lecturer' ? 'bg-[#22C55E]/10 border border-[#F59E0B]/30 text-emerald-100 rounded-tr-sm' : 'bg-[#162032] border border-slate-700 text-slate-300 rounded-tl-sm'}`}>
+                        {c.taskRef && <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1"><GitBranch size={8} />{c.taskRef}</p>}
+                        {c.text}
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-1 px-1">{c.author} - {c.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 flex gap-2 border-t border-[#F59E0B]/15 pt-3">
+                <input
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                  placeholder="Leave feedback for this task..."
+                  className="flex-1 px-3 py-2 bg-[#162032] border border-[#3A3317] rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#F59E0B]/45"
+                />
+                <button onClick={handleSend}
+                  className="px-3 py-2 bg-gradient-to-r from-[#22C55E] to-[#EAB308] text-white rounded-lg border border-[#F59E0B]/40 hover:border-[#FDE68A]/70 transition-all duration-200 flex items-center gap-1.5 text-xs font-semibold flex-shrink-0">
+                  <Send size={12} />Send
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="flex min-h-72 flex-col items-center justify-center rounded-lg border border-dashed border-slate-700 text-center">
+              <Eye size={18} className="mb-2 text-slate-500" />
+              <p className="text-sm font-semibold text-white">Select a task to review</p>
+              <p className="mt-1 text-xs text-slate-500">Open a task to see details, approve it, or leave feedback.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
-
 const ContributionsTab: React.FC<{ tasks: LecturerTask[] }> = ({ tasks }) => {
   const memberContributions = buildMemberContributions(tasks);
   const topContributor = memberContributions[0];
@@ -445,7 +532,7 @@ const ContributionsTab: React.FC<{ tasks: LecturerTask[] }> = ({ tasks }) => {
   );
 };
 
-// ── Tab: Timeline ─────────────────────────────────────────────────────────────
+// â”€â”€ Tab: Timeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TimelineTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
   <div className="p-6">
     <div className="mb-5 rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-4">
@@ -481,12 +568,15 @@ const TimelineTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
   </div>
 );
 
-// ── GroupDetail ───────────────────────────────────────────────────────────────
+// â”€â”€ GroupDetail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [tasks, setTasks] = useState<LecturerTask[]>(group.tasks);
   const [comments, setComments] = useState<GroupComment[]>(group.comments);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(
+    group.tasks.find(task => task.status === 'ready-for-review')?.id ?? group.tasks[0]?.id ?? null
+  );
 
   const handleApprove = async (id: string) => {
     try {
@@ -508,21 +598,23 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
     }
   };
 
-  const handleAddComment = async (text: string) => {
-    const firstTask = tasks[0];
-    if (!firstTask) {
-      alert("Cannot add comment: No tasks found in this group.");
+  const handleAddComment = async (taskId: string, text: string) => {
+    const selectedTask = tasks.find(task => task.id === taskId);
+    if (!selectedTask) {
+      alert("Cannot add comment: Task not found.");
       return;
     }
 
     try {
-      await addComment(firstTask.id, text);
+      await addComment(taskId, text);
       setComments(prev => [...prev, {
         id: `c${Date.now()}`,
-        author: user?.name || 'Dr. Tran Van Minh',
+        taskId,
+        author: user?.name || 'Lecturer',
         role: 'lecturer',
         text,
         time: 'Just now',
+        taskRef: selectedTask.title,
       }]);
     } catch (err) {
       console.error("Failed to add comment:", err);
@@ -530,6 +622,8 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
     }
   };
 
+  const selectedTask = tasks.find(task => task.id === selectedTaskId) ?? null;
+  const taskComments = selectedTask ? comments.filter(comment => comment.taskId === selectedTask.id) : [];
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview',  label: 'Overview',  icon: <LayoutGrid size={13} />     },
     { id: 'tasks',     label: 'Tasks',     icon: <CheckCircle size={13} />    },
@@ -606,7 +700,10 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
             <motion.div key="tasks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <TasksTab
                 tasks={tasks}
-                comments={comments}
+                selectedTask={selectedTask}
+                selectedTaskId={selectedTaskId}
+                taskComments={taskComments}
+                onSelectTask={task => setSelectedTaskId(task.id)}
                 onAddComment={handleAddComment}
                 onApprove={handleApprove}
                 onRequestChanges={handleRequestChanges}
@@ -628,3 +725,6 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
     </div>
   );
 };
+
+
+

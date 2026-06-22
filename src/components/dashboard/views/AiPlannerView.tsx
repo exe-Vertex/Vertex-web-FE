@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { Button } from '../../ui/Button';
 import { WandSparkles, Sparkles, Trash2, Plus } from 'lucide-react';
 import { PlannerDifficulty, PlannerCategory, GeneratedPlanResponse, GeneratedPlanSubtask } from '../utils/dashboardTypes';
@@ -12,8 +12,9 @@ export const AiPlannerView: React.FC<{
   onGenerate: () => void;
   onRegenerate: () => void;
   onCreateBoard: () => void;
+  hasExistingTasks?: boolean;
   workspaceMembers: User[];
-}> = ({ plannerInput, setPlannerInput, generatedPlan, setGeneratedPlan, onGenerate, onRegenerate, onCreateBoard, workspaceMembers }) => {
+}> = ({ plannerInput, setPlannerInput, generatedPlan, setGeneratedPlan, onGenerate, onRegenerate, onCreateBoard, hasExistingTasks = false, workspaceMembers }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draftPlan, setDraftPlan] = useState<GeneratedPlanResponse | null>(null);
@@ -228,7 +229,7 @@ export const AiPlannerView: React.FC<{
                     </span>
                   )}
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">Vertex turns your prompt and goal into a production-ready project workflow.</p>
+                <p className="text-xs text-slate-400 mt-1">Vertex turns your prompt and goal into tasks you can add to the current project board.</p>
               </div>
             </div>
 
@@ -376,7 +377,7 @@ export const AiPlannerView: React.FC<{
                         <div>
                           <p className="text-sm font-semibold text-slate-100">{card.assignee}</p>
                           <p className="text-xs text-slate-400 mt-0.5">{card.tasks.length} tasks</p>
-                          <p className="text-xs text-slate-500 mt-1 truncate max-w-[11rem]">{card.tasks.slice(0, 2).join(' • ')}</p>
+                          <p className="text-xs text-slate-500 mt-1 truncate max-w-[11rem]">{card.tasks.slice(0, 2).join(' â€¢ ')}</p>
                         </div>
                         <span className="text-xs text-[#6EE7B7] font-medium text-right max-w-[12rem]">Primary ownership</span>
                       </div>
@@ -438,7 +439,7 @@ export const AiPlannerView: React.FC<{
                   </>
                 )}
               </div>
-              <Button size="sm" onClick={onCreateBoard} disabled={isEditing}>Create Project</Button>
+              <Button size="sm" onClick={onCreateBoard} disabled={isEditing}>{hasExistingTasks ? 'Add Tasks to Board' : 'Create Initial Tasks'}</Button>
             </div>
           </div>
         )}
@@ -446,3 +447,6 @@ export const AiPlannerView: React.FC<{
     </div>
   );
 };
+
+
+

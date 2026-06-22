@@ -1,11 +1,13 @@
-export type TaskStatus = 'todo' | 'in-progress' | 'ready-for-review' | 'approved';
+﻿export type TaskStatus = 'todo' | 'in-progress' | 'ready-for-review' | 'approved';
 export type TaskPriority = 'high' | 'medium' | 'low';
 export type ReviewStatus = 'on-track' | 'at-risk' | 'overdue';
 
 export interface LecturerTask {
   id: string;
   title: string;
+  description?: string;
   assignee: string;
+  startDate?: string;
   deadline: string;
   priority: TaskPriority;
   status: TaskStatus;
@@ -20,6 +22,7 @@ export interface TimelineMilestone {
 
 export interface GroupComment {
   id: string;
+  taskId?: string;
   author: string;
   role: 'lecturer' | 'student';
   text: string;
