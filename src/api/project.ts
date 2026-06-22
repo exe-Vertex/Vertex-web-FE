@@ -1,6 +1,6 @@
-import { apiRequest, API_BASE_URL } from './http';
+﻿import { apiRequest, API_BASE_URL } from './http';
 
-// ── Types ───────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ProjectMemberDto {
   id: string;
@@ -40,6 +40,15 @@ export interface TaskAttachmentDto {
   uploadedAt: string;
 }
 
+export interface TaskCommentDto {
+  id: string;
+  taskId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  content: string;
+  createdAt: string;
+}
 export interface SubtaskDto {
   id: string;
   taskId: string;
@@ -70,13 +79,13 @@ export interface ProjectDetail {
   members: ProjectMemberDto[];
 }
 
-// ── Helpers ─────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
 
-// ── API Functions ───────────────────────────────────────
+// â”€â”€ API Functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** List all projects in an organization. */
 export async function listProjects(token: string, orgId: string) {
@@ -183,7 +192,7 @@ export async function deleteTask(token: string, orgId: string, projectId: string
   });
 }
 
-// ── Members ─────────────────────────────────────────────
+// â”€â”€ Members â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** List members of a project. */
 export async function listProjectMembers(token: string, orgId: string, projectId: string) {
@@ -287,7 +296,7 @@ export async function deleteProjectFile(
   });
 }
 
-// ── Links ─────────────────────────────────────────────
+// â”€â”€ Links â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** List all links in a project. */
 export async function listProjectLinks(
@@ -329,7 +338,7 @@ export async function deleteProjectLink(
   });
 }
 
-// ── Task Attachments ───────────────────────────────────────
+// â”€â”€ Task Attachments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function listTaskAttachments(token: string, orgId: string, projectId: string, taskId: string) {
   return apiRequest<TaskAttachmentDto[]>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/attachments`, {
@@ -407,7 +416,28 @@ export async function promoteTaskAttachment(
   });
 }
 
-// ── Subtasks ──────────────────────────────────────────────
+// ---- Task Comments -------------------------------------------------------
+
+export async function listTaskComments(token: string, orgId: string, projectId: string, taskId: string) {
+  return apiRequest<TaskCommentDto[]>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/comments`, {
+    headers: authHeaders(token),
+  });
+}
+
+export async function addTaskComment(
+  token: string,
+  orgId: string,
+  projectId: string,
+  taskId: string,
+  body: { content: string }
+) {
+  return apiRequest<TaskCommentDto>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/comments`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+}
+// â”€â”€ Subtasks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function listSubtasks(token: string, orgId: string, projectId: string, taskId: string) {
   return apiRequest<SubtaskDto[]>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/subtasks`, {
@@ -456,4 +486,7 @@ export async function deleteSubtask(
     headers: authHeaders(token),
   });
 }
+
+
+
 

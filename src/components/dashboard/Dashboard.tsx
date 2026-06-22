@@ -42,6 +42,7 @@ import { useSignalR } from '../../hooks/useSignalR';
 import { createInvitation } from '../../api/invitation';
 import { chatWithAi, syncProjectData, generateProjectPlan } from '../../api/ai';
 import { getUserSkills, updateUserSkills } from '../../api/auth';
+import { getNotifications as fetchNotifications, markAllNotificationsRead, markNotificationRead } from '../../api/lecturer';
 import { OnboardingSkillsModal } from './modals/OnboardingSkillsModal';
 
 interface DashboardProps {
@@ -116,6 +117,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   }, [currentPlan, orgDetail?.plan]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadNotifications = async () => {
+      if (!user?.id) return;
+      try {
+        const data = await fetchNotifications();
+        if (!cancelled) setNotifications(data);
+      } catch (err) {
+        console.error('Failed to load notifications:', err);
+      }
+    };
+
+    loadNotifications();
+    const interval = window.setInterval(loadNotifications, 30000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [user?.id]);
   useEffect(() => {
     const pendingPlan = localStorage.getItem('checkout_plan_on_mount');
     const pendingCycle = localStorage.getItem('checkout_cycle_on_mount');
@@ -1156,7 +1178,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       setActiveTab('projects');
       setProjectTab('board');
       setProjectViewMode('kanban');
-      showToast(`Project board created with ${tasksCreated} tasks from AI plan!`);
+      setGeneratedPlan(null);
+      showToast(`Added ${tasksCreated} AI-generated tasks to ${activeProject.name}!`);
     } catch (err) {
       console.error('Failed to save AI plan', err);
       showToast('Failed to save AI plan to database', 'error');
@@ -1170,9 +1193,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
 
     setGeneratedPlan(null);
+    setPlannerInput(prev => ({
+      ...prev,
+      description: `Add more actionable tasks for "${activeProject.name}". Existing tasks: ${activeProject.tasks.slice(0, 8).map(task => task.title).join(', ') || 'none'}. New direction: `,
+      projectGoal: `Expand ${activeProject.name} with additional tasks`,
+      teamSize: Math.max(1, activeProjectMembers.length || prev.teamSize),
+    }));
     setProjectTab('ai-planner');
   };
-
   const handleUploadProjectFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0 || !activeOrgId) return;
     const token = getAuthToken();
@@ -1325,10 +1353,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setShowSignOutConfirm(false);
   };
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+      await markAllNotificationsRead();
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+    }
   };
 
+  const markNotification = async (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    try {
+      await markNotificationRead(id);
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+  };
   const handleDashboardQuickPlan = () => {
     const prompt = plannerInput.description.trim();
     if (!prompt) {
@@ -1442,7 +1483,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                       <div
                         key={n.id}
                         className={`px-4 py-3 border-b border-[#22C55E]/10 hover:bg-[#162032] transition-colors cursor-pointer ${!n.read ? 'bg-[#22C55E]/5' : ''}`}
-                        onClick={() => setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}
+                        onClick={() => markNotification(n.id)}
                       >
                         <div className="flex items-start gap-2">
                           {!n.read && <div className="w-2 h-2 rounded-full bg-[#22C55E] mt-1.5 flex-shrink-0"></div>}
@@ -1669,6 +1710,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 onGenerate={generateAiPlan}
                 onRegenerate={regenerateAiPlan}
                 onCreateBoard={createProjectBoardFromPlan}
+                hasExistingTasks={activeProject.tasks.length > 0}
                 workspaceMembers={activeProjectMembers.length > 0 ? activeProjectMembers : workspaceUsers}
               />
             )}
@@ -1829,4 +1871,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     </div>
   );
 };
+
+
+
+
+
+
 

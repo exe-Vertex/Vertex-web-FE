@@ -1,4 +1,4 @@
-import { apiRequest } from './http';
+﻿import { apiRequest } from './http';
 import { getAccessToken } from '../utils/authStorage';
 import type { LecturerGroup } from '../data/lecturerTypes';
 
@@ -49,7 +49,9 @@ export async function getGroupDetail(projectId: string): Promise<LecturerGroup> 
   const tasks = (d.tasks || []).map((t: any) => ({
     id: t.id,
     title: t.title,
+    description: t.description || '',
     assignee: t.assigneeName || 'Unassigned',
+    startDate: t.startDate,
     deadline: t.endDate,
     priority: t.priority || 'medium',
     status: t.status === 'done' ? 'approved' : t.status,
@@ -58,6 +60,7 @@ export async function getGroupDetail(projectId: string): Promise<LecturerGroup> 
   // Map the backend comments
   const comments = (d.comments || []).map((c: any) => ({
     id: c.id,
+    taskId: c.taskId,
     author: c.authorName,
     role: c.role,
     text: c.content,

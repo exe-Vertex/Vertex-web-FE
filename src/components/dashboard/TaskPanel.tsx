@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Calendar, Flag, Paperclip, MessageSquare, CheckSquare, Trash2, Plus, ChevronDown, Sparkles, Link as LinkIcon, File as FileIcon, ExternalLink, Star, Loader2, GripVertical } from 'lucide-react';
 import { Task, User, Priority } from '../../types';
 import { Avatar } from '../ui/Avatar';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { listTaskAttachments, uploadTaskFile, addTaskLink, deleteTaskAttachment, promoteTaskAttachment, TaskAttachmentDto, listSubtasks, createSubtask, updateSubtask, deleteSubtask, SubtaskDto } from '../../api/project';
+import { listTaskAttachments, uploadTaskFile, addTaskLink, deleteTaskAttachment, promoteTaskAttachment, TaskAttachmentDto, listTaskComments, addTaskComment, TaskCommentDto, listSubtasks, createSubtask, updateSubtask, deleteSubtask, SubtaskDto } from '../../api/project';
 import { generateSubtasks } from '../../api/ai';
 import { getAuthToken } from './utils/dashboardUtils';
 import { useToast } from '../ui/Toast';
@@ -26,7 +26,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   task, onClose, onDeleteTask, onUpdateTask, assigneeOptions, orgId, projectId, currentUserId, currentUserRole 
 }) => {
   const [commentInput, setCommentInput] = useState('');
-  const [comments, setComments] = useState<Array<{ id: string; text: string; time: string }>>([]);
+  const [comments, setComments] = useState<TaskCommentDto[]>([]);
   const [newSubtask, setNewSubtask] = useState('');
   const [subtasks, setSubtasks] = useState<SubtaskDto[]>([]);
   const [draggedSubtaskId, setDraggedSubtaskId] = useState<string | null>(null);
@@ -58,6 +58,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     if (orgId && projectId) {
       loadAttachments();
       loadSubtasks();
+      loadComments();
     }
   }, [task?.id, orgId, projectId]);
 
@@ -85,6 +86,17 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     }
   };
 
+  const loadComments = async () => {
+    if (!task || !orgId || !projectId) return;
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const data = await listTaskComments(token, orgId, projectId, task.id);
+      setComments(data);
+    } catch (err) {
+      console.error('Failed to load task comments:', err);
+    }
+  };
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!task || !orgId || !projectId || !e.target.files?.length) return;
     const token = getAuthToken();
@@ -154,10 +166,10 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     const diffDays = Math.round((dueDay - nowDay) / 86400000);
 
     const label = due.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    if (diffDays < 0) return { label, hint: 'Quá hạn', hintClass: 'text-red-400 font-medium' };
-    if (diffDays === 0) return { label, hint: 'Đến hạn hôm nay', hintClass: 'text-amber-400 font-medium' };
-    if (diffDays === 1) return { label, hint: 'Còn 1 ngày nữa', hintClass: 'text-[#6EE7B7] font-medium' };
-    return { label, hint: `Còn ${diffDays} ngày nữa`, hintClass: 'text-[#6EE7B7] font-medium' };
+    if (diffDays < 0) return { label, hint: 'QuÃ¡ háº¡n', hintClass: 'text-red-400 font-medium' };
+    if (diffDays === 0) return { label, hint: 'Äáº¿n háº¡n hÃ´m nay', hintClass: 'text-amber-400 font-medium' };
+    if (diffDays === 1) return { label, hint: 'CÃ²n 1 ngÃ y ná»¯a', hintClass: 'text-[#6EE7B7] font-medium' };
+    return { label, hint: `CÃ²n ${diffDays} ngÃ y ná»¯a`, hintClass: 'text-[#6EE7B7] font-medium' };
   })();
 
   const mentionMatch = commentInput.match(/@([a-zA-Z]*)$/);
@@ -300,10 +312,19 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     // Read-only
   };
 
-  const handleSendComment = () => {
-    // Read-only
-  };
+  const handleSendComment = async () => {
+    if (!task || !orgId || !projectId || !commentInput.trim()) return;
+    const token = getAuthToken();
+    if (!token) return;
 
+    try {
+      const created = await addTaskComment(token, orgId, projectId, task.id, { content: commentInput.trim() });
+      setComments(prev => [...prev, created]);
+      setCommentInput('');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to send comment', 'error');
+    }
+  };
   const applyMention = (name: string) => {
     setCommentInput(prev => prev.replace(/@[a-zA-Z]*$/, `@${name} `));
   };
@@ -549,7 +570,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                             <span>{att.uploadedBy}</span>
                             {att.sizeLabel && (
                               <>
-                                <span>•</span>
+                                <span>â€¢</span>
                                 <span>{att.sizeLabel}</span>
                               </>
                             )}
@@ -668,22 +689,69 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
           </div>
         </div>
 
-        {/* Footer Actions - Read Only */}
-        <div className="p-4 border-t border-white/6 bg-[#0B1220] flex gap-3">
-          <p className="text-sm text-slate-500">Comments are read-only (API not implemented).</p>
-        </div>
-
-        {comments.length > 0 && (
-          <div className="px-4 pb-4 bg-[#0B1220] border-t border-white/6 space-y-2 max-h-36 overflow-y-auto">
-            {comments.map(comment => (
-              <div key={comment.id} className="rounded-xl border border-white/6 bg-[#121C2C] px-3 py-2">
-                <p className="text-sm text-slate-200">{comment.text}</p>
-                <p className="text-[11px] text-slate-500 mt-1">{comment.time}</p>
-              </div>
-            ))}
+        <div className="border-t border-white/6 bg-[#0B1220]">
+          <div className="px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+              <MessageSquare size={15} className="text-[#6EE7B7]" /> Feedback
+            </div>
+            <span className="text-xs text-slate-500">{comments.length}</span>
           </div>
-        )}
-      </motion.div>
+
+          <div className="px-4 pb-3 space-y-2 max-h-44 overflow-y-auto">
+            {comments.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/10 bg-[#121C2C] px-3 py-3 text-center">
+                <p className="text-sm text-slate-500">No feedback yet.</p>
+              </div>
+            ) : comments.map(comment => {
+              const isMine = comment.userId === currentUserId;
+              return (
+                <div key={comment.id} className={`flex gap-2 ${isMine ? 'flex-row-reverse' : ''}`}>
+                  <Avatar src={comment.userAvatar} fallback={comment.userName?.charAt(0) || '?'} size="sm" className="w-7 h-7 shrink-0" />
+                  <div className={`max-w-[82%] ${isMine ? 'items-end' : ''} flex flex-col`}>
+                    <div className={`rounded-xl px-3 py-2 text-sm leading-relaxed border ${isMine ? 'bg-[#22C55E]/10 border-[#22C55E]/25 text-emerald-100 rounded-tr-sm' : 'bg-[#121C2C] border-white/6 text-slate-200 rounded-tl-sm'}`}>
+                      {comment.content}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1 px-1">
+                      {comment.userName} - {new Date(comment.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="p-4 pt-0 relative">
+            {mentionCandidates.length > 0 && (
+              <div className="absolute left-4 right-4 bottom-full mb-2 rounded-xl border border-white/10 bg-[#0B1220] shadow-xl overflow-hidden z-20">
+                {mentionCandidates.map(member => (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => applyMention(member.name)}
+                    className="w-full px-3 py-2 text-sm text-slate-300 hover:bg-[#162032] flex items-center gap-2"
+                  >
+                    <Avatar src={member.avatar} fallback={member.name.charAt(0)} size="sm" className="w-5 h-5" />
+                    <span>{member.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendComment()}
+                placeholder="Reply to feedback..."
+                className="flex-1 rounded-xl border border-white/6 bg-[#121C2C] px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-[#22C55E]/45"
+              />
+              <Button onClick={handleSendComment} disabled={!commentInput.trim()} className="px-3">
+                Send
+              </Button>
+            </div>
+          </div>
+        </div>      </motion.div>
     </AnimatePresence>
   );
 };
+
+
