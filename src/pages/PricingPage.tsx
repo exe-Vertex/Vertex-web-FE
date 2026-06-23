@@ -6,6 +6,7 @@ import { Check, X, Minus, ArrowRight, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Button } from '../components/ui/Button';
 import { getAccessToken } from '../utils/authStorage';
+import { CONTACT_EMAIL, CONTACT_URL } from '../config/contact';
 
 interface PricingPageProps {
   onNavigate: (page: string) => void;
@@ -119,10 +120,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
     const token = getAccessToken();
     
     if (planName === 'Enterprise') {
-      showToast('Đang chuyển hướng liên hệ bộ phận kinh doanh...', 'info');
+      window.open(CONTACT_URL, '_blank', 'noopener,noreferrer');
+      showToast(`Opening email composer to contact ${CONTACT_EMAIL}...`, 'info');
       return;
     }
-
     if (!token) {
       showToast('Vui lòng đăng nhập để nâng cấp gói dịch vụ.', 'info');
       setTimeout(() => onNavigate('login'), 800);
@@ -410,3 +411,4 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
     </div>
   );
 };
+

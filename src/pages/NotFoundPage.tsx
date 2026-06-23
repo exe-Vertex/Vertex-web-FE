@@ -4,6 +4,7 @@ import { Home, ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { VertexLogo } from '../components/ui/VertexLogo';
 import { useLang } from '../contexts/LanguageContext';
+import { CONTACT_EMAIL, CONTACT_URL } from '../config/contact';
 
 interface NotFoundPageProps {
   onNavigate: (page: string) => void;
@@ -121,10 +122,16 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onNavigate }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.6 }}
-          className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-400 transition-colors"
+          className="flex items-center gap-2 text-xs text-slate-500"
         >
           <HelpCircle size={14} />
-          <span>{helpText}</span>
+          <a
+            href={CONTACT_URL}
+            title={CONTACT_EMAIL}
+            className="hover:text-slate-400 transition-colors"
+          >
+            {helpText}
+          </a>
         </motion.div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { Header } from '../components/layout/Header';
 import { Footer } from '../components/layout/Footer';
 import { motion, AnimatePresence } from 'motion/react';
 import { Scale, Shield } from 'lucide-react';
+import { CONTACT_EMAIL, CONTACT_URL } from '../config/contact';
 
 interface LegalPageProps {
   onNavigate: (page: string) => void;
@@ -96,7 +97,7 @@ const TermsContent: React.FC = () => (
     <section>
       <h2 className="text-xl font-bold text-white mb-3">11. Contact</h2>
       <p className="text-slate-400 leading-relaxed text-sm">
-        If you have questions about these Terms, please contact us at <span className="text-[#22C55E]">legal@projectplanningtool.com</span>.
+        If you have questions about these Terms, please contact us at <a href={CONTACT_URL} target="_blank" rel="noreferrer" className="text-[#22C55E] hover:underline">{CONTACT_EMAIL}</a>.
       </p>
     </section>
   </div>
@@ -197,7 +198,7 @@ const PrivacyContent: React.FC = () => (
     <section>
       <h2 className="text-xl font-bold text-white mb-3">11. Contact Us</h2>
       <p className="text-slate-400 leading-relaxed text-sm">
-        For privacy-related questions or to exercise your rights, contact us at <span className="text-[#22C55E]">privacy@projectplanningtool.com</span>.
+        For privacy-related questions or to exercise your rights, contact us at <a href={CONTACT_URL} target="_blank" rel="noreferrer" className="text-[#22C55E] hover:underline">{CONTACT_EMAIL}</a>.
       </p>
     </section>
   </div>
@@ -265,3 +266,4 @@ export const LegalPage: React.FC<LegalPageProps> = ({ onNavigate, initialTab = '
     </div>
   );
 };
+
