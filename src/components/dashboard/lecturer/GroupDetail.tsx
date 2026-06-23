@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Users, Calendar, CheckCircle, Clock, AlertTriangle,
@@ -16,7 +16,7 @@ interface GroupDetailProps {
   onBack: () => void;
 }
 
-// â”€â”€ Task status config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Task status config
 const statusConfig: Record<TaskStatus, { label: string; color: string; dot: string }> = {
   'todo':              { label: 'To Do',             color: 'border-slate-600/50 bg-[#162032]',               dot: 'bg-slate-600' },
   'in-progress':       { label: 'In Progress',       color: 'border-blue-500/20  bg-blue-500/5',              dot: 'bg-blue-400'  },
@@ -72,7 +72,7 @@ const getContributionNote = (member: MemberContribution): string => {
   return 'Low visible progress. Rebalance tasks or set a focused short-term target.';
 };
 
-// â”€â”€ Kanban Task Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Kanban task card
 const KanbanCard: React.FC<{
   task: LecturerTask;
   isSelected?: boolean;
@@ -233,17 +233,18 @@ const OverviewTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
   </div>
 );
 
-// â”€â”€ Tab: Tasks (Kanban) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Tasks tab
 const TasksTab: React.FC<{
   tasks: LecturerTask[];
   selectedTask: LecturerTask | null;
   selectedTaskId: string | null;
   taskComments: GroupComment[];
+  reviewHint: string;
   onSelectTask: (task: LecturerTask) => void;
   onAddComment: (taskId: string, text: string) => void;
   onApprove: (id: string) => void;
   onRequestChanges: (id: string) => void;
-}> = ({ tasks, selectedTask, selectedTaskId, taskComments, onSelectTask, onAddComment, onApprove, onRequestChanges }) => {
+}> = ({ tasks, selectedTask, selectedTaskId, taskComments, reviewHint, onSelectTask, onAddComment, onApprove, onRequestChanges }) => {
   const [newComment, setNewComment] = useState('');
 
   const handleSend = () => {
@@ -312,6 +313,11 @@ const TasksTab: React.FC<{
                   </p>
                 </div>
 
+                <div className="rounded-lg border border-[#22C55E]/10 bg-[#162032]/70 p-2 text-xs text-slate-400">
+                  <p className="font-semibold text-slate-200">Review lifecycle</p>
+                  <p className="mt-1">{reviewHint}</p>
+                </div>
+
                 {selectedTask.status === 'ready-for-review' && (
                   <div className="grid grid-cols-2 gap-2">
                     <button type="button" onClick={() => onApprove(selectedTask.id)}
@@ -328,7 +334,7 @@ const TasksTab: React.FC<{
 
               <div className="mb-3 mt-4 flex items-center justify-between gap-2">
                 <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  <MessageSquare size={13} className="text-[#22C55E]" />Task Feedback
+                  <MessageSquare size={13} className="text-[#22C55E]" />Review Feedback Timeline
                 </h4>
                 <span className="text-[11px] text-slate-500">{taskComments.length} comments</span>
               </div>
@@ -336,7 +342,7 @@ const TasksTab: React.FC<{
               <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                 {taskComments.length === 0 && (
                   <div className="rounded-lg border border-dashed border-slate-700 p-3 text-center">
-                    <p className="text-[11px] text-slate-500">No feedback for this task yet.</p>
+                    <p className="text-[11px] text-slate-500">No feedback yet. Leave guidance or wait for the student to submit work.</p>
                   </div>
                 )}
                 {taskComments.map(c => (
@@ -360,7 +366,7 @@ const TasksTab: React.FC<{
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                  placeholder="Leave feedback for this task..."
+                  placeholder="Leave feedback or request a specific change..."
                   className="flex-1 px-3 py-2 bg-[#162032] border border-[#3A3317] rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#F59E0B]/45"
                 />
                 <button onClick={handleSend}
@@ -532,7 +538,7 @@ const ContributionsTab: React.FC<{ tasks: LecturerTask[] }> = ({ tasks }) => {
   );
 };
 
-// â”€â”€ Tab: Timeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Timeline tab
 const TimelineTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
   <div className="p-6">
     <div className="mb-5 rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-4">
@@ -568,7 +574,7 @@ const TimelineTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
   </div>
 );
 
-// â”€â”€ GroupDetail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GroupDetail
 export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -624,6 +630,13 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
 
   const selectedTask = tasks.find(task => task.id === selectedTaskId) ?? null;
   const taskComments = selectedTask ? comments.filter(comment => comment.taskId === selectedTask.id) : [];
+  const reviewHint = selectedTask?.status === 'approved'
+    ? 'Approved. The task is closed for review.'
+    : selectedTask?.status === 'ready-for-review'
+      ? 'Submitted by student. Review the work, then approve or request changes.'
+      : taskComments.length > 0
+        ? 'Changes were requested or feedback exists. Wait for the student to update and resubmit.'
+        : 'Not submitted yet. Feedback can still be added as guidance.';
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview',  label: 'Overview',  icon: <LayoutGrid size={13} />     },
     { id: 'tasks',     label: 'Tasks',     icon: <CheckCircle size={13} />    },
@@ -703,6 +716,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
                 selectedTask={selectedTask}
                 selectedTaskId={selectedTaskId}
                 taskComments={taskComments}
+                reviewHint={reviewHint}
                 onSelectTask={task => setSelectedTaskId(task.id)}
                 onAddComment={handleAddComment}
                 onApprove={handleApprove}

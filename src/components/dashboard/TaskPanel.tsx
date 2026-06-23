@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Calendar, Flag, Paperclip, MessageSquare, CheckSquare, Trash2, Plus, ChevronDown, Sparkles, Link as LinkIcon, File as FileIcon, ExternalLink, Star, Loader2, GripVertical } from 'lucide-react';
 import { Task, User, Priority } from '../../types';
@@ -154,6 +154,15 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 
   if (!task) return null;
 
+  const latestFeedback = comments[comments.length - 1];
+  const reviewHint = task.status === 'done'
+    ? 'Approved by reviewer. This task is complete.'
+    : task.status === 'ready-for-review'
+      ? 'Submitted for lecturer/leader review. Wait for approval or feedback.'
+      : comments.length > 0
+        ? 'Feedback received. Update the task, reply if needed, then submit again.'
+        : 'Work on the task and submit it when ready for review.';
+
   const canManageSubtasks = currentUserId === task.assignee?.id || currentUserRole === 'Leader';
 
   const deadlineMeta = (() => {
@@ -166,10 +175,10 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     const diffDays = Math.round((dueDay - nowDay) / 86400000);
 
     const label = due.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    if (diffDays < 0) return { label, hint: 'QuÃ¡ háº¡n', hintClass: 'text-red-400 font-medium' };
-    if (diffDays === 0) return { label, hint: 'Äáº¿n háº¡n hÃ´m nay', hintClass: 'text-amber-400 font-medium' };
-    if (diffDays === 1) return { label, hint: 'CÃ²n 1 ngÃ y ná»¯a', hintClass: 'text-[#6EE7B7] font-medium' };
-    return { label, hint: `CÃ²n ${diffDays} ngÃ y ná»¯a`, hintClass: 'text-[#6EE7B7] font-medium' };
+    if (diffDays < 0) return { label, hint: 'Quá hạn', hintClass: 'text-red-400 font-medium' };
+    if (diffDays === 0) return { label, hint: 'Đến hạn hôm nay', hintClass: 'text-amber-400 font-medium' };
+    if (diffDays === 1) return { label, hint: 'Còn 1 ngày nữa', hintClass: 'text-[#6EE7B7] font-medium' };
+    return { label, hint: `Còn ${diffDays} ngày nữa`, hintClass: 'text-[#6EE7B7] font-medium' };
   })();
 
   const mentionMatch = commentInput.match(/@([a-zA-Z]*)$/);
@@ -570,7 +579,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                             <span>{att.uploadedBy}</span>
                             {att.sizeLabel && (
                               <>
-                                <span>â€¢</span>
+                                <span>•</span>
                                 <span>{att.sizeLabel}</span>
                               </>
                             )}
@@ -690,6 +699,17 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
         </div>
 
         <div className="border-t border-white/6 bg-[#0B1220]">
+          <div className="px-4 pt-3">
+            <div className="rounded-xl border border-[#22C55E]/10 bg-[#121C2C] px-3 py-2 text-xs text-slate-400">
+              <div className="flex items-center gap-2 text-slate-200 font-semibold">
+                <CheckSquare size={13} className="text-[#6EE7B7]" /> Review flow
+              </div>
+              <p className="mt-1">{reviewHint}</p>
+              {latestFeedback && (
+                <p className="mt-1 text-slate-500">Latest feedback: <span className="text-slate-300">{latestFeedback.content}</span></p>
+              )}
+            </div>
+          </div>
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
               <MessageSquare size={15} className="text-[#6EE7B7]" /> Feedback
