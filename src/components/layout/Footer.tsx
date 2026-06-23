@@ -2,6 +2,7 @@ import React from 'react';
 import { Github, Twitter, Linkedin } from 'lucide-react';
 import { VertexLogo } from '../ui/VertexLogo';
 import { useLang } from '../../contexts/LanguageContext';
+import { CONTACT_EMAIL, CONTACT_URL } from '../../config/contact';
 
 interface FooterProps {
   onNavigate?: (page: string) => void;
@@ -51,6 +52,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <ul className="space-y-2.5 text-sm text-slate-300">
               <li><button onClick={() => onNavigate?.('terms')} className="footer-link">{t.footer.terms}</button></li>
               <li><button onClick={() => onNavigate?.('privacy')} className="footer-link">{t.footer.privacy}</button></li>
+              <li><a href={CONTACT_URL} target="_blank" rel="noreferrer" title={CONTACT_EMAIL} className="footer-link">Contact</a></li>
             </ul>
           </div>
         </div>
@@ -75,3 +77,4 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
     </footer>
   );
 };
+
