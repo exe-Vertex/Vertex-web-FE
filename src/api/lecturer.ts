@@ -1,4 +1,4 @@
-﻿import { apiRequest } from './http';
+import { apiRequest } from './http';
 import { getAccessToken } from '../utils/authStorage';
 import type { LecturerGroup } from '../data/lecturerTypes';
 
@@ -26,13 +26,15 @@ export async function getGroups(): Promise<LecturerGroup[]> {
     avatarInitials: g.memberInitials || [],
     reviewStatus: g.reviewStatus || 'on-track',
     description: g.projectDescription || '',
-    tasks: Array.from({ length: g.tasksInReview || 0 }, (_, i) => ({
-      id: `fake-${i}`,
-      title: 'Awaiting review task',
-      assignee: 'Student',
-      deadline: g.deadline,
-      priority: 'high',
-      status: 'ready-for-review',
+    tasks: (g.reviewTasks || []).map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      description: t.description || '',
+      assignee: t.assigneeName || 'Unassigned',
+      startDate: t.startDate,
+      deadline: t.endDate || g.deadline,
+      priority: (t.priority || 'medium').toLowerCase(),
+      status: t.status === 'done' ? 'approved' : t.status,
     })),
     timeline: [],
     comments: [],

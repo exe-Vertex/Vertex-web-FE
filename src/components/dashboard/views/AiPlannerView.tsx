@@ -1,8 +1,10 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '../../ui/Button';
 import { WandSparkles, Sparkles, Trash2, Plus } from 'lucide-react';
 import { PlannerDifficulty, PlannerCategory, GeneratedPlanResponse, GeneratedPlanSubtask } from '../utils/dashboardTypes';
 import { User } from '../../../types';
+
+const MAX_PLANNER_WEEKS = 24;
 
 export const AiPlannerView: React.FC<{
   plannerInput: { description: string; projectGoal: string; teamSize: number; deadlineWeeks: number; difficulty: PlannerDifficulty; category: PlannerCategory };
@@ -181,10 +183,11 @@ export const AiPlannerView: React.FC<{
             </div>
             <div>
               <label className="text-xs text-slate-400 mb-1.5 block">Deadline (weeks)</label>
-              <input type="number" min={2} max={8}
+              <input type="number" min={2} max={MAX_PLANNER_WEEKS}
                 value={plannerInput.deadlineWeeks}
-                onChange={(e) => setPlannerInput(prev => ({ ...prev, deadlineWeeks: Number(e.target.value) }))}
+                onChange={(e) => setPlannerInput(prev => ({ ...prev, deadlineWeeks: Math.max(2, Math.min(MAX_PLANNER_WEEKS, Number(e.target.value) || 2)) }))}
                 className="w-full px-3 py-2 bg-[#162032] border border-[#22C55E]/15 rounded-lg text-sm text-white outline-none focus:border-[#22C55E]/40" />
+              <p className="mt-1 text-[11px] text-slate-500">Supports up to {MAX_PLANNER_WEEKS} weeks.</p>
             </div>
             <div>
               <label className="text-xs text-slate-400 mb-1.5 block">Difficulty</label>
@@ -377,7 +380,7 @@ export const AiPlannerView: React.FC<{
                         <div>
                           <p className="text-sm font-semibold text-slate-100">{card.assignee}</p>
                           <p className="text-xs text-slate-400 mt-0.5">{card.tasks.length} tasks</p>
-                          <p className="text-xs text-slate-500 mt-1 truncate max-w-[11rem]">{card.tasks.slice(0, 2).join(' â€¢ ')}</p>
+                          <p className="text-xs text-slate-500 mt-1 truncate max-w-[11rem]">{card.tasks.slice(0, 2).join(' / ')}</p>
                         </div>
                         <span className="text-xs text-[#6EE7B7] font-medium text-right max-w-[12rem]">Primary ownership</span>
                       </div>
@@ -433,8 +436,7 @@ export const AiPlannerView: React.FC<{
                   </>
                 ) : (
                   <>
-                    <Button variant="outline" size="sm" onClick={startEditing}>Adjust Scope</Button>
-                    <Button variant="outline" size="sm" onClick={startEditing}>Reassign Tasks</Button>
+                    <Button variant="outline" size="sm" onClick={startEditing}>Edit Plan</Button>
                     <Button variant="ghost" size="sm" onClick={onRegenerate}>Regenerate</Button>
                   </>
                 )}

@@ -9,7 +9,7 @@ interface ProfileModalProps {
   open: boolean;
   onClose: () => void;
   member: WorkspaceMember | null;
-  onSave: (member: WorkspaceMember) => void;
+  onSave: (member: WorkspaceMember) => void | Promise<void>;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, member, onSave }) => {
@@ -20,6 +20,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
   const [title, setTitle] = useState('');
   const [bio, setBio] = useState('');
   const [email, setEmail] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open || !member) return;
@@ -57,7 +58,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!draft) return;
 
     const updated: WorkspaceMember = {
@@ -71,9 +72,16 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
       },
     };
 
-    onSave(updated);
-    showToast('Profile and skills saved');
-    onClose();
+    setSaving(true);
+    try {
+      await onSave(updated);
+      showToast('Profile and skills saved');
+      onClose();
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to save profile and skills', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!member) return null;
@@ -159,7 +167,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
                         className="inline-flex items-center gap-2 rounded-full border border-[#22C55E]/16 bg-[#0F1A2A] px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-[#22C55E]/30 hover:text-white transition-colors"
                       >
                         <span>{skill}</span>
-                        <span className="text-slate-500">×</span>
+                        <span className="text-slate-500">x</span>
                       </button>
                     ))}
                   </div>
@@ -211,7 +219,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
 
               <div className="border-t border-[#22C55E]/12 px-6 py-4 flex items-center justify-end gap-3 bg-[#0F1A2A]">
                 <button onClick={onClose} className="rounded-xl border border-[#22C55E]/10 bg-[#162032] px-4 py-2.5 text-sm font-medium text-slate-300 hover:text-white transition-colors">Cancel</button>
-                <button onClick={handleSave} className="rounded-xl bg-gradient-to-r from-[#22C55E] to-[#60A5FA] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#22C55E]/15 hover:brightness-110 transition">Save</button>
+                <button onClick={handleSave} disabled={saving} className="rounded-xl bg-gradient-to-r from-[#22C55E] to-[#60A5FA] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#22C55E]/15 hover:brightness-110 transition disabled:opacity-60 disabled:cursor-not-allowed">{saving ? 'Saving...' : 'Save'}</button>
               </div>
             </div>
           </motion.aside>
