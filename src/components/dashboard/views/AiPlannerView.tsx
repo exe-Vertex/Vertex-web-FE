@@ -201,15 +201,18 @@ export const AiPlannerView: React.FC<{
               </select>
             </div>
             <div>
-              <label className="text-xs text-slate-400 mb-1.5 block">Project category</label>
+              <label className="text-xs text-slate-400 mb-1.5 block">Project type</label>
               <select
                 value={plannerInput.category}
                 onChange={(e) => setPlannerInput(prev => ({ ...prev, category: e.target.value as PlannerCategory }))}
                 className="w-full px-3 py-2 bg-[#162032] border border-[#22C55E]/15 rounded-lg text-sm text-white outline-none focus:border-[#22C55E]/40 cursor-pointer">
+                <option className="bg-[#162032] text-white">Auto detect</option>
                 <option className="bg-[#162032] text-white">Design</option>
+                <option className="bg-[#162032] text-white">Software</option>
                 <option className="bg-[#162032] text-white">Research</option>
-                <option className="bg-[#162032] text-white">Engineering</option>
                 <option className="bg-[#162032] text-white">Marketing</option>
+                <option className="bg-[#162032] text-white">Business</option>
+                <option className="bg-[#162032] text-white">Other</option>
               </select>
             </div>
           </div>

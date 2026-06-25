@@ -6,7 +6,7 @@ export type AppNotification = { id: string; text: string; time: string; read: bo
 export type InviteRole = 'Leader' | 'Member' | 'Guest';
 export type ProjectTab = 'board' | 'ai-planner' | 'insights' | 'members' | 'files';
 export type PlannerDifficulty = 'Easy' | 'Medium' | 'Hard';
-export type PlannerCategory = 'Design' | 'Research' | 'Engineering' | 'Marketing';
+export type PlannerCategory = 'Auto detect' | 'Design' | 'Software' | 'Research' | 'Marketing' | 'Business' | 'Other';
 
 export type GeneratedPlanSubtask = {
   title: string;
