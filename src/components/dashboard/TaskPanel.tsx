@@ -6,6 +6,7 @@ import { Avatar } from '../ui/Avatar';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { listTaskAttachments, uploadTaskFile, addTaskLink, deleteTaskAttachment, promoteTaskAttachment, TaskAttachmentDto, listTaskComments, addTaskComment, TaskCommentDto, listSubtasks, createSubtask, updateSubtask, deleteSubtask, SubtaskDto } from '../../api/project';
+import { API_BASE_URL } from '../../api/http';
 import { generateSubtasks } from '../../api/ai';
 import { getAuthToken } from './utils/dashboardUtils';
 import { useToast } from '../ui/Toast';
@@ -34,12 +35,14 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   const [isGeneratingSubtasks, setIsGeneratingSubtasks] = useState(false);
   const [attachments, setAttachments] = useState<TaskAttachmentDto[]>([]);
   const [isAddingLink, setIsAddingLink] = useState(false);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const { showToast } = useToast();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!task) return;
@@ -52,8 +55,10 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     setDragOverSubtaskId(null);
     setAssigneeOpen(false);
     setIsAddingLink(false);
+    setIsUploadingAttachment(false);
     setNewLinkUrl('');
     setNewLinkTitle('');
+    panelRef.current?.focus();
     
     if (orgId && projectId) {
       loadAttachments();
@@ -97,20 +102,51 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
       console.error('Failed to load task comments:', err);
     }
   };
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!task || !orgId || !projectId || !e.target.files?.length) return;
+  const canAttachToTask = () => Boolean(task && currentUserId === task.assignee?.id && task.status === 'in-progress');
+
+  const uploadAttachmentFiles = async (files: File[], successMessage = 'File uploaded successfully') => {
+    if (!task || !orgId || !projectId || files.length === 0) return;
+    if (!canAttachToTask()) {
+      showToast('Only the assignee can attach files while the task is in progress', 'error');
+      return;
+    }
     const token = getAuthToken();
     if (!token) return;
+    setIsUploadingAttachment(true);
     try {
-      await uploadTaskFile(token, orgId, projectId, task.id, e.target.files[0]);
+      for (const file of files) {
+        await uploadTaskFile(token, orgId, projectId, task.id, file);
+      }
       await loadAttachments();
-      showToast('File uploaded successfully', 'success');
+      showToast(files.length > 1 ? `${files.length} files uploaded successfully` : successMessage, 'success');
     } catch (err: any) {
       showToast(err.message || 'Failed to upload file', 'error');
+    } finally {
+      setIsUploadingAttachment(false);
     }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    await uploadAttachmentFiles(Array.from(e.target.files));
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handlePasteAttachment = async (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const imageFiles = Array.from(e.clipboardData.items)
+      .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+      .map(item => item.getAsFile())
+      .filter((file): file is File => Boolean(file))
+      .map((file, index) => {
+        const ext = file.type.split('/')[1]?.split('+')[0] || 'png';
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        return new File([file], `screenshot-${stamp}-${index + 1}.${ext}`, { type: file.type || 'image/png' });
+      });
+
+    if (imageFiles.length === 0) return;
+    e.preventDefault();
+    await uploadAttachmentFiles(imageFiles, 'Screenshot pasted and uploaded');
+  };
   const handleAddLink = async () => {
     if (!task || !orgId || !projectId || !newLinkUrl.trim()) return;
     const token = getAuthToken();
@@ -354,6 +390,9 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        ref={panelRef}
+        tabIndex={-1}
+        onPaste={handlePasteAttachment}
         className="fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#101928]/96 backdrop-blur-xl shadow-2xl shadow-black/35 border-l border-white/6 z-40 flex flex-col"
       >
         {/* Header */}
@@ -518,9 +557,10 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                     </button>
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="text-xs text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors inline-flex items-center gap-1"
+                      disabled={isUploadingAttachment}
+                      className="text-xs text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors inline-flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <Paperclip size={12} /> Add File
+                      {isUploadingAttachment ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />} Add File
                     </button>
                     <input
                       type="file"
@@ -531,6 +571,11 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                   </div>
                 )}
               </div>
+              {currentUserId === task.assignee?.id && task.status === 'in-progress' && (
+                <p className="text-[11px] text-slate-500 mb-2">
+                  Paste a screenshot here with Ctrl+V to attach it directly.
+                </p>
+              )}
 
               {isAddingLink && (
                 <div className="bg-[#121C2C] border border-white/6 p-3 rounded-xl mb-3 flex flex-col gap-2">
@@ -571,6 +616,15 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                           {att.type === 'link' ? (
                             <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-200 hover:text-[#6EE7B7] hover:underline truncate inline-flex items-center gap-1">
                               {att.title || att.url} <ExternalLink size={12} />
+                            </a>
+                          ) : att.url ? (
+                            <a
+                              href={att.url.startsWith('http') ? att.url : `${API_BASE_URL}/${att.url.replace(/^\/+/, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-slate-200 hover:text-[#6EE7B7] hover:underline truncate inline-flex items-center gap-1"
+                            >
+                              {att.title} <ExternalLink size={12} />
                             </a>
                           ) : (
                             <span className="text-sm font-medium text-slate-200 truncate">{att.title}</span>

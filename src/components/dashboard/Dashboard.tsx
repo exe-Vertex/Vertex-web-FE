@@ -79,7 +79,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     teamSize: 4,
     deadlineWeeks: 4,
     difficulty: 'Medium' as PlannerDifficulty,
-    category: 'Design' as PlannerCategory,
+    category: 'Auto detect' as PlannerCategory,
   });
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlanResponse | null>(null);
   const { t } = useLang();
