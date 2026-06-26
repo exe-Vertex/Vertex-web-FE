@@ -190,7 +190,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     await updateUserSkills(token, skills);
     setUserSkills(skills);
     setShowOnboardingSkills(false);
-    showToast('K? nang c?a b?n dã du?c c?p nh?t thành công!');
+    showToast('K? nang c?a b?n dï¿½ du?c c?p nh?t thï¿½nh cï¿½ng!');
   };
 
   // -- Load org detail when activeOrgId changes --
@@ -242,7 +242,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       });
     } catch (err) {
       console.error('Error fetching projects:', err);
-      showToast('Không th? t?i danh sách d? án t? server', 'error');
+      showToast('Khï¿½ng th? t?i danh sï¿½ch d? ï¿½n t? server', 'error');
     }
   };
 
@@ -250,7 +250,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   useEffect(() => {
     refreshProjectsList();
 
-    // T? d?ng d?ng b? d? li?u d? án lên RAM Vector Store c?a AI khi ngu?i dùng t?i dashboard ho?c chuy?n Org
+    // T? d?ng d?ng b? d? li?u d? ï¿½n lï¿½n RAM Vector Store c?a AI khi ngu?i dï¿½ng t?i dashboard ho?c chuy?n Org
     const token = getAuthToken();
     if (token && activeOrgId) {
       syncProjectData(token, activeOrgId)
@@ -258,7 +258,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         .catch(err => console.warn('AI Vector Store auto-sync failed:', err));
     }
 
-    // 2. T? d?ng làm m?i d? li?u khi ngu?i dùng chuy?n l?i tab này (Window Focus)
+    // 2. T? d?ng lï¿½m m?i d? li?u khi ngu?i dï¿½ng chuy?n l?i tab nï¿½y (Window Focus)
     const handleFocus = () => {
       refreshProjectsList();
     };
@@ -625,7 +625,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không d? thông tin d? kéo th? công vi?c', 'error');
+      showToast('Khï¿½ng d? thï¿½ng tin d? kï¿½o th? cï¿½ng vi?c', 'error');
       return;
     }
 
@@ -636,46 +636,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const isAssignee = task.assignee?.id === user?.id;
     const isLeader = (currentProjectMember?.role as string) === 'Leader';
     if (!isLeader && !isAssignee) {
-      showToast('Ch? Leader ho?c ngu?i ph? trách m?i có quy?n c?p nh?t công vi?c', 'error');
+      showToast('Ch? Leader ho?c ngu?i ph? trï¿½ch m?i cï¿½ quy?n c?p nh?t cï¿½ng vi?c', 'error');
       return;
     }
 
-    // Phân quy?n kéo th? chi ti?t theo yêu c?u
+    // Phï¿½n quy?n kï¿½o th? chi ti?t theo yï¿½u c?u
     if (task.status === 'done' && newStatus !== 'done') {
       if (!isLeader) {
-        showToast('Ch? Leader m?i có quy?n chuy?n công vi?c t? Done v? tr?ng thái khác', 'error');
+        showToast('Ch? Leader m?i cï¿½ quy?n chuy?n cï¿½ng vi?c t? Done v? tr?ng thï¿½i khï¿½c', 'error');
         return;
       }
     }
 
     if (task.status === 'todo' && newStatus === 'in-progress') {
       if (!isAssignee) {
-        showToast('Ch? ngu?i du?c giao công vi?c (Assignee) m?i có th? chuy?n sang In Progress', 'error');
+        showToast('Ch? ngu?i du?c giao cï¿½ng vi?c (Assignee) m?i cï¿½ th? chuy?n sang In Progress', 'error');
         return;
       }
     }
 
     if (task.status === 'in-progress' && newStatus === 'todo') {
       if (!isAssignee) {
-        showToast('Ch? ngu?i du?c giao công vi?c (Assignee) m?i có th? chuy?n t? In Progress v? Todo', 'error');
+        showToast('Ch? ngu?i du?c giao cï¿½ng vi?c (Assignee) m?i cï¿½ th? chuy?n t? In Progress v? Todo', 'error');
         return;
       }
     }
 
     if (newStatus === 'ready-for-review') {
       if (!isAssignee) {
-        showToast('Ch? ngu?i du?c giao công vi?c (Assignee) m?i có th? chuy?n sang Ready for Review', 'error');
+        showToast('Ch? ngu?i du?c giao cï¿½ng vi?c (Assignee) m?i cï¿½ th? chuy?n sang Ready for Review', 'error');
         return;
       }
     }
 
     if (newStatus === 'done') {
       if (task.status !== 'ready-for-review') {
-        showToast('Ch? có th? kéo sang Done t? c?t Ready for Review', 'error');
+        showToast('Ch? cï¿½ th? kï¿½o sang Done t? c?t Ready for Review', 'error');
         return;
       }
       if (!isLeader) {
-        showToast('Ch? Leader m?i có quy?n duy?t task (chuy?n sang Done)', 'error');
+        showToast('Ch? Leader m?i cï¿½ quy?n duy?t task (chuy?n sang Done)', 'error');
         return;
       }
     }
@@ -692,7 +692,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           newStatus,
           taskDescription: finalDescription,
         });
-        return; // D?ng lu?ng x? lý ? dây, d?i Modal tr? k?t qu? v?
+        return; // D?ng lu?ng x? lï¿½ ? dï¿½y, d?i Modal tr? k?t qu? v?
       }
     }
 
@@ -720,7 +720,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     if (!token || !orgId || !projectId) return;
 
     try {
-      // 1. C?p nh?t state local l?p t?c d? UI kéo th? ph?n h?i mu?t mà (Optimistic UI update)
+      // 1. C?p nh?t state local l?p t?c d? UI kï¿½o th? ph?n h?i mu?t mï¿½ (Optimistic UI update)
       setProjects(prev => prev.map(p => {
         if (p.id !== projectId) return p;
         return {
@@ -731,17 +731,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
       const task = activeProject.tasks.find(t => t.id === taskId);
 
-      // 2. G?i request c?p nh?t lên Backend
+      // 2. G?i request c?p nh?t lï¿½n Backend
       await updateTask(token, orgId, projectId, taskId, {
         status: newStatus,
         description: finalDescription !== (task?.description || '') ? finalDescription : undefined,
       });
 
-      // 3. Fetch l?i d? d?m b?o d? li?u d?ng b? chính xác v?i DB
+      // 3. Fetch l?i d? d?m b?o d? li?u d?ng b? chï¿½nh xï¿½c v?i DB
       await refreshProjectsList();
     } catch (err) {
       console.error('Error in executeTaskDrop:', err);
-      showToast('Không th? luu tr?ng thái kéo th? công vi?c', 'error');
+      showToast('Khï¿½ng th? luu tr?ng thï¿½i kï¿½o th? cï¿½ng vi?c', 'error');
       await refreshProjectsList();
     }
   };
@@ -756,7 +756,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không d? thông tin d? t?o công vi?c', 'error');
+      showToast('Khï¿½ng d? thï¿½ng tin d? t?o cï¿½ng vi?c', 'error');
       return;
     }
 
@@ -778,7 +778,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       await refreshProjectsList();
     } catch (err) {
       console.error('Error creating task:', err);
-      showToast('Không th? t?o công vi?c m?i', 'error');
+      showToast('Khï¿½ng th? t?o cï¿½ng vi?c m?i', 'error');
     }
   };
 
@@ -787,7 +787,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không d? thông tin d? xóa công vi?c', 'error');
+      showToast('Khï¿½ng d? thï¿½ng tin d? xï¿½a cï¿½ng vi?c', 'error');
       return;
     }
 
@@ -796,7 +796,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
     const currentProjectMember = activeProject.members?.find(m => m.id === user?.id);
     if ((currentProjectMember?.role as string) !== 'Leader') {
-      showToast('Ch? Leader m?i có quy?n xóa công vi?c', 'error');
+      showToast('Ch? Leader m?i cï¿½ quy?n xï¿½a cï¿½ng vi?c', 'error');
       return;
     }
 
@@ -809,7 +809,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       await refreshProjectsList();
     } catch (err) {
       console.error('Error deleting task:', err);
-      showToast('Không th? xóa công vi?c', 'error');
+      showToast('Khï¿½ng th? xï¿½a cï¿½ng vi?c', 'error');
     }
   };
 
@@ -818,7 +818,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không d? thông tin d? c?p nh?t công vi?c', 'error');
+      showToast('Khï¿½ng d? thï¿½ng tin d? c?p nh?t cï¿½ng vi?c', 'error');
       return;
     }
 
@@ -827,7 +827,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const isAssignee = task?.assignee?.id === user?.id;
 
     if ((currentProjectMember?.role as string) !== 'Leader' && !isAssignee) {
-      showToast('Ch? Leader ho?c ngu?i ph? trách m?i có quy?n c?p nh?t công vi?c', 'error');
+      showToast('Ch? Leader ho?c ngu?i ph? trï¿½ch m?i cï¿½ quy?n c?p nh?t cï¿½ng vi?c', 'error');
       return;
     }
 
@@ -849,7 +849,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       await refreshProjectsList();
     } catch (err) {
       console.error('Error updating task:', err);
-      showToast('Không th? c?p nh?t công vi?c', 'error');
+      showToast('Khï¿½ng th? c?p nh?t cï¿½ng vi?c', 'error');
     }
   };
 
@@ -866,7 +866,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const token = getAuthToken();
     const orgId = activeOrgId;
     if (!token || !orgId) {
-      showToast('Không d? thông tin d? xóa d? án', 'error');
+      showToast('Khï¿½ng d? thï¿½ng tin d? xï¿½a d? ï¿½n', 'error');
       return;
     }
 
@@ -876,7 +876,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       await refreshProjectsList();
     } catch (err) {
       console.error('Error deleting project:', err);
-      showToast('Không th? xóa d? án', 'error');
+      showToast('Khï¿½ng th? xï¿½a d? ï¿½n', 'error');
     } finally {
       setShowDeleteConfirm(false);
       setProjectToDelete(null);
@@ -888,7 +888,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không d? thông tin d? thêm thành viên', 'error');
+      showToast('Khï¿½ng d? thï¿½ng tin d? thï¿½m thï¿½nh viï¿½n', 'error');
       return;
     }
     try {
@@ -897,7 +897,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       await refreshProjectsList();
     } catch (err) {
       console.error('Error adding project member:', err);
-      showToast('Không th? thêm thành viên vào d? án', 'error');
+      showToast('Khï¿½ng th? thï¿½m thï¿½nh viï¿½n vï¿½o d? ï¿½n', 'error');
     }
   };
 
@@ -906,22 +906,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không d? thông tin d? m?i thành viên', 'error');
+      showToast('Khï¿½ng d? thï¿½ng tin d? m?i thï¿½nh viï¿½n', 'error');
       return;
     }
 
     const currentProjectMember = activeProject.members?.find(m => m.id === user?.id);
     if ((currentProjectMember?.role as string) !== 'Leader') {
-      showToast('Ch? Leader m?i có quy?n m?i thành viên vào d? án', 'error');
+      showToast('Ch? Leader m?i cï¿½ quy?n m?i thï¿½nh viï¿½n vï¿½o d? ï¿½n', 'error');
       return;
     }
 
     try {
       await createInvitation({ email, role, targetType: 'Project', targetId: projectId });
-      showToast(`Ðã g?i email m?i tham gia d? án t?i ${email}`);
+      showToast(`ï¿½ï¿½ g?i email m?i tham gia d? ï¿½n t?i ${email}`);
     } catch (err: any) {
       console.error('Error inviting member by email:', err);
-      showToast(err.message || `Không th? g?i l?i m?i t?i ${email}`, 'error');
+      showToast(err.message || `Khï¿½ng th? g?i l?i m?i t?i ${email}`, 'error');
     }
   };
 
@@ -937,7 +937,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không d? thông tin d? xóa thành viên', 'error');
+      showToast('Khï¿½ng d? thï¿½ng tin d? xï¿½a thï¿½nh viï¿½n', 'error');
       return;
     }
 
@@ -947,7 +947,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       await refreshProjectsList();
     } catch (err) {
       console.error('Error removing project member:', err);
-      showToast('Không th? xóa thành viên kh?i d? án', 'error');
+      showToast('Khï¿½ng th? xï¿½a thï¿½nh viï¿½n kh?i d? ï¿½n', 'error');
     }
   };
 
@@ -962,7 +962,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       await refreshProjectsList();
     } catch (err) {
       console.error('Error updating project member:', err);
-      showToast('Không th? c?p nh?t thông tin thành viên', 'error');
+      showToast('Khï¿½ng th? c?p nh?t thï¿½ng tin thï¿½nh viï¿½n', 'error');
     }
   };
 
@@ -993,7 +993,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       setShowCreateProject(false);
     } catch (err: any) {
       console.error('Error creating project:', err);
-      showToast(err.message || 'Không th? t?o d? án m?i', 'error');
+      showToast(err.message || 'Khï¿½ng th? t?o d? ï¿½n m?i', 'error');
     }
   };
 
@@ -1013,7 +1013,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const generateAiPlan = async (descriptionOverride?: string) => {
     if (!isCurrentProjectLeader) {
-      showToast('Ch? Leader m?i có quy?n t?o AI plan', 'error');
+      showToast('Ch? Leader m?i cï¿½ quy?n t?o AI plan', 'error');
       return;
     }
 
@@ -1057,6 +1057,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       // Clean up markdown block if Gemini still returns it
       jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
 
+      if (!jsonText.endsWith('}') && !jsonText.endsWith(']')) {
+        console.error('AI response appears truncated:', jsonText);
+        showToast('AI response was cut off. Try fewer weeks or generate again.', 'error');
+        return;
+      }
       let parsedJson;
       try {
         parsedJson = JSON.parse(jsonText);
@@ -1126,7 +1131,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const createProjectBoardFromPlan = async () => {
     if (!isCurrentProjectLeader) {
-      showToast('Ch? Leader m?i có quy?n t?o task t? AI plan', 'error');
+      showToast('Ch? Leader m?i cï¿½ quy?n t?o task t? AI plan', 'error');
       return;
     }
 
@@ -1188,7 +1193,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const handleGenerateTasksFromHeader = () => {
     if (!isCurrentProjectLeader) {
-      showToast('Ch? Leader m?i có quy?n t?o AI plan', 'error');
+      showToast('Ch? Leader m?i cï¿½ quy?n t?o AI plan', 'error');
       return;
     }
 
@@ -1302,7 +1307,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     try {
       await createInvitation({ email, role, targetType: 'Organization', targetId: activeOrgId });
       setShowInviteOrgMember(false);
-      showToast(`Ðã g?i email m?i tham gia t? ch?c t?i ${email}`);
+      showToast(`ï¿½ï¿½ g?i email m?i tham gia t? ch?c t?i ${email}`);
     } catch (err: any) {
       showToast(err.message || 'Failed to invite member', 'error');
     } finally {
@@ -1396,7 +1401,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const handleSaveProfile = async (member: WorkspaceMember) => {
     if (member.id === user?.id) {
       const token = getAuthToken();
-      if (!token) throw new Error('Phiên dang nh?p dã h?t h?n, vui lòng dang nh?p l?i.');
+      if (!token) throw new Error('Phiï¿½n dang nh?p dï¿½ h?t h?n, vui lï¿½ng dang nh?p l?i.');
       await updateUserSkills(token, member.skills);
       setUserSkills(member.skills);
     }
@@ -1588,15 +1593,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             <div className="px-6 py-3 border-b border-[#22C55E]/10 bg-[#0F1A2A] flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base">
                 <span className="text-white font-bold" title={activeProject.description || ''}>{activeProject.name}</span>
-                <span className="text-slate-600">•</span>
+                <span className="text-slate-600">ï¿½</span>
                 <span className="text-[#22C55E] font-semibold">{activeProjectProgress}%</span>
-                <span className="text-slate-600">•</span>
+                <span className="text-slate-600">ï¿½</span>
                 <span className="text-slate-300 font-semibold">{activeProjectMembers[0]?.name || 'Unassigned'}</span>
-                <span className="text-slate-600">•</span>
+                <span className="text-slate-600">ï¿½</span>
                 <span className="text-slate-400">{activeProjectMembers.length} members</span>
-                <span className="text-slate-600">•</span>
+                <span className="text-slate-600">ï¿½</span>
                 <span className="text-slate-400">{activeProject.tasks.length} tasks</span>
-                <span className="text-slate-600">•</span>
+                <span className="text-slate-600">ï¿½</span>
                 <span className="text-slate-400">{new Date(activeProject.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
               </div>
 
@@ -1834,8 +1839,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       {/* Delete Project Confirmation */}
       <DeleteConfirmDialog
         isOpen={showDeleteConfirm}
-        title="Xóa d? án"
-        message={`B?n có ch?c ch?n mu?n xóa d? án "${projectToDelete?.name || ''}"? M?i d? li?u công vi?c và t?p dính kèm liên quan s? b? xóa vinh vi?n và không th? hoàn tác.`}
+        title="Xï¿½a d? ï¿½n"
+        message={`B?n cï¿½ ch?c ch?n mu?n xï¿½a d? ï¿½n "${projectToDelete?.name || ''}"? M?i d? li?u cï¿½ng vi?c vï¿½ t?p dï¿½nh kï¿½m liï¿½n quan s? b? xï¿½a vinh vi?n vï¿½ khï¿½ng th? hoï¿½n tï¿½c.`}
         onClose={() => {
           setShowDeleteConfirm(false);
           setProjectToDelete(null);
