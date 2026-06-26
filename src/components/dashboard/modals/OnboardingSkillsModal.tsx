@@ -2,28 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../../ui/Button';
 
-const SKILL_CATEGORIES = [
-  {
-    name: 'Frontend',
-    skills: ['React', 'Vue', 'Angular', 'TypeScript', 'HTML/CSS', 'Tailwind CSS', 'Next.js', 'Vite']
-  },
-  {
-    name: 'Backend',
-    skills: ['C#/.NET', 'Java', 'Spring Boot', 'Node.js', 'Express', 'Python', 'Django', 'Go', 'NestJS']
-  },
-  {
-    name: 'Database',
-    skills: ['SQL Server', 'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Prisma']
-  },
-  {
-    name: 'Design & UI/UX',
-    skills: ['Figma', 'UI/UX Design', 'Adobe XD', 'Photoshop', 'Graphic Design']
-  },
-  {
-    name: 'Management & DevOps',
-    skills: ['Project Management', 'QA/Testing', 'Agile/Scrum', 'Git/Github', 'CI/CD', 'Devops']
-  }
-];
+import { SKILL_SUGGESTIONS, SKILL_CATEGORIES } from '../../../data/skillSuggestions';
 
 interface OnboardingSkillsModalProps {
   isOpen: boolean;
@@ -167,11 +146,11 @@ export const OnboardingSkillsModal: React.FC<OnboardingSkillsModalProps> = ({
           {/* Suggestion Categories */}
           <div className="space-y-4 pt-2">
             <h4 className="text-sm font-semibold text-slate-300">Gợi ý theo danh mục</h4>
-            {SKILL_CATEGORIES.map(category => (
-              <div key={category.name} className="space-y-2">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{category.name}</span>
+            {[...SKILL_CATEGORIES, 'General'].map(category => (
+              <div key={category} className="space-y-2">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{category}</span>
                 <div className="flex flex-wrap gap-2">
-                  {category.skills.map(skill => {
+                  {(SKILL_SUGGESTIONS[category] || []).map(skill => {
                     const isSelected = selectedSkills.includes(skill);
                     return (
                       <button
