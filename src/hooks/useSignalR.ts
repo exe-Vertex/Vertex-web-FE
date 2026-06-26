@@ -9,6 +9,7 @@ export function useSignalR(token: string | null, projectId: string | null) {
 
   useEffect(() => {
     if (!token) return;
+    let cancelled = false;
 
     const newConnection = new signalR.HubConnectionBuilder()
       .withUrl(`${API_BASE_URL}/taskhub`, {
@@ -23,6 +24,7 @@ export function useSignalR(token: string | null, projectId: string | null) {
     const startConnection = async () => {
       try {
         await newConnection.start();
+        if (cancelled) return;
         setIsConnected(true);
         console.log('SignalR Connected.');
         
@@ -30,7 +32,8 @@ export function useSignalR(token: string | null, projectId: string | null) {
           await newConnection.invoke('JoinProjectGroup', projectId);
           console.log(`Joined project group: ${projectId}`);
         }
-      } catch (err) {
+      } catch (err: any) {
+        if (cancelled || err?.name === 'AbortError') return;
         console.error('SignalR Connection Error: ', err);
       }
     };
@@ -38,11 +41,12 @@ export function useSignalR(token: string | null, projectId: string | null) {
     startConnection();
 
     return () => {
-      if (connectionRef.current) {
+      cancelled = true;
+      if (newConnection) {
         if (projectId) {
-          connectionRef.current.invoke('LeaveProjectGroup', projectId).catch(console.error);
+          newConnection.invoke('LeaveProjectGroup', projectId).catch(() => {});
         }
-        connectionRef.current.stop();
+        newConnection.stop().catch(() => {});
         setIsConnected(false);
       }
     };
