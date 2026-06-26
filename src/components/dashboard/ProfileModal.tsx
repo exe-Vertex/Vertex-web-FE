@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Plus, X } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 import { useToast } from '../ui/Toast';
 import { WorkspaceMember } from '../../types';
+import { SKILL_SUGGESTIONS, SKILL_CATEGORIES } from '../../data/skillSuggestions';
 
 interface ProfileModalProps {
   open: boolean;
@@ -49,6 +50,21 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
     });
     setSkillInput('');
   };
+
+  const addSuggestionSkill = (skillName: string) => {
+    if (!draft) return;
+    const alreadyExists = draft.skills.some(s => s.toLowerCase() === skillName.toLowerCase());
+    if (alreadyExists) return;
+    setDraft({
+      ...draft,
+      skills: [...draft.skills, skillName],
+    });
+  };
+
+  const isSkillAdded = useMemo(() => {
+    if (!draft) return new Set<string>();
+    return new Set(draft.skills.map(s => s.toLowerCase()));
+  }, [draft?.skills]);
 
   const removeSkill = (skillToRemove: string) => {
     if (!draft) return;
@@ -172,6 +188,38 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
                     ))}
                   </div>
 
+                  {/* Suggested Skills */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-[0.12em]">Suggested Skills</p>
+                    <div className="space-y-4 mt-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+                      {[...SKILL_CATEGORIES, 'General'].map(category => (
+                        <div key={category} className="space-y-2">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{category}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {(SKILL_SUGGESTIONS[category] || []).map(skill => {
+                              const added = isSkillAdded.has(skill.toLowerCase());
+                              return (
+                                <button
+                                  key={skill}
+                                  type="button"
+                                  onClick={() => !added && addSuggestionSkill(skill)}
+                                  disabled={added}
+                                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium border transition-all ${
+                                    added
+                                      ? 'border-[#22C55E]/25 bg-[#22C55E]/10 text-[#22C55E]/50 cursor-default'
+                                      : 'border-[#22C55E]/10 bg-[#162032] text-slate-300 hover:border-[#22C55E]/30 hover:bg-[#22C55E]/10 hover:text-[#6EE7B7] cursor-pointer'
+                                  }`}
+                                >
+                                  {added ? `✓ ${skill}` : `+ ${skill}`}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="flex gap-2">
                     <input
                       value={skillInput}
@@ -182,12 +230,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
                           addSkill();
                         }
                       }}
-                      placeholder="Add skill"
+                      placeholder="Or type a custom skill..."
                       className="flex-1 rounded-xl border border-[#22C55E]/10 bg-[#0F1A2A] px-3.5 py-3 text-sm text-white outline-none focus:border-[#22C55E]/35"
                     />
                     <button onClick={addSkill} className="inline-flex items-center gap-2 rounded-xl border border-[#22C55E]/20 bg-[#22C55E]/12 px-4 py-3 text-sm font-semibold text-[#6EE7B7] hover:bg-[#22C55E]/18 transition-colors">
                       <Plus size={14} />
-                      Add Skill
+                      Add
                     </button>
                   </div>
                 </section>

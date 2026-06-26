@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { User } from '../../types';
 import { X, UserPlus, Star, User as UserIcon, Link as LinkIcon, Copy, Share2 } from 'lucide-react';
+import { SKILL_SUGGESTIONS, SKILL_CATEGORIES } from '../../data/skillSuggestions';
 
 const users: User[] = [];
 
@@ -50,6 +51,7 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<TeamRole>('Member');
   const [copiedHint, setCopiedHint] = useState(false);
+  const [editingSkillsFor, setEditingSkillsFor] = useState<string | null>(null);
 
   const projectCode = makeProjectCode(projectId, projectName);
   const joinLink = `https://vertex.app/join/${projectCode}`;
@@ -140,6 +142,28 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
 
   const handleSkillsChange = (id: string, val: string) => {
     setProjectMembers(prev => prev.map(m => m.id === id ? { ...m, projectSkills: val } : m));
+  };
+
+  const saveProjectSkills = async (id: string, val: string) => {
+    const member = projectMembers.find(m => m.id === id);
+    if (!member) return;
+    if (onUpdateMember) {
+      await onUpdateMember(id, member.teamRole, val || null);
+    }
+  };
+
+  const toggleProjectSkill = (id: string, current: string | null, skill: string) => {
+    const list = (current || '').split(',').map(s => s.trim()).filter(Boolean);
+    const lowerSkill = skill.toLowerCase();
+    let nextList;
+    if (list.some(s => s.toLowerCase() === lowerSkill)) {
+      nextList = list.filter(s => s.toLowerCase() !== lowerSkill);
+    } else {
+      nextList = [...list, skill];
+    }
+    const val = nextList.join(', ');
+    handleSkillsChange(id, val);
+    saveProjectSkills(id, val);
   };
 
   const handleSkillsSave = async (id: string) => {
@@ -264,19 +288,61 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                     </span>
                   </div>
                   <label className="mt-1 block text-[10px] uppercase tracking-wide text-slate-500">Project skills</label>
-                  <input
-                    type="text"
-                    value={m.projectSkills || ''}
-                    placeholder="e.g. UI Design, React, Backend"
-                    onChange={e => handleSkillsChange(m.id, e.target.value)}
-                    onBlur={() => handleSkillsSave(m.id)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        (e.target as HTMLInputElement).blur();
-                      }
-                    }}
-                    className="mt-1 w-full px-2 py-1 rounded bg-[#0A0F1A]/60 border border-[#22C55E]/10 text-[11px] text-slate-300 outline-none focus:border-[#22C55E]/40 placeholder:text-slate-600 transition-colors"
-                  />
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="text"
+                      value={m.projectSkills || ''}
+                      placeholder="e.g. UI Design, React, Backend"
+                      onChange={e => handleSkillsChange(m.id, e.target.value)}
+                      onBlur={() => handleSkillsSave(m.id)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      className="flex-1 w-full px-2 py-1 rounded bg-[#0A0F1A]/60 border border-[#22C55E]/10 text-[11px] text-slate-300 outline-none focus:border-[#22C55E]/40 placeholder:text-slate-600 transition-colors"
+                    />
+                    <button
+                      onClick={() => setEditingSkillsFor(editingSkillsFor === m.id ? null : m.id)}
+                      className={`shrink-0 px-3 py-1 rounded border text-[11px] font-medium transition-colors ${
+                        editingSkillsFor === m.id
+                          ? 'bg-[#22C55E]/20 border-[#22C55E]/40 text-[#6EE7B7]'
+                          : 'bg-[#162032] border-[#22C55E]/10 text-slate-300 hover:text-white hover:border-[#22C55E]/30'
+                      }`}
+                    >
+                      {editingSkillsFor === m.id ? 'Done' : 'Select'}
+                    </button>
+                  </div>
+
+                  {editingSkillsFor === m.id && (
+                    <div className="mt-2 space-y-4 max-h-48 overflow-y-auto pr-1 custom-scrollbar bg-[#0A0F1A]/80 border border-[#22C55E]/10 rounded-lg p-3">
+                      {[...SKILL_CATEGORIES, 'General'].map(category => (
+                        <div key={category} className="space-y-2">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{category}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {(SKILL_SUGGESTIONS[category] || []).map(skill => {
+                              const currentList = (m.projectSkills || '').split(',').map(s => s.trim().toLowerCase());
+                              const added = currentList.includes(skill.toLowerCase());
+                              return (
+                                <button
+                                  key={skill}
+                                  type="button"
+                                  onClick={() => toggleProjectSkill(m.id, m.projectSkills || null, skill)}
+                                  className={`rounded-full px-2.5 py-1 text-[10px] font-medium border transition-all ${
+                                    added
+                                      ? 'border-[#22C55E]/40 bg-[#22C55E]/15 text-[#6EE7B7]'
+                                      : 'border-[#22C55E]/10 bg-[#162032] text-slate-400 hover:border-[#22C55E]/30 hover:bg-[#22C55E]/10 hover:text-[#6EE7B7]'
+                                  }`}
+                                >
+                                  {added ? `✓ ${skill}` : `+ ${skill}`}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   {m.teamRole === 'Leader' ? (
