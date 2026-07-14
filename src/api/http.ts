@@ -1,7 +1,11 @@
-const DEFAULT_API_BASE_URL = 'https://localhost:7099';
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
 
 export const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? DEFAULT_API_BASE_URL;
+  (configuredApiBaseUrl ?? 'https://localhost:7099').replace(/\/+$/, '');
+
+if (import.meta.env.PROD && !configuredApiBaseUrl) {
+  throw new Error('VITE_API_BASE_URL must be set for production builds.');
+}
 
 // Keep track of active refreshing promise to avoid concurrent refresh requests
 let refreshPromise: Promise<any> | null = null;
