@@ -34,6 +34,44 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  // Handle HashRouter redirect for clean URL callback paths (like /login or /invite)
+  useEffect(() => {
+    const path = window.location.pathname;
+    const search = window.location.search;
+    const hash = window.location.hash;
+
+    if (path !== '/' && path !== '/index.html') {
+      let hashRoute = '/#/' + path.substring(1);
+      
+      if (search) {
+        hashRoute += search;
+      }
+      if (hash && hash.startsWith('#')) {
+        if (hash.includes('id_token=') || hash.includes('access_token=')) {
+          const separator = hashRoute.includes('?') ? '&' : '?';
+          hashRoute += separator + hash.substring(1);
+        } else {
+          hashRoute += hash;
+        }
+      }
+      
+      window.location.replace(window.location.origin + hashRoute);
+      return;
+    }
+
+    // Catch case where code or token are appended directly to the root path
+    if (search.includes('code=') || hash.includes('id_token=')) {
+      let hashRoute = '/#/login';
+      if (search) hashRoute += search;
+      if (hash) {
+        const cleanHash = hash.startsWith('#') ? hash.substring(1) : hash;
+        const separator = hashRoute.includes('?') ? '&' : '?';
+        hashRoute += separator + cleanHash;
+      }
+      window.location.replace(window.location.origin + hashRoute);
+    }
+  }, []);
+
   const handleNavigate = (page: string) => {
     const routeMap: Record<string, string> = {
       login: '/login',

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { MeResponse } from '../api/auth';
-import { login as apiLogin, register as apiRegister, getMe, logout as apiLogout, refresh as apiRefresh } from '../api/auth';
+import { login as apiLogin, register as apiRegister, getMe, logout as apiLogout, refresh as apiRefresh, externalLogin as apiExternalLogin } from '../api/auth';
 import { setTokens, getAccessToken, getRefreshToken, setUserInfo, getUserInfo, clearAll } from '../utils/authStorage';
 
 interface AuthContextType {
@@ -9,6 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<MeResponse>;
   register: (name: string, email: string, password: string) => Promise<MeResponse>;
+  externalLogin: (provider: string, token: string) => Promise<MeResponse>;
   logout: () => Promise<void>;
 }
 
@@ -77,6 +78,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return me;
   }, []);
 
+  const externalLogin = useCallback(async (provider: string, token: string): Promise<MeResponse> => {
+    const tokens = await apiExternalLogin(provider, token);
+    setTokens(tokens);
+    const me = await getMe(tokens.accessToken);
+    setUser(me);
+    setUserInfo(me);
+    return me;
+  }, []);
+
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken();
     if (refreshToken) {
@@ -99,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
+        externalLogin,
       }}
     >
       {children}
