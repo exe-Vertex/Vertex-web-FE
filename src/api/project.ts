@@ -266,7 +266,7 @@ export async function uploadProjectFile(
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await fetch(`/api/orgs/${orgId}/projects/${projectId}/files?role=${role}`, {
+  const res = await fetch(`${API_BASE_URL}/api/orgs/${orgId}/projects/${projectId}/files?role=${role}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
