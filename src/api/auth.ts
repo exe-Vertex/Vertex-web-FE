@@ -71,3 +71,10 @@ export async function updateUserSkills(accessToken: string, skills: string[]) {
     body: JSON.stringify(skills),
   });
 }
+
+export async function externalLogin(provider: string, token: string) {
+  return apiRequest<AuthTokens>('/api/auth/external-login', {
+    method: 'POST',
+    body: JSON.stringify({ provider, token }),
+  });
+}

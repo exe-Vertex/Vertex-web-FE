@@ -38,7 +38,145 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const { t } = useLang();
-  const { login, register, isAuthenticated, user } = useAuth();
+  const { login, register, isAuthenticated, user, externalLogin } = useAuth();
+
+  // Check for OAuth callbacks (redirect flow)
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const getParamFromUrl = (name: string) => {
+        // Try standard search params
+        const searchVal = new URLSearchParams(window.location.search).get(name);
+        if (searchVal) return searchVal;
+
+        // Try parsing from hash (for HashRouter redirect structure)
+        const hash = window.location.hash;
+        const queryIndex = hash.indexOf('?');
+        if (queryIndex !== -1) {
+          const hashParams = new URLSearchParams(hash.substring(queryIndex + 1));
+          return hashParams.get(name);
+        }
+        
+        // Try direct hash params (like #id_token=...)
+        const directHashParams = new URLSearchParams(hash.substring(1));
+        return directHashParams.get(name);
+      };
+
+      const gitHubCode = getParamFromUrl('code');
+      const googleIdToken = getParamFromUrl('id_token');
+
+      if (gitHubCode) {
+        setIsSubmitting(true);
+        setErrorMessage('');
+        try {
+          // Remove parameters from URL
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.hash.split('?')[0]);
+          await externalLogin('github', gitHubCode);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'GitHub login failed.';
+          setErrorMessage(message);
+          setIsSubmitting(false);
+        }
+      } else if (googleIdToken) {
+        setIsSubmitting(true);
+        setErrorMessage('');
+        try {
+          // Remove parameters from URL
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.hash.split('?')[0]);
+          await externalLogin('google', googleIdToken);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Google login failed.';
+          setErrorMessage(message);
+          setIsSubmitting(false);
+        }
+      }
+    };
+
+    handleOAuthCallback();
+  }, [externalLogin]);
+
+  // Google GIS client initialization for popup flow
+  useEffect(() => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!googleClientId) return;
+
+    // Load Google script if not loaded
+    let script = document.getElementById('google-jssdk') as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement('script');
+      script.id = 'google-jssdk';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+
+    const initGoogleGIS = () => {
+      const google = (window as any).google;
+      if (google) {
+        google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: async (response: any) => {
+            setIsSubmitting(true);
+            setErrorMessage('');
+            try {
+              await externalLogin('google', response.credential);
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Google login failed.';
+              setErrorMessage(message);
+              setIsSubmitting(false);
+            }
+          }
+        });
+
+        const btnContainer = document.getElementById('googleBtnContainer');
+        if (btnContainer) {
+          google.accounts.id.renderButton(
+            btnContainer,
+            {
+              type: 'standard',
+              theme: 'outline',
+              size: 'large',
+              width: btnContainer.offsetWidth || 200,
+            }
+          );
+        }
+      }
+    };
+
+    script.addEventListener('load', initGoogleGIS);
+    if ((window as any).google) {
+      initGoogleGIS();
+    }
+
+    return () => {
+      if (script) {
+        script.removeEventListener('load', initGoogleGIS);
+      }
+    };
+  }, [externalLogin]);
+
+  const handleGoogleClick = () => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!googleClientId) {
+      setErrorMessage("Google Client ID chưa được cấu hình.");
+      return;
+    }
+    const redirectUri = window.location.origin + '/login';
+    const state = 'google';
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=id_token&scope=openid%20profile%20email&nonce=vertex_nonce&state=${state}`;
+    window.location.href = url;
+  };
+
+  const handleGitHubClick = () => {
+    const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
+    if (!githubClientId) {
+      setErrorMessage("GitHub Client ID chưa được cấu hình.");
+      return;
+    }
+    const redirectUri = window.location.origin + '/login';
+    const url = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user:email`;
+    window.location.href = url;
+  };
 
   // If already authenticated, redirect to appropriate dashboard
   useEffect(() => {
@@ -200,11 +338,28 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
 
             {/* Social buttons */}
             <div className="grid grid-cols-2 gap-3 mb-6">
-              <button className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#162032] border border-[#22C55E]/10 text-slate-300 text-sm font-medium hover:bg-[#162032]/80 hover:border-[#22C55E]/20 transition-all">
-                <Chrome size={18} />
-                Google
-              </button>
-              <button className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#162032] border border-[#22C55E]/10 text-slate-300 text-sm font-medium hover:bg-[#162032]/80 hover:border-[#22C55E]/20 transition-all">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={handleGoogleClick}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#162032] border border-[#22C55E]/10 text-slate-300 text-sm font-medium hover:bg-[#162032]/80 hover:border-[#22C55E]/20 transition-all w-full cursor-pointer"
+                >
+                  <Chrome size={18} />
+                  Google
+                </button>
+                {/* Overlay container for standard Google button */}
+                <div
+                  id="googleBtnContainer"
+                  className="absolute inset-0 opacity-0 cursor-pointer overflow-hidden [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:cursor-pointer"
+                  style={{ pointerEvents: 'auto' }}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGitHubClick}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#162032] border border-[#22C55E]/10 text-slate-300 text-sm font-medium hover:bg-[#162032]/80 hover:border-[#22C55E]/20 transition-all cursor-pointer"
+              >
                 <Github size={18} />
                 GitHub
               </button>
