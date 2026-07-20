@@ -43,6 +43,7 @@ import { createInvitation } from '../../api/invitation';
 import { chatWithAi, syncProjectData, generateProjectPlan } from '../../api/ai';
 import { getUserSkills, updateUserSkills } from '../../api/auth';
 import { getNotifications as fetchNotifications, markAllNotificationsRead, markNotificationRead } from '../../api/lecturer';
+import { API_BASE_URL } from '../../api/http';
 import { OnboardingSkillsModal } from './modals/OnboardingSkillsModal';
 
 interface DashboardProps {
@@ -313,7 +314,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           uploadedAt: f.uploadedAt,
           uploadedBy: f.uploadedBy,
           mimeType: f.mimeType,
-          objectUrl: `http://localhost:5093${f.fileUrl}`
+          objectUrl: `${API_BASE_URL}${f.fileUrl}`
         }))
       }));
     }).catch(console.error);
@@ -1231,7 +1232,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           uploadedAt: f.uploadedAt,
           uploadedBy: f.uploadedBy,
           mimeType: f.mimeType,
-          objectUrl: `http://localhost:5093${f.fileUrl}`
+          objectUrl: `${API_BASE_URL}${f.fileUrl}`
         }))
       }));
 
