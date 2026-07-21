@@ -22,7 +22,9 @@ import {
   getAdminUsers,
   updateUserStatus,
   updateUserQuota,
-  getAuditLogs
+  getAuditLogs,
+  getAdminAiUsage,
+  AdminAiUsageDto
 } from '../../api/admin';
 import { MiniBarChart, MiniDonut } from './admin/MiniCharts';
 
@@ -114,6 +116,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const [searchQuery, setSearchQuery] = useState('');
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [managedUsers, setManagedUsers] = useState<AdminUserEntry[]>(adminUserEntries);
+  const [aiHistory, setAiHistory] = useState<AdminAiUsageDto[]>([]);
   const [editingQuota, setEditingQuota] = useState<string | null>(null);
   const [quotaValue, setQuotaValue] = useState(0);
   const [confirmAction, setConfirmAction] = useState<{ userId: string; action: 'ban' | 'unban' } | null>(null);
@@ -215,10 +218,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     }
   }, []);
 
+  const fetchAiUsage = useCallback(async () => {
+    try {
+      const res = await getAdminAiUsage(1, 500);
+      setAiHistory(res.entries);
+    } catch (err: any) {
+      console.error('Failed to load AI usage', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
     fetchAuditLogs();
-  }, [fetchUsers, fetchAuditLogs]);
+    fetchAiUsage();
+  }, [fetchUsers, fetchAuditLogs, fetchAiUsage]);
 
   // Derived dynamic stats calculated in real-time from the backend database (no hardcoded mock data)
   const planDistribution = useMemo(() => {
@@ -231,19 +244,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   }, [managedUsers, t.admin.paid, t.admin.freeTrial]);
 
   const todayMetrics = useMemo(() => {
-    const todayStr = new Date().toDateString();
+    const now = new Date();
+    const todayStr = now.toDateString();
     const newUsersToday = managedUsers.filter(u => new Date(u.createdAt).toDateString() === todayStr).length;
-    const totalTokensToday = managedUsers.reduce((sum, u) => sum + u.aiUsed, 0);
-    const apiCostToday = Math.round(totalTokensToday * 0.00001 * 100) / 100; // $0.01 per 1k tokens
-    const totalApiCostMonth = Math.round(totalTokensToday * 0.00001 * 1.5 * 100) / 100;
+    const aiRequestsToday = aiHistory.filter(entry => new Date(entry.createdAt).toDateString() === todayStr).length;
+    const aiRequestsThisMonth = aiHistory.filter(entry => {
+      const createdAt = new Date(entry.createdAt);
+      return createdAt.getFullYear() === now.getFullYear() && createdAt.getMonth() === now.getMonth();
+    }).length;
+    const totalQuotaUsed = managedUsers.reduce((sum, user) => sum + user.aiUsed, 0);
+
     return {
       newUsersToday,
-      apiCostToday,
-      totalApiCostMonth,
-      totalTokensToday
+      aiRequestsToday,
+      aiRequestsThisMonth,
+      totalQuotaUsed
     };
-  }, [managedUsers]);
-
+  }, [managedUsers, aiHistory]);
   const userSignupChart = useMemo(() => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const counts = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 } as Record<string, number>;
@@ -259,40 +276,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     return orderedDays.map(d => ({ label: d, value: counts[d] || 0 }));
   }, [managedUsers]);
 
-  const apiCostChart = useMemo(() => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const tokensByDay = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 } as Record<string, number>;
-
-    managedUsers.forEach(u => {
-      try {
-        const dayName = days[new Date(u.createdAt).getDay()];
-        if (tokensByDay[dayName] !== undefined) {
-          tokensByDay[dayName] += u.aiUsed;
-        }
-      } catch (e) {}
+  const aiUsageChart = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - (6 - index));
+      return date;
     });
 
-    const orderedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return orderedDays.map(d => ({
-      label: d,
-      value: Math.round((tokensByDay[d] || 0) * 0.00001 * 100) / 100
+    return days.map(date => ({
+      label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      value: aiHistory.filter(entry => new Date(entry.createdAt).toDateString() === date.toDateString()).length
     }));
-  }, [managedUsers]);
-
-  const aiHistory = useMemo(() => {
-    return managedUsers
-      .filter(u => u.aiUsed > 0)
-      .map((u, i) => ({
-        id: `ai_${u.id}_${i}`,
-        userId: u.id,
-        userName: u.name,
-        prompt: `AI query on workspace`,
-        planSummary: `Utilized ${u.aiUsed.toLocaleString()} tokens`,
-        createdAt: u.createdAt,
-        tokensUsed: u.aiUsed
-      }));
-  }, [managedUsers]);
-
+  }, [aiHistory]);
   const navItems = [
     { id: 'users' as const, label: t.admin.users, icon: <Users size={18} />, subtitle: t.admin.usersTabSubtitle },
     { id: 'ai' as const, label: t.admin.aiPrompts, icon: <Bot size={18} />, subtitle: t.admin.aiTabSubtitle },
@@ -1271,7 +1267,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       h.userName.toLowerCase().includes(query) ||
       h.prompt.toLowerCase().includes(query)
     );
-  }, [searchQuery]);
+  }, [aiHistory, searchQuery]);
 
   // Stats
   const stats = useMemo(() => ({
@@ -1358,7 +1354,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
   const handleExportAiHistory = () => {
     const header = [t.admin.users, t.admin.prompt, t.admin.planSummary, t.admin.tokens, t.admin.date];
-    const rows = aiHistory.map(h => [h.userName, h.prompt, h.planSummary, String(h.tokensUsed), h.createdAt]);
+    const rows = aiHistory.map(h => [h.userName, h.prompt, h.planSummary, String(h.usageUnits), h.createdAt]);
     downloadCSV('ai_history_export.csv', [header, ...rows]);
     addAuditLog('export_data', t.admin.logExportAiHistory);
     showToast(t.admin.exportSuccess);
@@ -1370,9 +1366,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       [t.admin.totalUsers, String(stats.totalUsers)],
       [t.admin.paidUsers, String(stats.paidUsers)],
       [t.admin.freeTrial, String(stats.freeTrialUsers)],
-      [t.admin.apiCostToday, `$${todayMetrics.apiCostToday}`],
-      [t.admin.monthlyApiCost, `$${todayMetrics.totalApiCostMonth}`],
-      [t.admin.totalTokensToday, String(todayMetrics.totalTokensToday)],
+      [t.admin.apiCostToday, String(todayMetrics.aiRequestsToday)],
+      [t.admin.monthlyApiCost, String(todayMetrics.aiRequestsThisMonth)],
+      [t.admin.totalTokensToday, String(todayMetrics.totalQuotaUsed)],
     ];
     downloadCSV('revenue_report.csv', [header, ...rows]);
     addAuditLog('export_data', t.admin.logExportRevenue);
@@ -1946,7 +1942,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                                 </td>
                                 <td className="px-4 py-3">
                                   <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
-                                    <Hash size={9} />{entry.tokensUsed.toLocaleString()}
+                                    <Hash size={9} />{entry.usageUnits.toLocaleString()}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDateTime(entry.createdAt)}</td>
@@ -1989,9 +1985,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                   {[
                     { label: t.admin.newUsersToday, value: todayMetrics.newUsersToday, icon: <UserPlus size={18} />, accent: 'text-cyan-300', bg: 'from-cyan-500/20 to-cyan-600/10' },
-                    { label: t.admin.apiCostToday, value: `$${todayMetrics.apiCostToday.toFixed(2)}`, icon: <DollarSign size={18} />, accent: 'text-emerald-300', bg: 'from-emerald-500/20 to-emerald-600/10' },
-                    { label: t.admin.totalTokensToday, value: todayMetrics.totalTokensToday.toLocaleString(), icon: <Zap size={18} />, accent: 'text-yellow-300', bg: 'from-yellow-500/20 to-yellow-600/10' },
-                    { label: t.admin.monthlyApiCost, value: `$${todayMetrics.totalApiCostMonth.toFixed(2)}`, icon: <TrendingUp size={18} />, accent: 'text-[#22C55E]', bg: 'from-[#22C55E]/20 to-[#06B6D4]/10' },
+                    { label: t.admin.apiCostToday, value: todayMetrics.aiRequestsToday, icon: <Bot size={18} />, accent: 'text-emerald-300', bg: 'from-emerald-500/20 to-emerald-600/10' },
+                    { label: t.admin.totalTokensToday, value: todayMetrics.totalQuotaUsed.toLocaleString(), icon: <Zap size={18} />, accent: 'text-yellow-300', bg: 'from-yellow-500/20 to-yellow-600/10' },
+                    { label: t.admin.monthlyApiCost, value: todayMetrics.aiRequestsThisMonth, icon: <TrendingUp size={18} />, accent: 'text-[#22C55E]', bg: 'from-[#22C55E]/20 to-[#06B6D4]/10' },
                   ].map((m, i) => (
                     <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
                       className={`bg-gradient-to-br ${m.bg} backdrop-blur-xl rounded-xl border border-white/5 p-6`}>
@@ -2013,10 +2009,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                   </div>
                   <div className="bg-[#0F1A2A]/80 rounded-xl border border-[#22C55E]/10 p-6">
                     <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-                      <DollarSign size={16} className="text-red-400" />
+                      <Bot size={16} className="text-red-400" />
                       {t.admin.apiCostDaily}
                     </h3>
-                    <MiniBarChart data={apiCostChart.map(d => ({ ...d, value: Math.round(d.value * 100) / 100 }))} color="#EF4444" />
+                    <MiniBarChart data={aiUsageChart.map(d => ({ ...d, value: Math.round(d.value * 100) / 100 }))} color="#EF4444" />
                   </div>
                 </div>
 

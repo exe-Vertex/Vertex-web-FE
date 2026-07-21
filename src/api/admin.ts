@@ -40,6 +40,22 @@ export interface AuditLogListResult {
 
 // ── API Functions ────────────────────────────────────────
 
+export interface AdminAiUsageDto {
+  id: string;
+  userId: string;
+  userName: string;
+  prompt: string;
+  planSummary: string;
+  createdAt: string;
+  usageUnits: number;
+}
+
+export interface AdminAiUsageListResult {
+  entries: AdminAiUsageDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
 const authHeaders = () => ({
   Authorization: `Bearer ${getAuthToken()}`,
 });
@@ -104,6 +120,20 @@ export const getAuditLogs = async (
 
   return await apiRequest<AuditLogListResult>(
     `/api/admin/audit-logs?${params.toString()}`,
+    { method: 'GET', headers: authHeaders() },
+  );
+};
+/** Get real successful AI usage history. */
+export const getAdminAiUsage = async (
+  page = 1,
+  pageSize = 500,
+): Promise<AdminAiUsageListResult> => {
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('pageSize', String(pageSize));
+
+  return await apiRequest<AdminAiUsageListResult>(
+    '/api/admin/ai-usage?' + params.toString(),
     { method: 'GET', headers: authHeaders() },
   );
 };

@@ -40,7 +40,7 @@ import { listProjects, getProjectDetail, createProject, updateProject, deletePro
 import { mapProjectDetailToProject } from '../../utils/projectMapper';
 import { useSignalR } from '../../hooks/useSignalR';
 import { createInvitation } from '../../api/invitation';
-import { chatWithAi, syncProjectData, generateProjectPlan } from '../../api/ai';
+import { chatWithAi, generateProjectPlan } from '../../api/ai';
 import { getUserSkills, updateUserSkills } from '../../api/auth';
 import { getNotifications as fetchNotifications, markAllNotificationsRead, markNotificationRead } from '../../api/lecturer';
 import { API_BASE_URL } from '../../api/http';
@@ -251,13 +251,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   useEffect(() => {
     refreshProjectsList();
 
-    // Tự động đồng bộ dữ liệu dự án lên RAM Vector Store của AI khi người dùng tải dashboard hoặc chuyển Org
-    const token = getAuthToken();
-    if (token && activeOrgId) {
-      syncProjectData(token, activeOrgId)
-        .then(res => console.log('AI Vector Store auto-synced:', res.message))
-        .catch(err => console.warn('AI Vector Store auto-sync failed:', err));
-    }
 
     // 2. Tự động làm mới dữ liệu khi người dùng chuyển lại tab này (Window Focus)
     const handleFocus = () => {
@@ -1122,7 +1115,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       showToast('AI plan generated successfully from Gemini!');
     } catch (error) {
       console.error("AI Generation error:", error);
-      showToast('Failed to connect to AI or invalid data format returned.', 'error');
+      showToast(error instanceof Error ? error.message : 'Failed to connect to AI.', 'error');
     }
   };
 

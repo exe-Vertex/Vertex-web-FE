@@ -66,8 +66,8 @@ export const FloatingAiChat: React.FC = () => {
       setMessages(prev => prev.map(m => m.id === tempId ? response : m));
     } catch (error) {
       console.error('AI Chat Error:', error);
-      // Fallback update on error
-      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, planSummary: '⚠️ Sorry, an error occurred while connecting to AI.' } : m));
+      const message = error instanceof Error ? error.message : 'Unable to connect to AI.';
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, planSummary: message } : m));
     } finally {
       setIsLoading(false);
     }

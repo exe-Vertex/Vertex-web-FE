@@ -59,8 +59,10 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onSaveChat }) => {
       const orgId = localStorage.getItem('vertex.activeOrgId') || '';
       const response = await chatWithAi(token, msg, orgId);
       aiResponse = response.planSummary || t.chat.processing;
-    } catch {
-      aiResponse = '⚠️ Không thể kết nối tới AI. Vui lòng thử lại sau.';
+    } catch (error) {
+      aiResponse = error instanceof Error
+        ? error.message
+        : 'Unable to connect to AI. Please try again.';
     }
 
     setMessages(prev => [...prev, { role: 'ai', content: aiResponse, time: new Date() }]);
