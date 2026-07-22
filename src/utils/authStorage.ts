@@ -18,6 +18,12 @@ export function getRefreshToken() {
 }
 
 export function setUserInfo(user: MeResponse) {
+  const previousUser = getUserInfo();
+  if (previousUser && previousUser.id !== user.id) {
+    localStorage.removeItem('vertex.activeOrgId');
+    localStorage.removeItem('userPlan');
+  }
+
   localStorage.setItem(USER_INFO_KEY, JSON.stringify(user));
 }
 
@@ -39,6 +45,8 @@ export function clearAll() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_INFO_KEY);
+  localStorage.removeItem('vertex.activeOrgId');
+  localStorage.removeItem('userPlan');
 }
 
 /** @deprecated Use clearAll() instead */

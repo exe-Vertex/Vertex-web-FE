@@ -23,6 +23,8 @@ const getPasswordStrength = (pwd: string) => {
   }
 };
 
+let googleInitializedClientId: string | null = null;
+let googleCredentialHandler: ((credential: string) => Promise<void>) | null = null;
 interface LoginPageProps {
   onNavigate: (page: string) => void;
 }
@@ -99,7 +101,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!googleClientId) return;
 
-    // Load Google script if not loaded
     let script = document.getElementById('google-jssdk') as HTMLScriptElement | null;
     if (!script) {
       script = document.createElement('script');
@@ -110,36 +111,44 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
       document.body.appendChild(script);
     }
 
+    const handleGoogleCredential = async (credential: string) => {
+      setIsSubmitting(true);
+      setErrorMessage('');
+      try {
+        await externalLogin('google', credential);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Google login failed.';
+        setErrorMessage(message);
+        setIsSubmitting(false);
+      }
+    };
+    googleCredentialHandler = handleGoogleCredential;
+
     const initGoogleGIS = () => {
       const google = (window as any).google;
-      if (google) {
+      if (!google) return;
+
+      if (googleInitializedClientId !== googleClientId) {
         google.accounts.id.initialize({
           client_id: googleClientId,
-          callback: async (response: any) => {
-            setIsSubmitting(true);
-            setErrorMessage('');
-            try {
-              await externalLogin('google', response.credential);
-            } catch (error) {
-              const message = error instanceof Error ? error.message : 'Google login failed.';
-              setErrorMessage(message);
-              setIsSubmitting(false);
+          callback: (response: any) => {
+            if (googleCredentialHandler) {
+              void googleCredentialHandler(response.credential);
             }
-          }
+          },
         });
+        googleInitializedClientId = googleClientId;
+      }
 
-        const btnContainer = document.getElementById('googleBtnContainer');
-        if (btnContainer) {
-          google.accounts.id.renderButton(
-            btnContainer,
-            {
-              type: 'standard',
-              theme: 'outline',
-              size: 'large',
-              width: btnContainer.offsetWidth || 200,
-            }
-          );
-        }
+      const btnContainer = document.getElementById('googleBtnContainer');
+      if (btnContainer) {
+        btnContainer.replaceChildren();
+        google.accounts.id.renderButton(btnContainer, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          width: btnContainer.offsetWidth || 200,
+        });
       }
     };
 
@@ -149,12 +158,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     }
 
     return () => {
-      if (script) {
-        script.removeEventListener('load', initGoogleGIS);
+      script?.removeEventListener('load', initGoogleGIS);
+      if (googleCredentialHandler === handleGoogleCredential) {
+        googleCredentialHandler = null;
       }
     };
   }, [externalLogin]);
-
   const handleGoogleClick = () => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!googleClientId) {

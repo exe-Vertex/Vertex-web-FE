@@ -16,6 +16,7 @@ export function useSignalR(token: string | null, projectId: string | null) {
         accessTokenFactory: () => token,
       })
       .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
       .build();
 
     setConnection(newConnection);
