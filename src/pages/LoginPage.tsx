@@ -453,7 +453,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                     <input type="checkbox" className="w-4 h-4 rounded bg-[#162032] border-[#22C55E]/20 text-[#22C55E] focus:ring-[#22C55E]/30" />
                     <span className="text-xs text-slate-400">{t.login.rememberMe}</span>
                   </label>
-                  <button type="button" className="text-xs text-[#22C55E] hover:underline">{t.login.forgotPassword}</button>
+                  <button type="button" onClick={() => onNavigate('forgot-password')} className="text-xs text-[#22C55E] hover:underline">{t.login.forgotPassword}</button>
                 </div>
               )}
 

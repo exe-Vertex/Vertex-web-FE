@@ -29,6 +29,23 @@ export async function login(email: string, password: string) {
   });
 }
 
+export interface AuthMessageResponse {
+  message: string;
+}
+
+export async function forgotPassword(email: string) {
+  return apiRequest<AuthMessageResponse>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  return apiRequest<AuthMessageResponse>('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword }),
+  });
+}
 export async function getMe(accessToken: string) {
   return apiRequest<MeResponse>('/api/auth/me', {
     method: 'GET',

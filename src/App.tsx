@@ -6,6 +6,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { PricingPage } from './pages/PricingPage';
 import { FeaturesPage } from './pages/FeaturesPage';
 import { LoginPage } from './pages/LoginPage';
+import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordRecoveryPage';
 import { ChangelogPage } from './pages/ChangelogPage';
 import { ResourcesPage } from './pages/ResourcesPage';
 import { LegalPage } from './pages/LegalPage';
@@ -75,6 +76,8 @@ export default function App() {
   const handleNavigate = (page: string) => {
     const routeMap: Record<string, string> = {
       login: '/login',
+      'forgot-password': '/forgot-password',
+      'reset-password': '/reset-password',
       dashboard: '/dashboard',
       lecturer: '/lecturer',
       features: '/features',
@@ -101,6 +104,8 @@ export default function App() {
       <Route path="/pricing" element={<PricingPage onNavigate={handleNavigate} />} />
       <Route path="/features" element={<FeaturesPage onNavigate={handleNavigate} />} />
       <Route path="/login" element={<LoginPage onNavigate={handleNavigate} />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigate} />} />
+      <Route path="/reset-password" element={<ResetPasswordPage onNavigate={handleNavigate} />} />
       <Route path="/changelog" element={<ChangelogPage onNavigate={handleNavigate} />} />
       <Route path="/resources/:tab?" element={<ResourcesPageWrapper onNavigate={handleNavigate} />} />
       <Route path="/legal/:tab?" element={<LegalPageWrapper onNavigate={handleNavigate} />} />
