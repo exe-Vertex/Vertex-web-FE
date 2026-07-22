@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OrgPlan } from '../../../types';
 import { useToast } from '../../ui/Toast';
 import { 
@@ -68,6 +68,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const membersCount = orgDetail?.members.length ?? 0;
   const maxMembers = orgDetail?.maxMembers ?? 5;
   const aiQuota = orgDetail?.aiQuota ?? 20;
+  const aiUsed = orgDetail?.aiUsed ?? 0;
+  const aiQuotaPercent = aiQuota > 0 ? Math.min(100, Math.round((aiUsed / aiQuota) * 100)) : 100;
   const storageLimitBytes = orgDetail?.storageLimit ?? (1024 * 1024 * 1024);
   const storageLimitGB = storageLimitBytes / (1024 * 1024 * 1024);
   const storageUsedGB = storageLimitGB * 0.34;
@@ -458,12 +460,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/10 p-5 hover:border-[#22C55E]/20 transition-colors">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Zap size={14} className="text-yellow-400" />
                       <span className="text-sm font-medium text-slate-200">AI Quota</span>
                     </div>
-                    <span className="text-xs font-bold text-yellow-300">{aiQuota >= 9999 ? 'Không giới hạn' : `${aiQuota} yêu cầu`}</span>
+                    <span className="text-xs font-bold text-yellow-300">{aiUsed} / {aiQuota}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-[#0A0F1A] overflow-hidden">
+                    <div className="h-full rounded-full bg-yellow-400" style={{ width: `${aiQuotaPercent}%` }} />
                   </div>
                 </div>
 

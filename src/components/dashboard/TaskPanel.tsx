@@ -238,7 +238,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     if (!token) return;
     setIsGeneratingSubtasks(true);
     try {
-      const generatedList = await generateSubtasks(token, task.title, task.description || '');
+      const generatedList = await generateSubtasks(token, orgId, task.title, task.description || '');
       for (const title of generatedList) {
         await createSubtask(token, orgId, projectId, task.id, { title });
       }

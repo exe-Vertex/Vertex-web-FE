@@ -1012,7 +1012,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
 
     const token = getAuthToken();
-    if (!token) return;
+    if (!token || !activeOrgId) {
+      showToast('Please select an organization before using AI.', 'error');
+      return;
+    }
 
     const assignees = activeProjectMembers.length > 0 ? activeProjectMembers : workspaceUsers;
     const planningDescription = descriptionOverride ?? plannerInput.description;
@@ -1030,6 +1033,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
     try {
       const response = await generateProjectPlan(token, {
+        orgId: activeOrgId,
         projectGoal: plannerInput.projectGoal,
         description: planningDescription,
         category: plannerInput.category,

@@ -29,6 +29,8 @@ export interface OrgDetail {
   plan: string;
   maxMembers: number;
   aiQuota: number;
+  aiUsed: number;
+  aiQuotaPeriodStart: string;
   storageLimit: number;
   createdAt: string;
   members: OrgMember[];

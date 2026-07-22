@@ -14,13 +14,15 @@ export interface ChatRequest {
   prompt: string;
 }
 
-export async function chatWithAi(token: string, prompt: string, orgId?: string): Promise<AiHistory> {
+export async function chatWithAi(token: string, prompt: string, orgId: string): Promise<AiHistory> {
+  if (!orgId) throw new Error('Please select an organization before using AI.');
+
   return apiRequest<AiHistory>('/api/Ai/chat', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ prompt, orgId: orgId || undefined }),
+    body: JSON.stringify({ prompt, orgId }),
   });
 }
 
@@ -43,6 +45,7 @@ export async function syncProjectData(token: string, orgId: string): Promise<{ m
 }
 
 export interface GeneratePlanRequest {
+  orgId: string;
   projectGoal: string;
   description: string;
   category: string;
@@ -63,14 +66,16 @@ export async function generateProjectPlan(token: string, request: GeneratePlanRe
   });
 }
 
-export async function generateSubtasks(token: string, taskTitle: string, taskDescription: string): Promise<string[]> {
+export async function generateSubtasks(token: string, orgId: string, taskTitle: string, taskDescription: string): Promise<string[]> {
+  if (!orgId) throw new Error('Please select an organization before using AI.');
+
   const result = await apiRequest<string | string[]>('/api/Ai/generate-subtasks', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ taskTitle, taskDescription }),
+    body: JSON.stringify({ orgId, taskTitle, taskDescription }),
   });
   
   // The backend might return a JSON string that we need to parse if apiRequest didn't do it automatically,
