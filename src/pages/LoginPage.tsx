@@ -25,11 +25,20 @@ const getPasswordStrength = (pwd: string) => {
 
 let googleInitializedClientId: string | null = null;
 let googleCredentialHandler: ((credential: string) => Promise<void>) | null = null;
+
+const shouldUseGoogleRedirect = () => {
+  const userAgent = navigator.userAgent;
+  const isAppleMobile = /iPad|iPhone|iPod/.test(userAgent);
+  const isSafari = /Safari/.test(userAgent) && !/Chrome|Chromium|CriOS|Android/.test(userAgent);
+  return isAppleMobile || isSafari;
+};
+
 interface LoginPageProps {
   onNavigate: (page: string) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
+  const useGoogleRedirect = shouldUseGoogleRedirect();
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -99,7 +108,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   // Google GIS client initialization for popup flow
   useEffect(() => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!googleClientId) return;
+    if (!googleClientId || useGoogleRedirect) return;
 
     let script = document.getElementById('google-jssdk') as HTMLScriptElement | null;
     if (!script) {
@@ -163,7 +172,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         googleCredentialHandler = null;
       }
     };
-  }, [externalLogin]);
+  }, [externalLogin, useGoogleRedirect]);
   const handleGoogleClick = () => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!googleClientId) {
@@ -357,11 +366,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                   Google
                 </button>
                 {/* Overlay container for standard Google button */}
-                <div
-                  id="googleBtnContainer"
-                  className="absolute inset-0 opacity-0 cursor-pointer overflow-hidden [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:cursor-pointer"
-                  style={{ pointerEvents: 'auto' }}
-                />
+                {!useGoogleRedirect && (
+                  <div
+                    id="googleBtnContainer"
+                    className="absolute inset-0 opacity-0 cursor-pointer overflow-hidden [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:cursor-pointer"
+                    style={{ pointerEvents: 'auto' }}
+                  />
+                )}
               </div>
 
               <button
