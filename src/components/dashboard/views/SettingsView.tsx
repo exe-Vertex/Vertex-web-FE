@@ -71,9 +71,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const aiUsed = orgDetail?.aiUsed ?? 0;
   const aiQuotaPercent = aiQuota > 0 ? Math.min(100, Math.round((aiUsed / aiQuota) * 100)) : 100;
   const storageLimitBytes = orgDetail?.storageLimit ?? (1024 * 1024 * 1024);
+  const storageUsedBytes = orgDetail?.storageUsed ?? 0;
   const storageLimitGB = storageLimitBytes / (1024 * 1024 * 1024);
-  const storageUsedGB = storageLimitGB * 0.34;
-  const storagePercent = Math.min(100, Math.round((storageUsedGB / storageLimitGB) * 100));
+  const storageUsedGB = storageUsedBytes / (1024 * 1024 * 1024);
+  const storagePercent = storageLimitBytes > 0
+    ? Math.min(100, Math.round((storageUsedBytes / storageLimitBytes) * 100))
+    : 100;
   const membersPercent = Math.min(100, Math.round((membersCount / maxMembers) * 100));
 
   const currentUser = getUserInfo();

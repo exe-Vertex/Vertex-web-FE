@@ -31,6 +31,7 @@ export interface OrgDetail {
   aiQuota: number;
   aiUsed: number;
   aiQuotaPeriodStart: string;
+  storageUsed: number;
   storageLimit: number;
   createdAt: string;
   members: OrgMember[];
