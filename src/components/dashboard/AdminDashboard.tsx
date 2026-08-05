@@ -21,10 +21,12 @@ import websiteStructureMarkdown from '../../../website-structure.md?raw';
 import {
   getAdminUsers,
   updateUserStatus,
-  updateUserQuota,
   getAuditLogs,
   getAdminAiUsage,
-  AdminAiUsageDto
+  getAdminOrganizationQuotas,
+  updateOrganizationQuota,
+  AdminAiUsageDto,
+  AdminOrganizationQuotaDto
 } from '../../api/admin';
 import { MiniBarChart, MiniDonut } from './admin/MiniCharts';
 
@@ -117,6 +119,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [managedUsers, setManagedUsers] = useState<AdminUserEntry[]>(adminUserEntries);
   const [aiHistory, setAiHistory] = useState<AdminAiUsageDto[]>([]);
+  const [workspaceQuotas, setWorkspaceQuotas] = useState<AdminOrganizationQuotaDto[]>([]);
   const [editingQuota, setEditingQuota] = useState<string | null>(null);
   const [quotaValue, setQuotaValue] = useState(0);
   const [confirmAction, setConfirmAction] = useState<{ userId: string; action: 'ban' | 'unban' } | null>(null);
@@ -136,8 +139,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
   // Bulk selection state
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
-  const [showBulkModal, setShowBulkModal] = useState<'ban' | 'unban' | 'quota' | null>(null);
-  const [bulkQuotaValue, setBulkQuotaValue] = useState(50);
+  const [showBulkModal, setShowBulkModal] = useState<'ban' | 'unban' | null>(null);
   const [systemMapSvg, setSystemMapSvg] = useState('');
   const [isSystemMapLoading, setIsSystemMapLoading] = useState(false);
   const [systemMapError, setSystemMapError] = useState<string | null>(null);
@@ -190,8 +192,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
         status: u.status,
         plan: (u.plan || 'free-trial') as any,
         createdAt: u.createdAt,
-        aiQuota: u.aiQuota,
-        aiUsed: u.aiUsed,
       }));
       setManagedUsers(users);
     } catch (err: any) {
@@ -227,11 +227,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     }
   }, []);
 
+  const fetchWorkspaceQuotas = useCallback(async () => {
+    try {
+      setWorkspaceQuotas(await getAdminOrganizationQuotas());
+    } catch (err: any) {
+      console.error('Failed to load organization AI quotas', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
     fetchAuditLogs();
     fetchAiUsage();
-  }, [fetchUsers, fetchAuditLogs, fetchAiUsage]);
+    fetchWorkspaceQuotas();
+  }, [fetchUsers, fetchAuditLogs, fetchAiUsage, fetchWorkspaceQuotas]);
 
   // Derived dynamic stats calculated in real-time from the backend database (no hardcoded mock data)
   const planDistribution = useMemo(() => {
@@ -252,7 +261,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       const createdAt = new Date(entry.createdAt);
       return createdAt.getFullYear() === now.getFullYear() && createdAt.getMonth() === now.getMonth();
     }).length;
-    const totalQuotaUsed = managedUsers.reduce((sum, user) => sum + user.aiUsed, 0);
+    const totalQuotaUsed = workspaceQuotas.reduce((sum, workspace) => sum + workspace.aiUsed, 0);
 
     return {
       newUsersToday,
@@ -260,7 +269,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       aiRequestsThisMonth,
       totalQuotaUsed
     };
-  }, [managedUsers, aiHistory]);
+  }, [managedUsers, aiHistory, workspaceQuotas]);
+
+  const monthlyAiUsageByUser = useMemo(() => {
+    const now = new Date();
+    return aiHistory.reduce((usage, entry) => {
+      const createdAt = new Date(entry.createdAt);
+      if (createdAt.getFullYear() === now.getFullYear() && createdAt.getMonth() === now.getMonth()) {
+        usage.set(entry.userId, (usage.get(entry.userId) ?? 0) + entry.usageUnits);
+      }
+      return usage;
+    }, new Map<string, number>());
+  }, [aiHistory]);
   const userSignupChart = useMemo(() => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const counts = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 } as Record<string, number>;
@@ -1314,16 +1334,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     }
   };
 
-  const handleSaveQuota = async (userId: string) => {
-    const user = managedUsers.find(u => u.id === userId);
-    if (!user) return;
+  const handleSaveQuota = async (organizationId: string) => {
+    const workspace = workspaceQuotas.find(item => item.id === organizationId);
+    if (!workspace) return;
     try {
-      await updateUserQuota(userId, quotaValue);
-      setManagedUsers(prev => prev.map(u =>
-        u.id === userId ? { ...u, aiQuota: quotaValue } : u
-      ));
+      const updated = await updateOrganizationQuota(organizationId, quotaValue);
+      setWorkspaceQuotas(prev => prev.map(item => item.id === organizationId ? updated : item));
       fetchAuditLogs();
-      showToast(t.admin.toastQuotaUpdated(user.name, quotaValue));
+      showToast(t.admin.toastQuotaUpdated(workspace.name, quotaValue));
     } catch (err: any) {
       showToast(err?.message || 'Failed to update quota', 'error');
     } finally {
@@ -1345,8 +1363,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
   // ── Export handlers ──
   const handleExportUsers = () => {
-    const header = [t.admin.name, t.admin.email, t.admin.status, t.admin.plan, t.admin.createdAt, t.admin.aiQuota, t.admin.aiUsed];
-    const rows = managedUsers.map(u => [u.name, u.email, u.status, u.plan, u.createdAt, String(u.aiQuota), String(u.aiUsed)]);
+    const header = [t.admin.name, t.admin.email, t.admin.status, t.admin.plan, t.admin.createdAt, t.admin.aiUsed];
+    const rows = managedUsers.map(u => [u.name, u.email, u.status, u.plan, u.createdAt, String(monthlyAiUsageByUser.get(u.id) ?? 0)]);
     downloadCSV('users_export.csv', [header, ...rows]);
     addAuditLog('export_data', t.admin.logExportUsers);
     showToast(t.admin.exportSuccess);
@@ -1422,20 +1440,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     }
   };
 
-  const handleBulkQuota = async () => {
-    const selectedUsers = managedUsers.filter(u => selectedUserIds.has(u.id));
-    try {
-      await Promise.all(selectedUsers.map(u => updateUserQuota(u.id, bulkQuotaValue)));
-      setManagedUsers(prev => prev.map(u => selectedUserIds.has(u.id) ? { ...u, aiQuota: bulkQuotaValue } : u));
-      fetchAuditLogs();
-      showToast(t.admin.toastBulkQuota(bulkQuotaValue, selectedUserIds.size));
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to bulk update quota', 'error');
-    } finally {
-      setSelectedUserIds(new Set());
-      setShowBulkModal(null);
-    }
-  };
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -1655,10 +1659,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-[11px] font-medium hover:bg-green-500/20 transition-colors">
                           <CheckCircle size={12} /> {t.admin.bulkUnban}
                         </button>
-                        <button onClick={() => setShowBulkModal('quota')}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[11px] font-medium hover:bg-yellow-500/20 transition-colors">
-                          <Zap size={12} /> {t.admin.bulkQuota}
-                        </button>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -1701,7 +1701,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                           <th className="px-4 py-3.5 text-[12px] font-semibold text-slate-500 uppercase tracking-wider">{t.admin.email}</th>
                           <th className="px-4 py-3.5 text-[12px] font-semibold text-slate-500 uppercase tracking-wider">{t.admin.status}</th>
                           <th className="px-4 py-3.5 text-[12px] font-semibold text-slate-500 uppercase tracking-wider">{t.admin.plan}</th>
-                          <th className="px-4 py-3.5 text-[12px] font-semibold text-slate-500 uppercase tracking-wider">{t.admin.aiQuota}</th>
+                          <th className="px-4 py-3.5 text-[12px] font-semibold text-slate-500 uppercase tracking-wider">{t.admin.aiUsed}</th>
                           <th className="px-4 py-3.5 text-[12px] font-semibold text-slate-500 uppercase tracking-wider">{t.admin.createdAt}</th>
                           <th className="px-4 py-3.5 text-[12px] font-semibold text-slate-500 uppercase tracking-wider text-right">{t.admin.actions}</th>
                         </tr>
@@ -1752,14 +1752,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                                 {user.plan === 'paid' ? t.admin.paid : t.admin.freeTrial}
                               </span>
                             </td>
-                            <td className="px-4 py-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-14 h-1.5 bg-[#162032] rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full transition-all ${user.aiUsed / user.aiQuota > 0.9 ? 'bg-red-400' : user.aiUsed / user.aiQuota > 0.6 ? 'bg-yellow-400' : 'bg-[#22C55E]'}`}
-                                    style={{ width: `${Math.min(100, (user.aiUsed / user.aiQuota) * 100)}%` }} />
-                                </div>
-                                <span className="text-xs text-slate-400">{user.aiUsed}/{user.aiQuota}</span>
-                              </div>
+                            <td className="px-4 py-4 text-sm text-slate-300 font-mono">
+                              {monthlyAiUsageByUser.get(user.id) ?? 0}
                             </td>
                             <td className="px-4 py-4 text-xs text-slate-400">{formatDate(user.createdAt)}</td>
                             <td className="px-4 py-4 text-right relative">
@@ -1772,17 +1766,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                                 </button>
                                 {openUserActionId === user.id && (
                                   <div className="absolute right-4 mt-1 w-36 rounded-lg border border-[#22C55E]/20 bg-[#0F1A2A] shadow-2xl shadow-black/30 overflow-hidden z-20">
-                                    <button
-                                      onClick={() => {
-                                        setOpenUserActionId(null);
-                                        setEditingQuota(user.id);
-                                        setQuotaValue(user.aiQuota);
-                                        setActiveTab('ai');
-                                      }}
-                                      className="w-full px-3 py-2 text-left text-xs text-slate-300 hover:bg-[#162032]"
-                                    >
-                                      {t.admin.editQuota}
-                                    </button>
                                     <button
                                       onClick={() => {
                                         setOpenUserActionId(null);
@@ -1820,7 +1803,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                       <table className="w-full text-left">
                         <thead>
                           <tr className="border-b border-white/5 bg-[#0A0F1A]/50">
-                            <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t.admin.email}</th>
+                            <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t.admin.workspace}</th>
                             <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t.admin.plan}</th>
                             <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t.admin.aiUsed}</th>
                             <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t.admin.aiQuota}</th>
@@ -1829,42 +1812,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                           </tr>
                         </thead>
                         <tbody>
-                          {managedUsers.filter(u => u.status === 'active').map(user => {
-                            const pct = user.aiQuota > 0 ? (user.aiUsed / user.aiQuota) * 100 : 0;
-                            const isEditing = editingQuota === user.id;
+                          {workspaceQuotas.map(workspace => {
+                            const pct = workspace.aiQuota > 0 ? (workspace.aiUsed / workspace.aiQuota) * 100 : 100;
+                            const isEditing = editingQuota === workspace.id;
+                            const isPaid = workspace.plan !== 'free';
                             return (
-                              <tr key={user.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                              <tr key={workspace.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                                 {/* Name + email – compact, no avatar */}
                                 <td className="px-4 py-3">
                                   <div className="flex items-center gap-2">
                                     <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${
-                                      user.plan === 'paid' ? 'bg-cyan-500/15 text-cyan-300' : 'bg-yellow-500/15 text-yellow-400'
-                                    }`}>{user.name.charAt(0)}</span>
+                                      isPaid ? 'bg-cyan-500/15 text-cyan-300' : 'bg-yellow-500/15 text-yellow-400'
+                                    }`}>{workspace.name.charAt(0)}</span>
                                     <div className="min-w-0">
-                                      <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                                      <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                                      <p className="text-sm font-medium text-white truncate">{workspace.name}</p>
+                                      <p className="text-xs text-slate-500">{workspace.memberCount} {t.admin.usersCountLabel}</p>
                                     </div>
                                   </div>
                                 </td>
                                 {/* Plan */}
                                 <td className="px-4 py-3">
                                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                                    user.plan === 'paid' ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/25' : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
-                                  }`}>{user.plan === 'paid' ? t.admin.paid : t.admin.freeTrial}</span>
+                                    isPaid ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/25' : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
+                                  }`}>{isPaid ? workspace.plan : t.admin.freeTrial}</span>
                                 </td>
                                 {/* Used */}
-                                <td className="px-4 py-3 text-sm text-slate-300 font-mono">{user.aiUsed}</td>
+                                <td className="px-4 py-3 text-sm text-slate-300 font-mono">{workspace.aiUsed}</td>
                                 {/* Quota (editable) */}
                                 <td className="px-4 py-3">
                                   {isEditing ? (
                                     <div className="flex items-center gap-1.5">
-                                      <input type="number" value={quotaValue} onChange={e => setQuotaValue(parseInt(e.target.value) || 0)}
+                                      <input type="number" value={quotaValue} min={0} onChange={e => setQuotaValue(parseInt(e.target.value) || 0)}
                                         className="w-16 px-2 py-1 rounded-md bg-[#162032] border border-[#22C55E]/30 text-white text-xs font-mono focus:border-[#22C55E] outline-none" />
-                                      <button onClick={() => handleSaveQuota(user.id)} className="p-0.5 text-[#22C55E] hover:bg-[#22C55E]/10 rounded transition-colors"><Save size={12} /></button>
+                                      <button onClick={() => handleSaveQuota(workspace.id)} className="p-0.5 text-[#22C55E] hover:bg-[#22C55E]/10 rounded transition-colors"><Save size={12} /></button>
                                       <button onClick={() => setEditingQuota(null)} className="p-0.5 text-slate-500 hover:text-red-400 rounded transition-colors"><X size={12} /></button>
                                     </div>
                                   ) : (
-                                    <span className="text-sm text-slate-300 font-mono">{user.aiQuota}</span>
+                                    <span className="text-sm text-slate-300 font-mono">{workspace.aiQuota}</span>
                                   )}
                                 </td>
                                 {/* Remaining + bar */}
@@ -1874,13 +1858,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                                       <div className={`h-full rounded-full transition-all ${pct > 90 ? 'bg-red-400' : pct > 60 ? 'bg-yellow-400' : 'bg-[#22C55E]'}`}
                                         style={{ width: `${Math.min(100, pct)}%` }} />
                                     </div>
-                                    <span className={`text-xs font-mono ${pct > 90 ? 'text-red-400' : 'text-slate-400'}`}>{Math.max(0, user.aiQuota - user.aiUsed)}</span>
+                                    <span className={`text-xs font-mono ${pct > 90 ? 'text-red-400' : 'text-slate-400'}`}>{Math.max(0, workspace.aiQuota - workspace.aiUsed)}</span>
                                   </div>
                                 </td>
                                 {/* Edit btn */}
                                 <td className="px-4 py-3">
                                   {!isEditing && (
-                                    <button onClick={() => { setEditingQuota(user.id); setQuotaValue(user.aiQuota); }}
+                                    <button onClick={() => { setEditingQuota(workspace.id); setQuotaValue(workspace.aiQuota); }}
                                       className="p-1 text-slate-600 hover:text-[#22C55E] transition-colors rounded hover:bg-[#22C55E]/10">
                                       <Edit2 size={12} />
                                     </button>
@@ -2449,24 +2433,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
               className="bg-[#0F1A2A] border border-[#22C55E]/20 rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl text-center">
               <ListChecks size={24} className="text-[#22C55E] mx-auto mb-3" />
               <h3 className="text-lg font-bold text-white mb-2">
-                {showBulkModal === 'ban' ? t.admin.bulkBan : showBulkModal === 'unban' ? t.admin.bulkUnban : t.admin.bulkQuota}
+                {showBulkModal === 'ban' ? t.admin.bulkBan : t.admin.bulkUnban}
               </h3>
               <p className="text-xs text-slate-400 mb-4">{selectedUserIds.size} {t.admin.selected} — {t.admin.bulkConfirm}</p>
 
-              {showBulkModal === 'quota' && (
-                <div className="flex items-center gap-2 justify-center mb-4">
-                  <input type="number" value={bulkQuotaValue} onChange={e => setBulkQuotaValue(parseInt(e.target.value) || 0)}
-                    className="w-24 px-3 py-2 rounded-xl bg-[#162032] border border-[#22C55E]/20 text-white text-sm text-center focus:border-[#22C55E] outline-none" />
-                  <span className="text-xs text-slate-400">{t.admin.quotaLabel}</span>
-                </div>
-              )}
 
               <div className="flex gap-3 mt-4">
                 <button onClick={() => setShowBulkModal(null)}
                   className="flex-1 py-2 rounded-xl border border-white/10 text-slate-400 hover:text-white text-sm font-medium transition-colors">
                   {t.admin.cancel}
                 </button>
-                <button onClick={() => showBulkModal === 'ban' ? handleBulkBan() : showBulkModal === 'unban' ? handleBulkUnban() : handleBulkQuota()}
+                <button onClick={() => showBulkModal === 'ban' ? handleBulkBan() : handleBulkUnban()}
                   className={`flex-1 py-2 rounded-xl text-white text-sm font-medium transition-colors ${
                     showBulkModal === 'ban' ? 'bg-red-500 hover:bg-red-600' : 'bg-[#22C55E] hover:bg-[#22C55E]/80'
                   }`}>

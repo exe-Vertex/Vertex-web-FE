@@ -56,8 +56,6 @@ export interface AdminUserEntry {
   status: UserStatus;
   plan: OrgPlan | 'paid' | 'free-trial';
   createdAt: string;
-  aiQuota: number;
-  aiUsed: number;
 }
 
 

@@ -273,6 +273,7 @@ export const translations = {
       totalUsers: 'Total Users',
       paidUsers: 'Paid Users',
       // AI & Prompts
+      workspace: 'Workspace',
       aiQuota: 'AI Quota',
       aiUsed: 'Used',
       aiRemaining: 'Remaining',
@@ -631,6 +632,7 @@ export const translations = {
       totalUsers: 'Tổng User',
       paidUsers: 'User trả phí',
       // AI & Prompts
+      workspace: 'Workspace',
       aiQuota: 'Hạn mức AI',
       aiUsed: 'Đã dùng',
       aiRemaining: 'Còn lại',

@@ -11,8 +11,6 @@ export interface AdminUserDto {
   status: 'active' | 'banned';
   plan: string;
   createdAt: string;
-  aiQuota: number;
-  aiUsed: number;
 }
 
 export interface AdminUserListResult {
@@ -56,6 +54,16 @@ export interface AdminAiUsageListResult {
   page: number;
   pageSize: number;
 }
+export interface AdminOrganizationQuotaDto {
+  id: string;
+  name: string;
+  plan: string;
+  aiQuota: number;
+  aiUsed: number;
+  aiQuotaPeriodStart: string;
+  memberCount: number;
+}
+
 const authHeaders = () => ({
   Authorization: `Bearer ${getAuthToken()}`,
 });
@@ -94,13 +102,21 @@ export const updateUserStatus = async (
   );
 };
 
-/** Update a user's AI quota. */
-export const updateUserQuota = async (
-  userId: string,
+/** Get organization-level quotas used by AI endpoints. */
+export const getAdminOrganizationQuotas = async (): Promise<AdminOrganizationQuotaDto[]> => {
+  return await apiRequest<AdminOrganizationQuotaDto[]>('/api/admin/organizations/quotas', {
+    method: 'GET',
+    headers: authHeaders(),
+  });
+};
+
+/** Update the quota enforced for an organization. */
+export const updateOrganizationQuota = async (
+  organizationId: string,
   aiQuota: number,
-): Promise<AdminUserDto> => {
-  return await apiRequest<AdminUserDto>(
-    `/api/admin/users/${userId}/quota`,
+): Promise<AdminOrganizationQuotaDto> => {
+  return await apiRequest<AdminOrganizationQuotaDto>(
+    `/api/admin/organizations/${organizationId}/quota`,
     {
       method: 'PUT',
       headers: authHeaders(),
@@ -108,6 +124,7 @@ export const updateUserQuota = async (
     },
   );
 };
+
 
 /** Get paginated audit logs. */
 export const getAuditLogs = async (
