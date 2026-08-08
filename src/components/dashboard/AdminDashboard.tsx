@@ -13,6 +13,23 @@ const adminUserEntries: AdminUserEntry[] = [];
 const initialAuditLog: AuditLogEntry[] = [];
 const initialNotifs: AdminNotification[] = [];
 
+const normalizeAdminPlan = (plan?: string): AdminUserEntry['plan'] => {
+  const normalized = (plan || 'free').trim().toLowerCase().replace('_', '-');
+  if (
+    normalized === 'pro'
+    || normalized === 'business'
+    || normalized === 'enterprise'
+    || normalized === 'paid'
+    || normalized === 'free-trial'
+  ) {
+    return normalized;
+  }
+  return 'free';
+};
+
+const isPaidAdminPlan = (plan: AdminUserEntry['plan']) =>
+  plan !== 'free' && plan !== 'free-trial';
+
 import { AdminUserEntry, AuditLogEntry, AdminNotification } from '../../types';
 import { Avatar } from '../ui/Avatar';
 import { useLang } from '../../contexts/LanguageContext';
@@ -190,7 +207,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
         email: u.email,
         avatar: u.avatar || '',
         status: u.status,
-        plan: (u.plan || 'free-trial') as any,
+        plan: normalizeAdminPlan(u.plan),
         createdAt: u.createdAt,
       }));
       setManagedUsers(users);
@@ -244,8 +261,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
   // Derived dynamic stats calculated in real-time from the backend database (no hardcoded mock data)
   const planDistribution = useMemo(() => {
-    const paidCount = managedUsers.filter(u => u.plan === 'paid').length;
-    const freeCount = managedUsers.filter(u => u.plan === 'free-trial' || u.plan === 'free').length;
+    const paidCount = managedUsers.filter(u => isPaidAdminPlan(u.plan)).length;
+    const freeCount = managedUsers.filter(u => !isPaidAdminPlan(u.plan)).length;
     return [
       { label: t.admin.paid, value: paidCount },
       { label: t.admin.freeTrial, value: freeCount }
@@ -1276,7 +1293,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
       if (!searchMatch) return false;
       if (userSegment === 'all') return true;
       if (userSegment === 'active' || userSegment === 'banned') return u.status === userSegment;
-      return u.plan === userSegment;
+      if (userSegment === 'paid') return isPaidAdminPlan(u.plan);
+      return !isPaidAdminPlan(u.plan);
     });
   }, [managedUsers, searchQuery, userSegment]);
 
@@ -1293,8 +1311,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const stats = useMemo(() => ({
     totalUsers: managedUsers.length,
     activeUsers: managedUsers.filter(u => u.status === 'active').length,
-    paidUsers: managedUsers.filter(u => u.plan === 'paid').length,
-    freeTrialUsers: managedUsers.filter(u => u.plan === 'free-trial').length,
+    paidUsers: managedUsers.filter(u => isPaidAdminPlan(u.plan)).length,
+    freeTrialUsers: managedUsers.filter(u => !isPaidAdminPlan(u.plan)).length,
   }), [managedUsers]);
 
   // ── Audit log helper ──
@@ -1745,11 +1763,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                             </td>
                             <td className="px-4 py-4">
                               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                user.plan === 'paid'
+                                isPaidAdminPlan(user.plan)
                                   ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
                                   : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
                               }`}>
-                                {user.plan === 'paid' ? t.admin.paid : t.admin.freeTrial}
+                                {isPaidAdminPlan(user.plan)
+                                  ? (user.plan === 'paid' ? t.admin.paid : user.plan.toUpperCase())
+                                  : t.admin.freeTrial}
                               </span>
                             </td>
                             <td className="px-4 py-4 text-sm text-slate-300 font-mono">
