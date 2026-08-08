@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Eye, EyeOff, ArrowRight, Github, Chrome } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { VertexLogo } from '../components/ui/VertexLogo';
 import { useLang } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const getPasswordStrength = (pwd: string) => {
   if (!pwd) return { score: 0, label: '', color: 'bg-slate-700', textClass: 'text-slate-500' };
@@ -32,6 +33,12 @@ const shouldUseGoogleRedirect = () => {
   const isSafari = /Safari/.test(userAgent) && !/Chrome|Chromium|CriOS|Android/.test(userAgent);
   return isAppleMobile || isSafari;
 };
+const AUTH_RETURN_URL_KEY = 'vertex.authReturnUrl';
+
+const getSafeReturnUrl = (search: string) => {
+  const returnUrl = new URLSearchParams(search).get('returnUrl');
+  return returnUrl?.startsWith('/') && !returnUrl.startsWith('//') ? returnUrl : null;
+};
 
 interface LoginPageProps {
   onNavigate: (page: string) => void;
@@ -50,6 +57,37 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const { t } = useLang();
   const { login, register, isAuthenticated, user, externalLogin } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const returnUrl = getSafeReturnUrl(location.search);
+    if (returnUrl) {
+      sessionStorage.setItem(AUTH_RETURN_URL_KEY, returnUrl);
+    }
+  }, [location.search]);
+
+  const navigateAfterLogin = useCallback((role: string) => {
+    const storedReturnUrl = sessionStorage.getItem(AUTH_RETURN_URL_KEY);
+    const safeStoredReturnUrl = storedReturnUrl?.startsWith('/') && !storedReturnUrl.startsWith('//')
+      ? storedReturnUrl
+      : null;
+    const returnUrl = getSafeReturnUrl(location.search) ?? safeStoredReturnUrl;
+
+    if (returnUrl) {
+      sessionStorage.removeItem(AUTH_RETURN_URL_KEY);
+      navigate(returnUrl, { replace: true });
+      return;
+    }
+
+    if (role === 'admin') {
+      onNavigate('admin');
+    } else if (role === 'lecturer') {
+      onNavigate('lecturer');
+    } else {
+      onNavigate('dashboard');
+    }
+  }, [location.search, navigate, onNavigate]);
 
   // Check for OAuth callbacks (redirect flow)
   useEffect(() => {
@@ -199,16 +237,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   // If already authenticated, redirect to appropriate dashboard
   useEffect(() => {
     if (isAuthenticated && user) {
-      const role = user.role;
-      if (role === 'admin') {
-        onNavigate('admin');
-      } else if (role === 'lecturer') {
-        onNavigate('lecturer');
-      } else {
-        onNavigate('dashboard');
-      }
+      navigateAfterLogin(user.role);
     }
-  }, [isAuthenticated, user, onNavigate]);
+  }, [isAuthenticated, user, navigateAfterLogin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -258,15 +289,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         me = await login(email.trim(), password);
       }
 
-      // Navigate based on role
-      const role = me.role;
-      if (role === 'admin') {
-        onNavigate('admin');
-      } else if (role === 'lecturer') {
-        onNavigate('lecturer');
-      } else {
-        onNavigate('dashboard');
-      }
+      navigateAfterLogin(me.role);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Login failed.';
       setErrorMessage(message);

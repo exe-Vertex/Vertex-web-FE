@@ -199,7 +199,11 @@ const AcceptInvite: React.FC = () => {
                   
                   {!getAuthToken() && (
                     <div className="mb-6 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl text-left leading-relaxed">
-                      {isVi ? 'Bạn cần ' : 'You need to '}<strong>{isVi ? 'Đăng nhập' : 'Sign in'}</strong>{isVi ? ' hoặc ' : ' or '}<strong>{isVi ? 'Tạo tài khoản' : 'Create an account'}</strong>{isVi ? ' bằng email ' : ' with the email '}<span className="underline font-semibold">{invitationInfo.email}</span>{isVi ? ' để chấp nhận lời mời này.' : ' to accept this invitation.'}
+                      {invitationInfo.email ? (
+                        <>You need to <strong>sign in</strong> or <strong>create an account</strong> with <span className="underline font-semibold">{invitationInfo.email}</span> to accept this invitation.</>
+                      ) : (
+                        <>You need to <strong>sign in</strong> or <strong>create an account</strong> to accept this shared invitation link.</>
+                      )}
                     </div>
                   )}
 

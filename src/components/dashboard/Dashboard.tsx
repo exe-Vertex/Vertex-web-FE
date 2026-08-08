@@ -39,7 +39,7 @@ import type { OrgSummary, OrgDetail } from '../../api/org';
 import { listProjects, getProjectDetail, createProject, updateProject, deleteProject, createTask, updateTask, deleteTask, addProjectMember, updateProjectMemberRole, removeProjectMember, listProjectFiles, uploadProjectFile, deleteProjectFile, TaskDto } from '../../api/project';
 import { mapProjectDetailToProject } from '../../utils/projectMapper';
 import { useSignalR } from '../../hooks/useSignalR';
-import { createInvitation } from '../../api/invitation';
+import { createInvitation, createProjectInvitationLink } from '../../api/invitation';
 import { chatWithAi, generateProjectPlan } from '../../api/ai';
 import { getUserSkills, updateUserSkills } from '../../api/auth';
 import { getNotifications as fetchNotifications, markAllNotificationsRead, markNotificationRead } from '../../api/lecturer';
@@ -895,8 +895,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       showToast(isVi ? 'Không thể thêm thành viên vào dự án' : 'Could not add the member to the project', 'error');
     }
   };
+  const handleCreateProjectInviteLink = async () => {
+    const token = getAuthToken();
+    const projectId = activeProjectId;
+    if (!token || !projectId) {
+      throw new Error('Not enough information to create an invitation link.');
+    }
 
-  const handleInviteMember = async ({ email, role }: { email: string; role: InviteRole; projectCode: string; joinLink: string }) => {
+    const currentProjectMember = activeProject.members?.find(member => member.id === user?.id);
+    if ((currentProjectMember?.role as string) !== 'Leader') {
+      throw new Error('Only the team leader can create an invitation link.');
+    }
+
+    const invitation = await createProjectInvitationLink(projectId);
+    return `${window.location.origin}/#/invite/accept?token=${encodeURIComponent(invitation.token)}`;
+  };
+
+  const handleInviteMember = async ({ email, role }: { email: string; role: InviteRole }) => {
     const token = getAuthToken();
     const orgId = activeOrgId;
     const projectId = activeProjectId;
@@ -1808,6 +1823,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         onAddMember={handleAddProjectMember}
         onRemoveMember={handleRemoveProjectMember}
         onInvite={handleInviteMember}
+        onCreateInviteLink={handleCreateProjectInviteLink}
         onUpdateMember={handleUpdateProjectMember}
       />
       <ProfileModal

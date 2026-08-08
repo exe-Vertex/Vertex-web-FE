@@ -8,6 +8,11 @@ export interface CreateInvitationRequest {
   role: string;
 }
 
+export interface CreateProjectInvitationLinkResponse {
+  token: string;
+  expiredAt: string;
+}
+
 export interface VerifyInvitationResponse {
   email: string;
   targetType: string;
@@ -20,6 +25,16 @@ export const createInvitation = async (data: CreateInvitationRequest) => {
   return await apiRequest<any>('/api/invitations', {
     method: 'POST',
     body: JSON.stringify(data),
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+    },
+  });
+};
+
+export const createProjectInvitationLink = async (projectId: string) => {
+  return await apiRequest<CreateProjectInvitationLinkResponse>('/api/invitations/project-link', {
+    method: 'POST',
+    body: JSON.stringify({ projectId }),
     headers: {
       Authorization: `Bearer ${getAuthToken()}`,
     },

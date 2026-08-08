@@ -14,7 +14,8 @@ interface TeamModalProps {
   members: User[];
   onAddMember: (user: User) => void;
   onRemoveMember: (userId: string) => void;
-  onInvite: (payload: { email: string; role: TeamRole; projectCode: string; joinLink: string }) => void;
+  onInvite: (payload: { email: string; role: TeamRole }) => void;
+  onCreateInviteLink: () => Promise<string>;
   onUpdateMember?: (userId: string, role: TeamRole, skills: string | null) => Promise<void>;
 }
 
@@ -34,19 +35,8 @@ const toTeamRole = (role?: string): TeamRole => {
   return role === 'Leader' || role === 'Guest' ? role : 'Member';
 };
 
-const makeProjectCode = (projectId: string, projectName: string) => {
-  const base = `${projectId}-${projectName}`;
-  let hash = 0;
-  for (let i = 0; i < base.length; i += 1) {
-    hash = (hash * 31 + base.charCodeAt(i)) % 46656;
-  }
-  const alpha = hash.toString(36).toUpperCase().padStart(3, '0').slice(-3);
-  const digits = (projectId.replace(/\D/g, '') || '21').padStart(2, '0').slice(-2);
-  const classPart = projectName.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 2).padEnd(2, 'X');
-  return `VTX-${classPart}${alpha}-${digits}`;
-};
 
-export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, projectName, members, onAddMember, onRemoveMember, onInvite, onUpdateMember }) => {
+export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, projectName, members, onAddMember, onRemoveMember, onInvite, onCreateInviteLink, onUpdateMember }) => {
   const [projectMembers, setProjectMembers] = useState<TeamMember[]>([]);
   const [available, setAvailable] = useState<User[]>([]);
   const { lang } = useLang();
@@ -60,10 +50,11 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<TeamRole>('Member');
   const [copiedHint, setCopiedHint] = useState(false);
+  const [joinLink, setJoinLink] = useState('');
+  const [inviteLinkLoading, setInviteLinkLoading] = useState(false);
+  const [inviteLinkError, setInviteLinkError] = useState('');
   const [editingSkillsFor, setEditingSkillsFor] = useState<string | null>(null);
 
-  const projectCode = makeProjectCode(projectId, projectName);
-  const joinLink = `https://vertex.app/join/${projectCode}`;
 
   useEffect(() => {
     if (!open) return;
@@ -78,6 +69,31 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
     setInviteRole('Member');
     setCopiedHint(false);
   }, [open, members, projectId]);
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    setJoinLink('');
+    setInviteLinkError('');
+    setInviteLinkLoading(true);
+
+    onCreateInviteLink()
+      .then(link => {
+        if (!cancelled) setJoinLink(link);
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setInviteLinkError(error instanceof Error ? error.message : 'Could not create the invitation link.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setInviteLinkLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, projectId]);
 
   const save = (next: TeamMember[]) => {
     setProjectMembers(next);
@@ -108,7 +124,7 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
       handleAdd(existingUser, inviteRole);
     }
 
-    onInvite({ email, role: inviteRole, projectCode, joinLink });
+    onInvite({ email, role: inviteRole });
     setInviteEmail('');
   };
 
@@ -125,9 +141,8 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
   };
 
   const handleShare = async () => {
-    const shareText = isVi
-      ? `Tham gia dự án ${projectName} bằng mã ${projectCode} hoặc liên kết ${joinLink}`
-      : `Join project ${projectName} with code ${projectCode} or link ${joinLink}`;
+    if (!joinLink) return;
+    const shareText = `Join project ${projectName}: ${joinLink}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: isVi ? `Tham gia ${projectName}` : `Join ${projectName}`, text: shareText, url: joinLink });
@@ -207,25 +222,28 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
         {/* Invite section */}
         <div className="px-6 py-4 border-b border-[#22C55E]/5 bg-[#162032]/30 space-y-4">
           <div>
-            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">{isVi ? 'Mã dự án' : 'Project code'}</p>
+            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Invite link</p>
             <div className="rounded-xl border border-[#22C55E]/15 bg-[#0A0F1A] p-3">
               <div className="flex items-center gap-2 justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white tracking-wide">{projectCode}</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5 truncate">{joinLink}</p>
-                  <p className="text-[10px] text-slate-600 mt-1">{isVi ? 'Người tham gia bằng mã sẽ có vai trò Thành viên.' : 'People joining by code will receive the Member role.'}</p>
+                  <p className={`text-xs font-medium break-all ${inviteLinkError ? 'text-red-400' : 'text-slate-300'}`}>
+                    {inviteLinkLoading ? 'Creating invitation link...' : inviteLinkError || joinLink}
+                  </p>
+                  <p className="text-[10px] text-slate-600 mt-1">Anyone with this link can join as a Member. The link expires after 7 days.</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => copyValue(projectCode, true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#22C55E]/20 text-xs font-semibold text-[#6EE7B7] hover:bg-[#162032]"
+                    onClick={() => copyValue(joinLink, true)}
+                    disabled={!joinLink || inviteLinkLoading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#22C55E]/20 text-xs font-semibold text-[#6EE7B7] hover:bg-[#162032] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Copy size={12} />
-                    {isVi ? 'Sao chép' : 'Copy'}
+                    Copy link
                   </button>
                   <button
                     onClick={handleShare}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#22C55E]/20 text-xs font-semibold text-[#6EE7B7] hover:bg-[#162032]"
+                    disabled={!joinLink || inviteLinkLoading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#22C55E]/20 text-xs font-semibold text-[#6EE7B7] hover:bg-[#162032] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Share2 size={12} />
                     {isVi ? 'Chia sẻ' : 'Share'}
