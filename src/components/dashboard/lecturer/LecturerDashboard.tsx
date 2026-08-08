@@ -9,6 +9,8 @@ import {
 import { LecturerGroup } from '../../../data/lecturerTypes';
 import { useAuth } from '../../../contexts/AuthContext';
 import { GroupDetail } from './GroupDetail';
+import { useLang } from '../../../contexts/LanguageContext';
+import { LanguageSwitcher } from '../../ui/LanguageSwitcher';
 import { DeadlineCalendar } from './DeadlineCalendar';
 import { 
   getGroups, 
@@ -42,12 +44,14 @@ const LecturerSidebar: React.FC<LecturerSidebarProps> = ({
   isOpen, activeView, activeClass, onNavigate, onSettings, collapsed, setCollapsed, groups, classes
 }) => {
   const [classesOpen, setClassesOpen] = useState(true);
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
 
   const navItems = [
-    { id: 'overview',   label: 'Dashboard',      icon: <LayoutDashboard size={18} /> },
-    { id: 'groups',     label: 'Student Groups',  icon: <Users size={18} /> },
-    { id: 'deadlines',  label: 'Deadlines',       icon: <Calendar size={18} /> },
-    { id: 'settings',   label: 'Settings',        icon: <Settings size={18} /> },
+    { id: 'overview', label: isVi ? 'Tổng quan' : 'Overview', icon: <LayoutDashboard size={18} /> },
+    { id: 'groups', label: isVi ? 'Nhóm sinh viên' : 'Student groups', icon: <Users size={18} /> },
+    { id: 'deadlines', label: isVi ? 'Hạn nộp' : 'Deadlines', icon: <Calendar size={18} /> },
+    { id: 'settings', label: isVi ? 'Cài đặt' : 'Settings', icon: <Settings size={18} /> },
   ];
 
   const handleNav = (id: string) => {
@@ -101,7 +105,7 @@ const LecturerSidebar: React.FC<LecturerSidebarProps> = ({
             <div className="px-3 pt-3 pb-2 flex-1 overflow-y-auto">
               <button onClick={() => setClassesOpen(o => !o)}
                 className="flex items-center justify-between w-full px-2 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-all duration-200 rounded-lg hover:bg-[#162032] hover:shadow-[inset_0_0_0_1px_rgba(34,197,94,0.18)]">
-                <span className="flex items-center gap-1.5"><BookOpen size={10} />MY CLASS</span>
+                <span className="flex items-center gap-1.5"><BookOpen size={10} />{isVi ? 'LỚP CỦA TÔI' : 'MY CLASSES'}</span>
                 <ChevronDown size={10} className={`transition-transform ${classesOpen ? 'rotate-180' : ''}`} />
               </button>
               <AnimatePresence>
@@ -167,6 +171,8 @@ const DashboardOverview: React.FC<{
 }> = ({ onSelectGroup, groups }) => {
   const totalGroups = groups.length;
   const activeProjects = groups.filter(g => g.progress > 0 && g.progress < 100).length;
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const tasksWaitingReview = groups.flatMap(g => g.tasks || []).filter(t => t.status === 'ready-for-review').length;
   const groupsOverdue = groups.filter(g => g.reviewStatus === 'overdue').length;
 
@@ -192,23 +198,23 @@ const DashboardOverview: React.FC<{
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-1">Class-level overview, alerts, progress and upcoming deadlines.</p>
+        <h1 className="text-xl font-bold text-white">{isVi ? 'Tổng quan' : 'Overview'}</h1>
+        <p className="text-sm text-slate-500 mt-1">{isVi ? 'Theo dõi cảnh báo, tiến độ và hạn nộp của các lớp.' : 'Track alerts, progress, and deadlines across your classes.'}</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Groups" value={totalGroups} icon={<Users size={18} className="text-[#22C55E]" />} color="border-[#F59E0B]/35" />
-        <StatCard label="Active Projects" value={activeProjects} icon={<TrendingUp size={18} className="text-blue-400" />} color="border-blue-500/20" />
-        <StatCard label="Tasks Waiting Review" value={tasksWaitingReview} icon={<Clock size={18} className="text-purple-400" />} color="border-purple-500/20" />
-        <StatCard label="Groups Overdue" value={groupsOverdue} icon={<AlertTriangle size={18} className="text-red-400" />} color="border-red-500/20" />
+        <StatCard label={isVi ? 'Nhóm' : 'Groups'} value={totalGroups} icon={<Users size={18} className="text-[#22C55E]" />} color="border-[#F59E0B]/35" />
+        <StatCard label={isVi ? 'Dự án đang hoạt động' : 'Active projects'} value={activeProjects} icon={<TrendingUp size={18} className="text-blue-400" />} color="border-blue-500/20" />
+        <StatCard label={isVi ? 'Công việc chờ duyệt' : 'Tasks awaiting review'} value={tasksWaitingReview} icon={<Clock size={18} className="text-purple-400" />} color="border-purple-500/20" />
+        <StatCard label={isVi ? 'Nhóm quá hạn' : 'Overdue groups'} value={groupsOverdue} icon={<AlertTriangle size={18} className="text-red-400" />} color="border-red-500/20" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <section className="bg-[#0F1A2A] rounded-xl border border-[#3A3317] p-4">
-          <h2 className="text-sm font-bold text-white mb-3">Groups Needing Attention</h2>
+          <h2 className="text-sm font-bold text-white mb-3">{isVi ? 'Nhóm cần chú ý' : 'Groups needing attention'}</h2>
           <div className="space-y-2">
             {groupsNeedingAttention.length === 0 ? (
-              <p className="text-xs text-slate-500">No groups currently at risk.</p>
+              <p className="text-xs text-slate-500">{isVi ? 'Hiện không có nhóm nào gặp rủi ro.' : 'No groups are currently at risk.'}</p>
             ) : (
               groupsNeedingAttention.map(group => (
                 <button key={group.id}
@@ -217,7 +223,7 @@ const DashboardOverview: React.FC<{
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm text-white font-medium truncate">{group.name}</p>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${group.reviewStatus === 'overdue' ? 'text-red-300 bg-red-500/10 border-red-500/25' : 'text-amber-300 bg-amber-500/10 border-amber-500/25'}`}>
-                      {group.reviewStatus === 'overdue' ? 'Overdue' : 'At Risk'}
+                      {group.reviewStatus === 'overdue' ? (isVi ? 'Quá hạn' : 'Overdue') : (isVi ? 'Có rủi ro' : 'At risk')}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">{group.className}</p>
@@ -228,12 +234,12 @@ const DashboardOverview: React.FC<{
         </section>
 
         <section className="bg-[#0F1A2A] rounded-xl border border-[#3A3317] p-4">
-          <h2 className="text-sm font-bold text-white mb-3">Class Progress</h2>
+          <h2 className="text-sm font-bold text-white mb-3">{isVi ? 'Tiến độ lớp' : 'Class progress'}</h2>
           <div className="space-y-3">
             {[
-              { label: 'On Track', value: onTrackCount, bar: 'bg-green-400' },
-              { label: 'At Risk', value: atRiskCount, bar: 'bg-amber-400' },
-              { label: 'Overdue', value: overdueCount, bar: 'bg-red-400' },
+              { label: isVi ? 'Đúng tiến độ' : 'On track', value: onTrackCount, bar: 'bg-green-400' },
+              { label: isVi ? 'Có rủi ro' : 'At risk', value: atRiskCount, bar: 'bg-amber-400' },
+              { label: isVi ? 'Quá hạn' : 'Overdue', value: overdueCount, bar: 'bg-red-400' },
             ].map(item => (
               <div key={item.label}>
                 <div className="flex items-center justify-between mb-1">
@@ -250,7 +256,7 @@ const DashboardOverview: React.FC<{
       </div>
 
       <section className="bg-[#0F1A2A] rounded-xl border border-[#3A3317] p-4">
-        <h2 className="text-sm font-bold text-white mb-3">Upcoming Deadlines</h2>
+        <h2 className="text-sm font-bold text-white mb-3">{isVi ? 'Hạn nộp sắp tới' : 'Upcoming deadlines'}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
           {upcomingDeadlines.map(group => (
             <button key={group.id}
@@ -272,14 +278,16 @@ const statusColors: Record<string, string> = {
   'at-risk':  'text-amber-400 bg-amber-400/10 border-amber-400/20',
   'overdue':  'text-red-400   bg-red-400/10   border-red-400/20',
 };
-const statusLabels: Record<string, string> = {
-  'on-track': 'On Track',
-  'at-risk':  'At Risk',
-  'overdue':  'Overdue',
+const statusLabels: Record<string, { vi: string; en: string }> = {
+  'on-track': { vi: 'Đúng tiến độ', en: 'On track' },
+  'at-risk': { vi: 'Có rủi ro', en: 'At risk' },
+  'overdue': { vi: 'Quá hạn', en: 'Overdue' },
 };
 
 const GroupCard: React.FC<{ group: LecturerGroup; onClick: () => void }> = ({ group, onClick }) => {
   const reviewCount = group.tasks.filter(t => t.status === 'ready-for-review').length;
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   return (
     <motion.button whileHover={{ y: -2 }} onClick={onClick}
       className="text-left w-full bg-[#0F1A2A] rounded-xl p-4 border border-[#3A3317] hover:border-[#F59E0B]/35 hover:shadow-[0_18px_34px_rgba(10,15,26,0.45)] transition-all duration-200 group">
@@ -289,14 +297,14 @@ const GroupCard: React.FC<{ group: LecturerGroup; onClick: () => void }> = ({ gr
           <p className="text-[11px] text-slate-500 mt-0.5">{group.className}</p>
         </div>
         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0 ml-2 ${statusColors[group.reviewStatus]}`}>
-          {statusLabels[group.reviewStatus]}
+          {statusLabels[group.reviewStatus][isVi ? 'vi' : 'en']}
         </span>
       </div>
 
       {/* Progress bar */}
       <div className="mb-3">
         <div className="flex justify-between items-center mb-1">
-          <span className="text-[10px] text-slate-500">Progress</span>
+          <span className="text-[10px] text-slate-500">{isVi ? 'Tiến độ' : 'Progress'}</span>
           <span className="text-[10px] font-semibold text-white">{group.progress}%</span>
         </div>
         <div className="h-1.5 bg-[#162032] rounded-full overflow-hidden">
@@ -324,7 +332,7 @@ const GroupCard: React.FC<{ group: LecturerGroup; onClick: () => void }> = ({ gr
         <div className="flex items-center gap-2 text-[10px] text-slate-500">
           {reviewCount > 0 && (
             <span className="flex items-center gap-0.5 text-[#22C55E] font-semibold">
-              <Clock size={9} />{reviewCount} review
+              <Clock size={9} />{reviewCount} {isVi ? 'chờ duyệt' : 'awaiting review'}
             </span>
           )}
           <span className="flex items-center gap-0.5"><Calendar size={9} />{group.deadline}</span>
@@ -336,12 +344,14 @@ const GroupCard: React.FC<{ group: LecturerGroup; onClick: () => void }> = ({ gr
 
 // ── AI Insights panel ────────────────────────────────────────────────────────
 const AiInsightsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const insights = [
-    { type: 'warning', text: 'Group 2 (Animation Short) may miss the Mar 18 deadline — Design phase delayed 3 days.' },
-    { type: 'warning', text: 'Group 7 & 14 & 17 are overdue. Recommend sending a follow-up reminder.' },
-    { type: 'info',    text: '7 tasks across 5 groups are pending your review.' },
-    { type: 'success', text: 'Group 5 (Photography Series) at 90% — on pace for early submission.' },
-    { type: 'info',    text: 'Average progress across all 20 groups: 58%.' },
+    { type: 'warning', text: isVi ? 'Nhóm 2 có thể trễ hạn ngày 18/03 vì giai đoạn thiết kế đã chậm 3 ngày.' : 'Group 2 may miss the March 18 deadline because design is three days behind.' },
+    { type: 'warning', text: isVi ? 'Nhóm 7, 14 và 17 đã quá hạn. Nên gửi lời nhắc theo dõi.' : 'Groups 7, 14, and 17 are overdue. Consider sending follow-up reminders.' },
+    { type: 'info', text: isVi ? 'Có 7 công việc thuộc 5 nhóm đang chờ bạn duyệt.' : 'Seven tasks across five groups are awaiting your review.' },
+    { type: 'success', text: isVi ? 'Nhóm 5 đã đạt 90% và có thể nộp sớm.' : 'Group 5 is 90% complete and may submit early.' },
+    { type: 'info', text: isVi ? 'Tiến độ trung bình của tất cả 20 nhóm là 58%.' : 'Average progress across all 20 groups is 58%.' },
   ];
   return (
     <motion.div initial={{ x: 320, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 320, opacity: 0 }}
@@ -349,7 +359,7 @@ const AiInsightsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       <div className="p-4 border-b border-[#F59E0B]/15 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles size={15} className="text-[#22C55E]" />
-          <h3 className="text-sm font-bold text-white">AI Project Insights</h3>
+          <h3 className="text-sm font-bold text-white">{isVi ? 'Phân tích dự án bằng AI' : 'AI project insights'}</h3>
         </div>
         <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><X size={16} /></button>
       </div>
@@ -361,7 +371,7 @@ const AiInsightsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         ))}
       </div>
       <div className="p-3 border-t border-[#F59E0B]/15">
-        <p className="text-[10px] text-slate-600 text-center">AI analysis based on current group data</p>
+        <p className="text-[10px] text-slate-600 text-center">{isVi ? 'Phân tích AI dựa trên dữ liệu nhóm hiện tại' : 'AI insights based on current group data'}</p>
       </div>
     </motion.div>
   );
@@ -375,6 +385,8 @@ const GroupsOverview: React.FC<{
 }> = ({ activeClass, onSelectGroup, groups }) => {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'on-track' | 'at-risk' | 'overdue'>('all');
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
 
   const filtered = groups.filter(g => {
     const matchClass  = !activeClass || g.className === activeClass;
@@ -391,16 +403,16 @@ const GroupsOverview: React.FC<{
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="mb-4">
-        <h1 className="text-xl font-bold text-white">Student Groups</h1>
-        <p className="text-sm text-slate-500 mt-1">Browse, manage, open project details and review tasks.</p>
+        <h1 className="text-xl font-bold text-white">{isVi ? 'Nhóm sinh viên' : 'Student groups'}</h1>
+        <p className="text-sm text-slate-500 mt-1">{isVi ? 'Xem, quản lý, mở chi tiết dự án và duyệt công việc.' : 'View groups, open project details, and review tasks.'}</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Groups"     value={totalGroups}  icon={<Users size={18} className="text-[#22C55E]" />}   color="border-[#F59E0B]/35"  />
-        <StatCard label="Active Projects"  value={activeCount}  icon={<TrendingUp size={18} className="text-blue-400" />} color="border-blue-500/20"   />
-        <StatCard label="Tasks in Review"  value={reviewCount}  icon={<Clock size={18} className="text-purple-400" />}   color="border-purple-500/20" />
-        <StatCard label="Overdue Groups"   value={overdueCount} icon={<AlertTriangle size={18} className="text-red-400" />} color="border-red-500/20"  />
+        <StatCard label={isVi ? 'Tổng số nhóm' : 'Total groups'} value={totalGroups} icon={<Users size={18} className="text-[#22C55E]" />} color="border-[#F59E0B]/35" />
+        <StatCard label={isVi ? 'Dự án đang hoạt động' : 'Active projects'} value={activeCount} icon={<TrendingUp size={18} className="text-blue-400" />} color="border-blue-500/20" />
+        <StatCard label={isVi ? 'Công việc chờ duyệt' : 'Tasks awaiting review'} value={reviewCount} icon={<Clock size={18} className="text-purple-400" />} color="border-purple-500/20" />
+        <StatCard label={isVi ? 'Nhóm quá hạn' : 'Overdue groups'} value={overdueCount} icon={<AlertTriangle size={18} className="text-red-400" />} color="border-red-500/20" />
       </div>
 
       {/* Filter bar */}
@@ -408,14 +420,14 @@ const GroupsOverview: React.FC<{
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search groups..."
+            placeholder={isVi ? 'Tìm kiếm nhóm...' : 'Search groups...'}
             className="w-full pl-9 pr-3 py-2 bg-[#162032] border border-[#3A3317] rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#F59E0B]/45" />
         </div>
         <div className="flex gap-1.5">
           {(['all', 'on-track', 'at-risk', 'overdue'] as const).map(s => (
             <button key={s} onClick={() => setFilterStatus(s)}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors capitalize ${filterStatus === s ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#F59E0B]/35' : 'bg-[#162032] text-slate-400 border border-transparent hover:border-[#3A3317] hover:text-white'}`}>
-              {s === 'all' ? 'All' : s === 'on-track' ? 'On Track' : s === 'at-risk' ? 'At Risk' : 'Overdue'}
+              {s === 'all' ? (isVi ? 'Tất cả' : 'All') : s === 'on-track' ? (isVi ? 'Đúng tiến độ' : 'On track') : s === 'at-risk' ? (isVi ? 'Có rủi ro' : 'At risk') : (isVi ? 'Quá hạn' : 'Overdue')}
             </button>
           ))}
         </div>
@@ -424,8 +436,8 @@ const GroupsOverview: React.FC<{
       {/* Section heading */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-bold text-slate-300">
-          {activeClass ?? 'All Groups'}
-          <span className="ml-2 text-slate-600 font-normal">({filtered.length} groups)</span>
+          {activeClass ?? (isVi ? 'Tất cả nhóm' : 'All groups')}
+          <span className="ml-2 text-slate-600 font-normal">({filtered.length} {isVi ? 'nhóm' : 'groups'})</span>
         </h2>
       </div>
 
@@ -457,6 +469,8 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
   
   const { user, logout: authLogout } = useAuth();
 
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const notifRef   = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -509,7 +523,7 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
       setView('group-detail');
     } catch (err) {
       console.error("Failed to load group details:", err);
-      alert("Failed to load group details: " + (err as Error).message);
+      alert((isVi ? 'Không thể tải chi tiết nhóm: ' : 'Failed to load group details: ') + (err as Error).message);
     }
   };
 
@@ -527,7 +541,7 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
       <div className="h-screen bg-[#0A1628] flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="w-12 h-12 border-4 border-[#F59E0B] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm font-semibold text-slate-400">Loading lecturer workspace...</p>
+          <p className="text-sm font-semibold text-slate-400">{isVi ? 'Đang tải không gian giảng viên...' : 'Loading lecturer workspace...'}</p>
         </div>
       </div>
     );
@@ -543,7 +557,7 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
           </button>
           <button
             onClick={() => onNavigate?.('landing')}
-            title="Back to Home"
+            title={isVi ? 'Về trang chủ' : 'Back to home'}
             className="vertex-brand flex items-center gap-2 cursor-pointer"
           >
             <div className="vertex-mark w-7 h-7 rounded-lg flex items-center justify-center text-white">
@@ -555,15 +569,16 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
               </svg>
             </div>
             <span className="text-sm"><span className="vertex-wordmark">Vertex</span></span>
-            <span className="px-2 py-0.5 rounded-md border border-[#F59E0B]/35 bg-[#F59E0B]/12 text-[#FCD34D] text-[10px] font-bold uppercase tracking-wider">Lecturer</span>
+            <span className="px-2 py-0.5 rounded-md border border-[#F59E0B]/35 bg-[#F59E0B]/12 text-[#FCD34D] text-[10px] font-bold uppercase tracking-wider">{isVi ? 'Giảng viên' : 'Lecturer'}</span>
           </button>
         </div>
 
         <div className="flex items-center gap-2">
+          <LanguageSwitcher compact />
           {/* AI Insights */}
           <button onClick={() => setShowAI(o => !o)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${showAI ? 'bg-[#22C55E]/20 text-[#6EE7B7] border border-[#F59E0B]/35 shadow-[0_10px_22px_rgba(34,197,94,0.16)]' : 'bg-[#162032] text-slate-400 border border-[#3A3317] hover:text-[#6EE7B7] hover:border-[#F59E0B]/35 hover:shadow-[0_12px_24px_rgba(10,15,26,0.5)]'}`}>
-            <Sparkles size={13} />AI Insights
+            <Sparkles size={13} />{isVi ? 'Phân tích AI' : 'AI insights'}
           </button>
 
           {/* Notifications */}
@@ -580,13 +595,13 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
                 <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
                   className="absolute right-0 top-full mt-2 w-80 bg-[#0F1A2A] rounded-xl border border-[#F59E0B]/15 shadow-2xl overflow-hidden z-50">
                   <div className="p-3 border-b border-[#F59E0B]/15 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-white">Notifications</h3>
+                    <h3 className="text-sm font-bold text-white">{isVi ? 'Thông báo' : 'Notifications'}</h3>
                     <button onClick={handleMarkAllRead}
-                      className="text-[11px] text-[#22C55E] hover:underline">Mark all read</button>
+                      className="text-[11px] text-[#22C55E] hover:underline">{isVi ? 'Đánh dấu đã đọc' : 'Mark all read'}</button>
                   </div>
                   <div className="max-h-72 overflow-y-auto">
                     {notifications.length === 0 ? (
-                      <p className="text-xs text-slate-500 text-center py-6">No notifications</p>
+                      <p className="text-xs text-slate-500 text-center py-6">{isVi ? 'Không có thông báo' : 'No notifications'}</p>
                     ) : (
                       notifications.map(n => (
                         <div key={n.id} className={`p-3 border-b border-[#162032] flex gap-2.5 ${!n.read ? 'bg-[#22C55E]/5' : ''}`}>
@@ -621,11 +636,11 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
                   className="absolute right-0 top-full mt-2 w-48 bg-[#0F1A2A] rounded-xl border border-[#F59E0B]/15 shadow-2xl overflow-hidden z-50">
                   <div className="p-3 border-b border-[#F59E0B]/15">
                     <p className="text-xs font-semibold text-white">{user?.name || 'Dr. Tran Van Minh'}</p>
-                    <p className="text-[11px] text-[#22C55E]">Lecturer</p>
+                    <p className="text-[11px] text-[#22C55E]">{isVi ? 'Giảng viên' : 'Lecturer'}</p>
                   </div>
                   <button onClick={async () => { await authLogout(); onNavigate?.('login'); }}
                     className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-slate-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200">
-                    <LogOut size={14} />Sign out
+                    <LogOut size={14} />{isVi ? 'Đăng xuất' : 'Sign out'}
                   </button>
                 </motion.div>
               )}
@@ -653,9 +668,9 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
         <main className="flex-1 overflow-hidden flex flex-col">
           {/* Breadcrumb */}
           <div className="px-6 py-3 border-b border-[#F59E0B]/15 bg-[#0F1A2A] flex items-center gap-2 flex-shrink-0">
-            <button onClick={() => handleNavSidebar('overview', null)} className="text-xs text-slate-500 hover:text-[#6EE7B7] transition-colors duration-200">Dashboard</button>
+            <button onClick={() => handleNavSidebar('overview', null)} className="text-xs text-slate-500 hover:text-[#6EE7B7] transition-colors duration-200">{isVi ? 'Tổng quan' : 'Overview'}</button>
             {view === 'groups' && (
-              <><span className="text-slate-700 text-xs">/</span><span className="text-xs text-[#22C55E] font-medium">Student Groups</span></>
+              <><span className="text-slate-700 text-xs">/</span><span className="text-xs text-[#22C55E] font-medium">{isVi ? 'Nhóm sinh viên' : 'Student groups'}</span></>
             )}
             {view === 'group-detail' && selectedGroup && (
               <>
@@ -666,7 +681,7 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
               </>
             )}
             {view === 'deadlines' && (
-              <><span className="text-slate-700 text-xs">/</span><span className="text-xs text-[#22C55E] font-medium">Deadlines</span></>
+              <><span className="text-slate-700 text-xs">/</span><span className="text-xs text-[#22C55E] font-medium">{isVi ? 'Hạn nộp' : 'Deadlines'}</span></>
             )}
             {view === 'overview' && activeClass && (
               <><span className="text-slate-700 text-xs">/</span><span className="text-xs text-[#22C55E] font-medium">{activeClass}</span></>

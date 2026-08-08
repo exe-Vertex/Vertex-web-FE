@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { LogOut } from 'lucide-react';
 import { Button } from '../../ui/Button';
+import { useLang } from '../../../contexts/LanguageContext';
 
 // Sign Out Confirmation Dialog
 export const SignOutConfirmDialog: React.FC<{
@@ -9,6 +10,8 @@ export const SignOutConfirmDialog: React.FC<{
   onClose: () => void;
   onConfirm: () => void;
 }> = ({ isOpen, onClose, onConfirm }) => {
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   if (!isOpen) return null;
 
   return (
@@ -21,20 +24,20 @@ export const SignOutConfirmDialog: React.FC<{
       >
         <div className="px-6 py-5 border-b border-[#22C55E]/10">
           <h3 className="font-bold text-white flex items-center gap-2">
-            <LogOut size={18} className="text-red-400" /> Sign Out
+            <LogOut size={18} className="text-red-400" /> {isVi ? 'Đăng xuất' : 'Sign Out'}
           </h3>
         </div>
         <div className="p-6">
           <p className="text-slate-300 text-sm mb-6">
-            Are you sure you want to sign out? Your unsaved changes will be preserved locally, but you'll need to sign in again to continue.
+            {isVi ? 'Bạn có chắc muốn đăng xuất? Các thay đổi chưa lưu vẫn được giữ trên thiết bị, nhưng bạn cần đăng nhập lại để tiếp tục.' : "Are you sure you want to sign out? Your unsaved changes will be preserved locally, but you'll need to sign in again to continue."}
           </p>
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={onClose}>{isVi ? 'Hủy' : 'Cancel'}</Button>
             <button
               onClick={onConfirm}
               className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 font-medium text-sm transition-colors"
             >
-              Sign Out
+              {isVi ? 'Đăng xuất' : 'Sign Out'}
             </button>
           </div>
         </div>

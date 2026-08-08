@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { User } from '../../types';
 import { X, UserPlus, Star, User as UserIcon, Link as LinkIcon, Copy, Share2 } from 'lucide-react';
 import { SKILL_SUGGESTIONS, SKILL_CATEGORIES } from '../../data/skillSuggestions';
+import { useLang } from '../../contexts/LanguageContext';
 
 const users: User[] = [];
 
@@ -48,6 +49,14 @@ const makeProjectCode = (projectId: string, projectName: string) => {
 export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, projectName, members, onAddMember, onRemoveMember, onInvite, onUpdateMember }) => {
   const [projectMembers, setProjectMembers] = useState<TeamMember[]>([]);
   const [available, setAvailable] = useState<User[]>([]);
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
+  const roleLabels: Record<TeamRole, string> = {
+    Leader: isVi ? 'Trưởng nhóm' : 'Leader',
+    Member: isVi ? 'Thành viên' : 'Member',
+    Guest: isVi ? 'Khách' : 'Guest',
+  };
+
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<TeamRole>('Member');
   const [copiedHint, setCopiedHint] = useState(false);
@@ -116,10 +125,12 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
   };
 
   const handleShare = async () => {
-    const shareText = `Join my project ${projectName} with code ${projectCode} or link ${joinLink}`;
+    const shareText = isVi
+      ? `Tham gia dự án ${projectName} bằng mã ${projectCode} hoặc liên kết ${joinLink}`
+      : `Join project ${projectName} with code ${projectCode} or link ${joinLink}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: `Join ${projectName}`, text: shareText, url: joinLink });
+        await navigator.share({ title: isVi ? `Tham gia ${projectName}` : `Join ${projectName}`, text: shareText, url: joinLink });
         return;
       }
       await copyValue(shareText, true);
@@ -184,9 +195,9 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
         {/* Header */}
         <div className="px-6 py-4 border-b border-[#22C55E]/10 flex items-center justify-between">
           <div>
-            <h3 className="font-bold text-lg text-white">Invite Members</h3>
+            <h3 className="font-bold text-lg text-white">{isVi ? 'Mời thành viên' : 'Invite members'}</h3>
             <p className="text-sm text-slate-400 mt-0.5">{projectName}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{projectMembers.length} member{projectMembers.length !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{projectMembers.length} {isVi ? 'thành viên' : 'members'}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-[#162032] flex items-center justify-center text-slate-400 hover:text-white transition-colors">
             <X size={18} />
@@ -196,13 +207,13 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
         {/* Invite section */}
         <div className="px-6 py-4 border-b border-[#22C55E]/5 bg-[#162032]/30 space-y-4">
           <div>
-            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Project Code</p>
+            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">{isVi ? 'Mã dự án' : 'Project code'}</p>
             <div className="rounded-xl border border-[#22C55E]/15 bg-[#0A0F1A] p-3">
               <div className="flex items-center gap-2 justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-white tracking-wide">{projectCode}</p>
                   <p className="text-[11px] text-slate-500 mt-0.5 truncate">{joinLink}</p>
-                  <p className="text-[10px] text-slate-600 mt-1">Join by code defaults to Member role.</p>
+                  <p className="text-[10px] text-slate-600 mt-1">{isVi ? 'Người tham gia bằng mã sẽ có vai trò Thành viên.' : 'People joining by code will receive the Member role.'}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -210,30 +221,30 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#22C55E]/20 text-xs font-semibold text-[#6EE7B7] hover:bg-[#162032]"
                   >
                     <Copy size={12} />
-                    Copy
+                    {isVi ? 'Sao chép' : 'Copy'}
                   </button>
                   <button
                     onClick={handleShare}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#22C55E]/20 text-xs font-semibold text-[#6EE7B7] hover:bg-[#162032]"
                   >
                     <Share2 size={12} />
-                    Share
+                    {isVi ? 'Chia sẻ' : 'Share'}
                   </button>
                 </div>
               </div>
               {copiedHint && (
                 <div className="mt-2 rounded-lg bg-[#22C55E]/10 border border-[#22C55E]/20 px-2.5 py-1.5">
-                  <p className="text-[11px] text-[#6EE7B7] font-medium">Copied! Share with your team</p>
+                  <p className="text-[11px] text-[#6EE7B7] font-medium">{isVi ? 'Đã sao chép! Hãy chia sẻ với nhóm' : 'Copied! Share it with your team'}</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="text-center text-[10px] uppercase tracking-widest text-slate-600">or</div>
+          <div className="text-center text-[10px] uppercase tracking-widest text-slate-600">{isVi ? 'hoặc' : 'or'}</div>
 
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
             <div className="sm:col-span-3">
-              <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Invite by email</p>
+              <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">{isVi ? 'Mời bằng email' : 'Invite by email'}</p>
               <div className="relative">
                 <LinkIcon size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
@@ -246,14 +257,14 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
               </div>
             </div>
             <div className="sm:col-span-1">
-              <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Role</p>
+              <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">{isVi ? 'Vai trò' : 'Role'}</p>
               <select
                 value={inviteRole}
                 onChange={e => setInviteRole(e.target.value as TeamRole)}
                 className="w-full px-3 py-2 rounded-lg bg-[#0A0F1A] border border-[#22C55E]/10 text-sm text-white outline-none focus:border-[#22C55E]"
               >
-                <option>Member</option>
-                <option>Guest</option>
+                <option value="Member">{roleLabels.Member}</option>
+                <option value="Guest">{roleLabels.Guest}</option>
               </select>
             </div>
             <div className="sm:col-span-1 flex items-end">
@@ -263,7 +274,7 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                 className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-[#22C55E] text-white text-sm font-medium hover:bg-[#16A34A] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <UserPlus size={14} />
-                Send Invite
+                {isVi ? 'Gửi lời mời' : 'Invite'}
               </button>
             </div>
           </div>
@@ -284,15 +295,15 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                     <span className="text-sm font-medium text-white truncate">{m.name}</span>
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${rc.color}`}>
                       {rc.icon}
-                      {m.teamRole}
+                      {roleLabels[m.teamRole]}
                     </span>
                   </div>
-                  <label className="mt-1 block text-[10px] uppercase tracking-wide text-slate-500">Project skills</label>
+                  <label className="mt-1 block text-[10px] uppercase tracking-wide text-slate-500">{isVi ? 'Kỹ năng trong dự án' : 'Project skills'}</label>
                   <div className="flex items-center gap-2 mt-1">
                     <input
                       type="text"
                       value={m.projectSkills || ''}
-                      placeholder="e.g. UI Design, React, Backend"
+                      placeholder={isVi ? 'Ví dụ: Thiết kế UI, React, Backend' : 'Example: UI Design, React, Backend'}
                       onChange={e => handleSkillsChange(m.id, e.target.value)}
                       onBlur={() => handleSkillsSave(m.id)}
                       onKeyDown={e => {
@@ -310,7 +321,7 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                           : 'bg-[#162032] border-[#22C55E]/10 text-slate-300 hover:text-white hover:border-[#22C55E]/30'
                       }`}
                     >
-                      {editingSkillsFor === m.id ? 'Done' : 'Select'}
+                      {editingSkillsFor === m.id ? (isVi ? 'Xong' : 'Done') : (isVi ? 'Chọn' : 'Select')}
                     </button>
                   </div>
 
@@ -347,7 +358,7 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   {m.teamRole === 'Leader' ? (
                     <span className="px-2 py-1 rounded-lg text-xs bg-[#0A0F1A] border border-[#EAB308]/20 text-[#EAB308]">
-                      Project creator
+                      {isVi ? 'Người tạo dự án' : 'Project creator'}
                     </span>
                   ) : (
                     <select
@@ -355,15 +366,15 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                       onChange={e => changeRole(m.id, e.target.value as TeamRole)}
                       className="px-2 py-1 rounded-lg text-xs bg-[#0A0F1A] border border-[#22C55E]/10 text-slate-300 outline-none focus:border-[#22C55E]"
                     >
-                      <option>Member</option>
-                      <option>Guest</option>
+                      <option value="Member">{roleLabels.Member}</option>
+                      <option value="Guest">{roleLabels.Guest}</option>
                     </select>
                   )}
                   <button
                     onClick={() => handleRemove(m.id)}
                     className="text-xs text-red-400/70 hover:text-red-400 transition-colors px-2 py-1"
                   >
-                    Remove
+                    {isVi ? 'Xóa' : 'Remove'}
                   </button>
                 </div>
               </div>

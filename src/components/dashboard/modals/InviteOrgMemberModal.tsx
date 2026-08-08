@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, UserPlus, Shield, ShieldCheck, Users, GraduationCap } from 'lucide-react';
+import { useLang } from '../../../contexts/LanguageContext';
 
 interface InviteOrgMemberModalProps {
   isOpen: boolean;
@@ -10,10 +11,10 @@ interface InviteOrgMemberModalProps {
   orgName?: string;
 }
 
-const ROLES = [
-  { value: 'member', label: 'Member', icon: Users, description: 'Can view and edit assigned tasks', color: 'text-slate-300' },
-  { value: 'lecturer', label: 'Lecturer', icon: GraduationCap, description: 'Can manage projects and review work', color: 'text-orange-400' },
-  { value: 'admin', label: 'Admin', icon: Shield, description: 'Full management access except ownership', color: 'text-blue-400' },
+const getRoles = (isVi: boolean) => [
+  { value: 'member', label: isVi ? 'Thành viên' : 'Member', icon: Users, description: isVi ? 'Có thể xem và chỉnh sửa công việc được giao' : 'Can view and edit assigned tasks', color: 'text-slate-300' },
+  { value: 'lecturer', label: isVi ? 'Giảng viên' : 'Lecturer', icon: GraduationCap, description: isVi ? 'Có thể quản lý dự án và duyệt công việc' : 'Can manage projects and review work', color: 'text-orange-400' },
+  { value: 'admin', label: isVi ? 'Quản trị viên' : 'Admin', icon: Shield, description: isVi ? 'Có toàn quyền quản lý, trừ quyền sở hữu' : 'Full management access except ownership', color: 'text-blue-400' },
 ] as const;
 
 export const InviteOrgMemberModal: React.FC<InviteOrgMemberModalProps> = ({
@@ -23,6 +24,8 @@ export const InviteOrgMemberModal: React.FC<InviteOrgMemberModalProps> = ({
   loading = false,
   orgName = 'organization',
 }) => {
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('member');
 
@@ -63,8 +66,8 @@ export const InviteOrgMemberModal: React.FC<InviteOrgMemberModalProps> = ({
                   <UserPlus size={18} className="text-[#22C55E]" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg text-white">Invite Member</h3>
-                  <p className="text-xs text-slate-500">Add someone to {orgName}</p>
+                  <h3 className="font-bold text-lg text-white">{isVi ? 'Mời thành viên' : 'Invite Member'}</h3>
+                  <p className="text-xs text-slate-500">{isVi ? 'Thêm thành viên vào' : 'Add someone to'} {orgName}</p>
                 </div>
               </div>
               <button
@@ -79,7 +82,7 @@ export const InviteOrgMemberModal: React.FC<InviteOrgMemberModalProps> = ({
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-300">
-                  Email Address <span className="text-red-400">*</span>
+                  {isVi ? 'Địa chỉ email' : 'Email Address'} <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="email"
@@ -90,14 +93,14 @@ export const InviteOrgMemberModal: React.FC<InviteOrgMemberModalProps> = ({
                   className="w-full rounded-xl border border-[#22C55E]/10 bg-[#162032] px-4 py-2.5 text-sm text-white outline-none focus:border-[#22C55E]/35 focus:ring-1 focus:ring-[#22C55E]/30 placeholder-slate-500"
                 />
                 <p className="text-xs text-slate-500">
-                  The user must have a Vertex account to be invited.
+                  {isVi ? 'Người được mời cần có tài khoản Vertex.' : 'The user must have a Vertex account to be invited.'}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Role</label>
+                <label className="text-sm font-medium text-slate-300">{isVi ? 'Vai trò' : 'Role'}</label>
                 <div className="space-y-2">
-                  {ROLES.map((r) => {
+                  {getRoles(isVi).map((r) => {
                     const Icon = r.icon;
                     const isSelected = role === r.value;
                     return (
@@ -142,14 +145,14 @@ export const InviteOrgMemberModal: React.FC<InviteOrgMemberModalProps> = ({
                   onClick={handleClose}
                   className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-[#162032] transition-colors"
                 >
-                  Cancel
+                  {isVi ? 'Hủy' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={!email.trim() || loading}
                   className="px-5 py-2 rounded-lg bg-gradient-to-r from-[#22C55E] to-[#16A34A] text-white text-sm font-semibold shadow-lg shadow-green-500/20 hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Sending...' : 'Send Invite'}
+                  {loading ? (isVi ? 'Đang gửi...' : 'Sending...') : (isVi ? 'Gửi lời mời' : 'Send Invite')}
                 </button>
               </div>
             </form>

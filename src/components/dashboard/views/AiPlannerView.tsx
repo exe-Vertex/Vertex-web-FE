@@ -3,6 +3,7 @@ import { Button } from '../../ui/Button';
 import { WandSparkles, Sparkles, Trash2, Plus } from 'lucide-react';
 import { PlannerDifficulty, PlannerCategory, GeneratedPlanResponse, GeneratedPlanSubtask } from '../utils/dashboardTypes';
 import { User } from '../../../types';
+import { useLang } from '../../../contexts/LanguageContext';
 
 const MAX_PLANNER_WEEKS = 24;
 
@@ -19,6 +20,8 @@ export const AiPlannerView: React.FC<{
 }> = ({ plannerInput, setPlannerInput, generatedPlan, setGeneratedPlan, onGenerate, onRegenerate, onCreateBoard, hasExistingTasks = false, workspaceMembers }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [draftPlan, setDraftPlan] = useState<GeneratedPlanResponse | null>(null);
 
   const activePlan = isEditing ? draftPlan : generatedPlan;
@@ -50,12 +53,12 @@ export const AiPlannerView: React.FC<{
       return activePlan.risks;
     }
     const risks: string[] = [];
-    if (plannerInput.deadlineWeeks <= 3) risks.push('Short timeline may compress design and review quality.');
-    if (plannerInput.teamSize <= 2) risks.push('Small team size can create workload bottlenecks.');
-    if (plannerInput.difficulty === 'Hard') risks.push('Hard difficulty may require extra revision rounds.');
-    if (totalEstHours > 28) risks.push('Large estimated workload might cause deadline drift.');
+    if (plannerInput.deadlineWeeks <= 3) risks.push(isVi ? 'Thời gian ngắn có thể ảnh hưởng chất lượng thiết kế và duyệt.' : 'A short timeline may affect design and review quality.');
+    if (plannerInput.teamSize <= 2) risks.push(isVi ? 'Nhóm ít thành viên có thể gây quá tải công việc.' : 'A small team may face workload pressure.');
+    if (plannerInput.difficulty === 'Hard') risks.push(isVi ? 'Độ khó cao có thể cần thêm nhiều vòng chỉnh sửa.' : 'High difficulty may require additional revision rounds.');
+    if (totalEstHours > 28) risks.push(isVi ? 'Khối lượng ước tính lớn có thể khiến dự án trễ hạn.' : 'The estimated workload may delay the project.');
     return risks.slice(0, 3);
-  }, [activePlan, plannerInput.deadlineWeeks, plannerInput.teamSize, plannerInput.difficulty, totalEstHours]);
+  }, [activePlan, plannerInput.deadlineWeeks, plannerInput.teamSize, plannerInput.difficulty, totalEstHours, isVi]);
 
   const handleGenerate = async () => {
     if (isGenerating) return;
@@ -109,9 +112,9 @@ export const AiPlannerView: React.FC<{
         wi !== weekIndex ? step : {
           ...step,
           subtasks: [...step.subtasks, {
-            title: 'New Task',
-            description: 'Describe what needs to be done',
-            assignee: workspaceMembers[0]?.name || 'Unassigned',
+            title: isVi ? 'Công việc mới' : 'New task',
+            description: isVi ? 'Mô tả nội dung cần thực hiện' : 'Describe what needs to be done',
+            assignee: workspaceMembers[0]?.name || (isVi ? 'Chưa phân công' : 'Unassigned'),
             estHours: 4,
             priority: 'Medium' as const
           }]
@@ -147,10 +150,10 @@ export const AiPlannerView: React.FC<{
     <div className="flex-1 overflow-y-auto bg-[#0A0F1A] p-6">
       <div className="max-w-4xl mx-auto space-y-5">
         <div className="bg-[#0F1A2A] border border-[#22C55E]/12 rounded-2xl p-5">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><WandSparkles size={16} className="text-[#EAB308]" />AI Project Planner</h2>
+          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><WandSparkles size={16} className="text-[#EAB308]" />{isVi ? 'Lập kế hoạch dự án bằng AI' : 'AI project planner'}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="text-xs text-slate-400 mb-1.5 block">Describe your project</label>
+              <label className="text-xs text-slate-400 mb-1.5 block">{isVi ? 'Mô tả dự án' : 'Project description'}</label>
               <textarea
                 value={plannerInput.description}
                 onChange={(e) => setPlannerInput(prev => ({ ...prev, description: e.target.value }))}
@@ -158,17 +161,17 @@ export const AiPlannerView: React.FC<{
               />
             </div>
             <div className="md:col-span-2">
-              <label className="text-xs text-slate-400 mb-1.5 block">Project goal</label>
+              <label className="text-xs text-slate-400 mb-1.5 block">{isVi ? 'Mục tiêu dự án' : 'Project goal'}</label>
               <input
                 type="text"
                 value={plannerInput.projectGoal}
                 onChange={(e) => setPlannerInput(prev => ({ ...prev, projectGoal: e.target.value }))}
-                placeholder="Create an A1 poster for Tech Day 2026"
+                placeholder={isVi ? 'Tạo áp phích A1 cho Tech Day 2026' : 'Create an A1 poster for Tech Day 2026'}
                 className="w-full px-3 py-2 bg-[#162032] border border-[#22C55E]/15 rounded-lg text-sm text-white outline-none focus:border-[#22C55E]/40"
               />
             </div>
             <div>
-              <label className="text-xs text-slate-400 mb-1.5 block">Team members</label>
+              <label className="text-xs text-slate-400 mb-1.5 block">{isVi ? 'Thành viên nhóm' : 'Team members'}</label>
               <div className="grid grid-cols-5 gap-1.5">
                 {[1, 2, 3, 4, 6].map(value => (
                   <button
@@ -182,43 +185,43 @@ export const AiPlannerView: React.FC<{
               </div>
             </div>
             <div>
-              <label className="text-xs text-slate-400 mb-1.5 block">Deadline (weeks)</label>
+              <label className="text-xs text-slate-400 mb-1.5 block">{isVi ? 'Thời hạn (tuần)' : 'Deadline (weeks)'}</label>
               <input type="number" min={2} max={MAX_PLANNER_WEEKS}
                 value={plannerInput.deadlineWeeks}
                 onChange={(e) => setPlannerInput(prev => ({ ...prev, deadlineWeeks: Math.max(2, Math.min(MAX_PLANNER_WEEKS, Number(e.target.value) || 2)) }))}
                 className="w-full px-3 py-2 bg-[#162032] border border-[#22C55E]/15 rounded-lg text-sm text-white outline-none focus:border-[#22C55E]/40" />
-              <p className="mt-1 text-[11px] text-slate-500">Supports up to {MAX_PLANNER_WEEKS} weeks.</p>
+              <p className="mt-1 text-[11px] text-slate-500">{isVi ? 'Hỗ trợ tối đa' : 'Supports up to'} {MAX_PLANNER_WEEKS} {isVi ? 'tuần.' : 'weeks.'}</p>
             </div>
             <div>
-              <label className="text-xs text-slate-400 mb-1.5 block">Difficulty</label>
+              <label className="text-xs text-slate-400 mb-1.5 block">{isVi ? 'Độ khó' : 'Difficulty'}</label>
               <select
                 value={plannerInput.difficulty}
                 onChange={(e) => setPlannerInput(prev => ({ ...prev, difficulty: e.target.value as PlannerDifficulty }))}
                 className="w-full px-3 py-2 bg-[#162032] border border-[#22C55E]/15 rounded-lg text-sm text-white outline-none focus:border-[#22C55E]/40 cursor-pointer">
-                <option className="bg-[#162032] text-white">Easy</option>
-                <option className="bg-[#162032] text-white">Medium</option>
-                <option className="bg-[#162032] text-white">Hard</option>
+                <option value="Easy" className="bg-[#162032] text-white">{isVi ? 'Dễ' : 'Easy'}</option>
+                <option value="Medium" className="bg-[#162032] text-white">{isVi ? 'Trung bình' : 'Medium'}</option>
+                <option value="Hard" className="bg-[#162032] text-white">{isVi ? 'Khó' : 'Hard'}</option>
               </select>
             </div>
             <div>
-              <label className="text-xs text-slate-400 mb-1.5 block">Project type</label>
+              <label className="text-xs text-slate-400 mb-1.5 block">{isVi ? 'Loại dự án' : 'Project type'}</label>
               <select
                 value={plannerInput.category}
                 onChange={(e) => setPlannerInput(prev => ({ ...prev, category: e.target.value as PlannerCategory }))}
                 className="w-full px-3 py-2 bg-[#162032] border border-[#22C55E]/15 rounded-lg text-sm text-white outline-none focus:border-[#22C55E]/40 cursor-pointer">
-                <option className="bg-[#162032] text-white">Auto detect</option>
-                <option className="bg-[#162032] text-white">Design</option>
-                <option className="bg-[#162032] text-white">Software</option>
-                <option className="bg-[#162032] text-white">Research</option>
-                <option className="bg-[#162032] text-white">Marketing</option>
-                <option className="bg-[#162032] text-white">Business</option>
-                <option className="bg-[#162032] text-white">Other</option>
+                <option value="Auto detect" className="bg-[#162032] text-white">{isVi ? 'Tự nhận diện' : 'Auto detect'}</option>
+                <option value="Design" className="bg-[#162032] text-white">{isVi ? 'Thiết kế' : 'Design'}</option>
+                <option value="Software" className="bg-[#162032] text-white">{isVi ? 'Phần mềm' : 'Software'}</option>
+                <option value="Research" className="bg-[#162032] text-white">{isVi ? 'Nghiên cứu' : 'Research'}</option>
+                <option value="Marketing" className="bg-[#162032] text-white">{isVi ? 'Tiếp thị' : 'Marketing'}</option>
+                <option value="Business" className="bg-[#162032] text-white">{isVi ? 'Kinh doanh' : 'Business'}</option>
+                <option value="Other" className="bg-[#162032] text-white">{isVi ? 'Khác' : 'Other'}</option>
               </select>
             </div>
           </div>
           <div className="mt-4">
             <Button icon={<Sparkles size={14} />} onClick={handleGenerate} disabled={isEditing}>
-              {isGenerating ? 'Generating plan...' : 'Generate Plan'}
+              {isGenerating ? (isVi ? 'Đang tạo kế hoạch...' : 'Generating plan...') : (isVi ? 'Tạo kế hoạch' : 'Generate plan')}
             </Button>
           </div>
         </div>
@@ -228,20 +231,20 @@ export const AiPlannerView: React.FC<{
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
                 <h3 className="text-white font-semibold flex items-center gap-2">
-                  AI Planning Result
+                  {isVi ? 'Kết quả lập kế hoạch AI' : 'AI planning result'}
                   {isEditing && (
                     <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/25 px-2 py-0.5 rounded-md font-semibold">
-                      Edit Mode
+                      {isVi ? 'Chế độ chỉnh sửa' : 'Edit mode'}
                     </span>
                   )}
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">Vertex turns your prompt and goal into tasks you can add to the current project board.</p>
+                <p className="text-xs text-slate-400 mt-1">{isVi ? 'Vertex chuyển yêu cầu và mục tiêu thành các công việc có thể thêm vào dự án hiện tại.' : 'Vertex turns requirements and goals into tasks that can be added to the current project.'}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
               <div className="bg-[#162032]/55 border border-[#22C55E]/8 rounded-xl p-4">
-                <h4 className="text-sm font-bold text-white mb-3">Project Timeline</h4>
+                <h4 className="text-sm font-bold text-white mb-3">{isVi ? 'Tiến trình dự án' : 'Project plan'}</h4>
                 <div className="space-y-4">
                   {activePlan.plan.map((step, weekIdx) => (
                     <div key={`${step.week}-${weekIdx}`} className="bg-[#0F1A2A]/70 border border-[#22C55E]/12 rounded-xl p-4 space-y-3">
@@ -254,13 +257,13 @@ export const AiPlannerView: React.FC<{
                               value={step.milestone}
                               onChange={(e) => updateDraftMilestone(weekIdx, e.target.value)}
                               className="w-full mt-1 px-2.5 py-1.5 bg-[#162032] border border-[#22C55E]/15 rounded-lg text-sm text-white outline-none focus:border-[#22C55E]/40"
-                              placeholder="Milestone title"
+                              placeholder={isVi ? 'Tên cột mốc' : 'Milestone name'}
                             />
                           ) : (
                             <h5 className="text-sm font-bold text-slate-100 mt-0.5">{step.milestone}</h5>
                           )}
                         </div>
-                        <span className="text-[11px] text-slate-500 font-mono self-start ml-2">Phase {weekIdx + 1}</span>
+                        <span className="text-[11px] text-slate-500 font-mono self-start ml-2">{isVi ? 'Giai đoạn' : 'Phase'} {weekIdx + 1}</span>
                       </div>
 
                       <div className="space-y-2.5">
@@ -274,12 +277,12 @@ export const AiPlannerView: React.FC<{
                                     value={sub.title}
                                     onChange={(e) => updateDraftSubtask(weekIdx, subIdx, { title: e.target.value })}
                                     className="flex-1 px-2.5 py-1 bg-[#101928] border border-[#22C55E]/15 rounded-md text-sm text-white outline-none focus:border-[#22C55E]/30"
-                                    placeholder="Task Title"
+                                    placeholder={isVi ? 'Tên công việc' : 'Task name'}
                                   />
                                   <button
                                     onClick={() => deleteDraftSubtask(weekIdx, subIdx)}
                                     className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
-                                    title="Delete task"
+                                    title={isVi ? 'Xóa công việc' : 'Delete task'}
                                   >
                                     <Trash2 size={14} />
                                   </button>
@@ -288,11 +291,11 @@ export const AiPlannerView: React.FC<{
                                   value={sub.description}
                                   onChange={(e) => updateDraftSubtask(weekIdx, subIdx, { description: e.target.value })}
                                   className="w-full min-h-12 px-2.5 py-1 bg-[#101928] border border-[#22C55E]/15 rounded-md text-xs text-slate-300 outline-none focus:border-[#22C55E]/30 resize-y"
-                                  placeholder="Task Description"
+                                  placeholder={isVi ? 'Mô tả công việc' : 'Task description'}
                                 />
                                 <div className="grid grid-cols-3 gap-2">
                                   <div>
-                                    <label className="text-[10px] text-slate-400 block mb-0.5">Assignee</label>
+                                    <label className="text-[10px] text-slate-400 block mb-0.5">{isVi ? 'Người thực hiện' : 'Assignee'}</label>
                                     <select
                                       value={sub.assignee}
                                       onChange={(e) => updateDraftSubtask(weekIdx, subIdx, { assignee: e.target.value })}
@@ -301,11 +304,11 @@ export const AiPlannerView: React.FC<{
                                       {workspaceMembers.map(m => (
                                         <option key={m.id} value={m.name}>{m.name}</option>
                                       ))}
-                                      <option value="Unassigned">Unassigned</option>
+                                      <option value="Unassigned">{isVi ? 'Chưa phân công' : 'Unassigned'}</option>
                                     </select>
                                   </div>
                                   <div>
-                                    <label className="text-[10px] text-slate-400 block mb-0.5">Hours</label>
+                                    <label className="text-[10px] text-slate-400 block mb-0.5">{isVi ? 'Số giờ' : 'Hours'}</label>
                                     <input
                                       type="number"
                                       value={sub.estHours}
@@ -315,15 +318,15 @@ export const AiPlannerView: React.FC<{
                                     />
                                   </div>
                                   <div>
-                                    <label className="text-[10px] text-slate-400 block mb-0.5">Priority</label>
+                                    <label className="text-[10px] text-slate-400 block mb-0.5">{isVi ? 'Độ ưu tiên' : 'Priority'}</label>
                                     <select
                                       value={sub.priority}
                                       onChange={(e) => updateDraftSubtask(weekIdx, subIdx, { priority: e.target.value as any })}
                                       className="w-full px-2 py-1 bg-[#101928] border border-[#22C55E]/15 rounded-md text-xs text-white outline-none cursor-pointer"
                                     >
-                                      <option value="High">High</option>
-                                      <option value="Medium">Medium</option>
-                                      <option value="Low">Low</option>
+                                      <option value="High">{isVi ? 'Cao' : 'High'}</option>
+                                      <option value="Medium">{isVi ? 'Trung bình' : 'Medium'}</option>
+                                      <option value="Low">{isVi ? 'Thấp' : 'Low'}</option>
                                     </select>
                                   </div>
                                 </div>
@@ -347,7 +350,7 @@ export const AiPlannerView: React.FC<{
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-1.5 mt-2 border-t border-[#22C55E]/5 pt-2">
-                                  <span className="text-[10px] text-slate-500">Assignee:</span>
+                                  <span className="text-[10px] text-slate-500">{isVi ? 'Người thực hiện:' : 'Assignee:'}</span>
                                   <span className="text-xs text-slate-300 font-medium">{sub.assignee}</span>
                                 </div>
                               </div>
@@ -356,7 +359,7 @@ export const AiPlannerView: React.FC<{
                         ))}
                         {step.subtasks.length === 0 && (
                           <div className="text-xs text-slate-500 italic py-2 text-center">
-                            No tasks for this week.
+                            {isVi ? 'Tuần này chưa có công việc.' : 'No tasks in this phase.'}
                           </div>
                         )}
                       </div>
@@ -366,7 +369,7 @@ export const AiPlannerView: React.FC<{
                           onClick={() => addDraftSubtask(weekIdx)}
                           className="w-full py-1.5 rounded-lg border border-dashed border-[#22C55E]/20 text-xs font-semibold text-[#6EE7B7] hover:bg-[#162032]/40 hover:border-[#22C55E]/45 transition-all flex items-center justify-center gap-1"
                         >
-                          <Plus size={12} /> Add Task
+                          <Plus size={12} /> {isVi ? 'Thêm công việc' : 'Add task'}
                         </button>
                       )}
                     </div>
@@ -376,26 +379,26 @@ export const AiPlannerView: React.FC<{
 
               <div className="space-y-4">
                 <div className="bg-[#162032]/55 border border-[#22C55E]/8 rounded-xl p-4">
-                  <h4 className="text-sm font-bold text-white mb-3">Task Assignments</h4>
+                  <h4 className="text-sm font-bold text-white mb-3">{isVi ? 'Phân công công việc' : 'Task assignments'}</h4>
                   <div className="space-y-2.5">
                     {assignmentCards.map(card => (
                       <div key={card.assignee} className="flex items-center justify-between gap-3 bg-[#0F1A2A]/70 border border-[#22C55E]/8 rounded-lg px-3 py-2.5">
                         <div>
                           <p className="text-sm font-semibold text-slate-100">{card.assignee}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{card.tasks.length} tasks</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{card.tasks.length} {isVi ? 'công việc' : 'tasks'}</p>
                           <p className="text-xs text-slate-500 mt-1 truncate max-w-[11rem]">{card.tasks.slice(0, 2).join(' / ')}</p>
                         </div>
-                        <span className="text-xs text-[#6EE7B7] font-medium text-right max-w-[12rem]">Primary ownership</span>
+                        <span className="text-xs text-[#6EE7B7] font-medium text-right max-w-[12rem]">{isVi ? 'Phụ trách chính' : 'Primary owner'}</span>
                       </div>
                     ))}
                     {assignmentCards.length === 0 && (
-                      <div className="text-xs text-slate-500 italic p-3 text-center">No assignments.</div>
+                      <div className="text-xs text-slate-500 italic p-3 text-center">{isVi ? 'Chưa có phân công.' : 'No assignments yet.'}</div>
                     )}
                   </div>
                 </div>
 
                 <div className="bg-[#162032]/55 border border-[#22C55E]/8 rounded-xl p-4">
-                  <h4 className="text-sm font-bold text-white mb-3">Estimated Workload</h4>
+                  <h4 className="text-sm font-bold text-white mb-3">{isVi ? 'Khối lượng ước tính' : 'Estimated workload'}</h4>
                   <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
                     {estimatedWorkload.map((sub, idx) => (
                       <div key={idx} className="flex items-center justify-between gap-3 bg-[#0F1A2A]/70 border border-[#22C55E]/8 rounded-lg px-3 py-2.5">
@@ -407,18 +410,18 @@ export const AiPlannerView: React.FC<{
                       </div>
                     ))}
                     {estimatedWorkload.length === 0 && (
-                      <div className="text-xs text-slate-500 italic p-3 text-center">No workload estimated.</div>
+                      <div className="text-xs text-slate-500 italic p-3 text-center">{isVi ? 'Chưa có khối lượng ước tính.' : 'No workload estimate yet.'}</div>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400 mt-3">Total estimated effort: <span className="text-slate-200 font-semibold">{totalEstHours}h</span></p>
+                  <p className="text-xs text-slate-400 mt-3">{isVi ? 'Tổng công sức ước tính:' : 'Total estimated effort:'} <span className="text-slate-200 font-semibold">{totalEstHours} {isVi ? 'giờ' : 'hours'}</span></p>
                 </div>
 
                 <div className="bg-[#162032]/55 border border-[#22C55E]/8 rounded-xl p-4">
-                  <h4 className="text-sm font-bold text-white mb-3">Potential Risks</h4>
+                  <h4 className="text-sm font-bold text-white mb-3">{isVi ? 'Rủi ro tiềm ẩn' : 'Potential risks'}</h4>
                   <div className="space-y-2.5">
                     {potentialRisks.length === 0 ? (
                       <div className="bg-[#0F1A2A]/70 border border-[#22C55E]/8 rounded-lg px-3 py-2.5 text-xs text-slate-400">
-                        No major risks detected from current planner inputs.
+                        {isVi ? 'Không phát hiện rủi ro lớn từ thông tin hiện tại.' : 'No major risks detected from the current information.'}
                       </div>
                     ) : potentialRisks.map((risk, idx) => (
                       <div key={`${risk}_${idx}`} className="bg-[#0F1A2A]/70 border border-amber-500/20 rounded-lg px-3 py-2.5 text-xs text-amber-100">
@@ -434,17 +437,17 @@ export const AiPlannerView: React.FC<{
               <div className="flex flex-wrap gap-2">
                 {isEditing ? (
                   <>
-                    <Button variant="outline" size="sm" onClick={saveEditing}>Save Changes</Button>
-                    <Button variant="ghost" size="sm" onClick={cancelEditing}>Cancel</Button>
+                    <Button variant="outline" size="sm" onClick={saveEditing}>{isVi ? 'Lưu thay đổi' : 'Save changes'}</Button>
+                    <Button variant="ghost" size="sm" onClick={cancelEditing}>{isVi ? 'Hủy' : 'Cancel'}</Button>
                   </>
                 ) : (
                   <>
-                    <Button variant="outline" size="sm" onClick={startEditing}>Edit Plan</Button>
-                    <Button variant="ghost" size="sm" onClick={onRegenerate}>Regenerate</Button>
+                    <Button variant="outline" size="sm" onClick={startEditing}>{isVi ? 'Chỉnh sửa kế hoạch' : 'Edit plan'}</Button>
+                    <Button variant="ghost" size="sm" onClick={onRegenerate}>{isVi ? 'Tạo lại' : 'Regenerate'}</Button>
                   </>
                 )}
               </div>
-              <Button size="sm" onClick={onCreateBoard} disabled={isEditing}>{hasExistingTasks ? 'Add Tasks to Board' : 'Create Initial Tasks'}</Button>
+              <Button size="sm" onClick={onCreateBoard} disabled={isEditing}>{hasExistingTasks ? (isVi ? 'Thêm vào bảng công việc' : 'Add to task board') : (isVi ? 'Tạo công việc ban đầu' : 'Create initial tasks')}</Button>
             </div>
           </div>
         )}

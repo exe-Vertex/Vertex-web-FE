@@ -8,6 +8,7 @@ import {
 import { GroupComment, LecturerGroup, LecturerTask, TaskStatus } from '../../../data/lecturerTypes';
 import { approveTask, requestChanges, addComment } from '../../../api/lecturer';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useLang } from '../../../contexts/LanguageContext';
 
 type Tab = 'overview' | 'tasks' | 'contributions' | 'timeline';
 
@@ -17,11 +18,11 @@ interface GroupDetailProps {
 }
 
 // Task status config
-const statusConfig: Record<TaskStatus, { label: string; color: string; dot: string }> = {
-  'todo':              { label: 'To Do',             color: 'border-slate-600/50 bg-[#162032]',               dot: 'bg-slate-600' },
-  'in-progress':       { label: 'In Progress',       color: 'border-blue-500/20  bg-blue-500/5',              dot: 'bg-blue-400'  },
-  'ready-for-review':  { label: 'Ready for Review',  color: 'border-[#F59E0B]/30 bg-[#22C55E]/5',             dot: 'bg-[#22C55E]' },
-  'approved':          { label: 'Approved',          color: 'border-amber-500/25 bg-green-500/5',             dot: 'bg-green-400' },
+const statusConfig: Record<TaskStatus, { labelVi: string; labelEn: string; color: string; dot: string }> = {
+  'todo': { labelVi: 'Cần làm', labelEn: 'To do', color: 'border-slate-600/50 bg-[#162032]', dot: 'bg-slate-600' },
+  'in-progress': { labelVi: 'Đang thực hiện', labelEn: 'In progress', color: 'border-blue-500/20  bg-blue-500/5', dot: 'bg-blue-400' },
+  'ready-for-review': { labelVi: 'Chờ duyệt', labelEn: 'Ready for review', color: 'border-[#F59E0B]/30 bg-[#22C55E]/5', dot: 'bg-[#22C55E]' },
+  'approved': { labelVi: 'Đã duyệt', labelEn: 'Approved', color: 'border-amber-500/25 bg-green-500/5', dot: 'bg-green-400' },
 };
 
 const priorityColors: Record<string, string> = {
@@ -65,21 +66,22 @@ const buildMemberContributions = (tasks: LecturerTask[]): MemberContribution[] =
     .sort((left, right) => right.completion - left.completion);
 };
 
-const getContributionNote = (member: MemberContribution): string => {
-  if (member.completion >= 80) return 'Strong contributor. Keep assigning delivery-critical tasks.';
-  if (member.inReview > 0) return 'Has work under review. Follow up for closure after feedback.';
-  if (member.inProgress > 0) return 'Active but not finalized. Ask for blockers in next check-in.';
-  return 'Low visible progress. Rebalance tasks or set a focused short-term target.';
+const getContributionNote = (member: MemberContribution, isVi: boolean): string => {
+  if (member.completion >= 80) return isVi ? 'Đóng góp tốt. Có thể tiếp tục giao các công việc quan trọng.' : 'Strong contribution. This member can continue handling important tasks.';
+  if (member.inReview > 0) return isVi ? 'Có công việc đang chờ duyệt. Cần theo dõi sau khi phản hồi.' : 'Some work is awaiting review. Follow up after feedback.';
+  if (member.inProgress > 0) return isVi ? 'Đang làm nhưng chưa hoàn tất. Hãy hỏi về trở ngại trong lần trao đổi tới.' : 'Work is in progress but incomplete. Ask about blockers at the next check-in.';
+  return isVi ? 'Tiến độ còn thấp. Nên cân bằng lại công việc hoặc đặt mục tiêu ngắn hạn.' : 'Progress is low. Rebalance work or set a short-term goal.';
 };
 
 // Kanban task card
 const KanbanCard: React.FC<{
   task: LecturerTask;
   isSelected?: boolean;
+  isVi: boolean;
   onOpen?: (task: LecturerTask) => void;
   onApprove?: (id: string) => void;
   onRequestChanges?: (id: string) => void;
-}> = ({ task, isSelected, onOpen, onApprove, onRequestChanges }) => (
+}> = ({ task, isVi, isSelected, onOpen, onApprove, onRequestChanges }) => (
   <div
     role="button"
     tabIndex={0}
@@ -92,7 +94,7 @@ const KanbanCard: React.FC<{
     <div className="flex items-start justify-between gap-2 mb-2">
       <p className="text-xs font-medium text-white leading-snug">{task.title}</p>
       <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${priorityColors[task.priority]}`}>
-        {task.priority}
+        {task.priority === 'high' ? (isVi ? 'Cao' : 'High') : task.priority === 'medium' ? (isVi ? 'Trung bình' : 'Medium') : (isVi ? 'Thấp' : 'Low')}
       </span>
     </div>
     <div className="flex items-center justify-between text-[10px] text-slate-500">
@@ -109,11 +111,11 @@ const KanbanCard: React.FC<{
       <div className="flex gap-1.5 mt-2.5 pt-2.5 border-t border-[#F59E0B]/15">
         <button type="button" onClick={(event) => { event.stopPropagation(); onApprove?.(task.id); }}
           className="flex-1 flex items-center justify-center gap-1 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-300 text-[10px] font-semibold rounded-md border border-amber-500/30 hover:border-amber-400/40 hover:shadow-[0_10px_22px_rgba(34,197,94,0.18)] transition-all duration-200">
-          <CheckCheck size={10} />Approve
+          <CheckCheck size={10} />{isVi ? 'Phê duyệt' : 'Approve'}
         </button>
         <button type="button" onClick={(event) => { event.stopPropagation(); onRequestChanges?.(task.id); }}
           className="flex-1 flex items-center justify-center gap-1 py-1 bg-[#22C55E]/10 hover:bg-[#22C55E]/20 text-[#6EE7B7] text-[10px] font-semibold rounded-md border border-[#F59E0B]/30 hover:border-[#FCD34D]/45 hover:shadow-[0_10px_22px_rgba(34,197,94,0.18)] transition-all duration-200">
-          <RotateCcw size={10} />Request Changes
+          <RotateCcw size={10} />{isVi ? 'Yêu cầu sửa' : 'Request changes'}
         </button>
       </div>
     )}
@@ -123,26 +125,28 @@ const KanbanColumn: React.FC<{
   status: TaskStatus;
   tasks: LecturerTask[];
   selectedTaskId?: string | null;
+  isVi: boolean;
   onOpenTask: (task: LecturerTask) => void;
   onApprove: (id: string) => void;
   onRequestChanges: (id: string) => void;
-}> = ({ status, tasks, selectedTaskId, onOpenTask, onApprove, onRequestChanges }) => (
+}> = ({ status, tasks, isVi, selectedTaskId, onOpenTask, onApprove, onRequestChanges }) => (
   <div className="flex flex-col min-w-[200px] flex-1">
     <div className="flex items-center gap-2 mb-3">
       <div className={`w-2 h-2 rounded-full ${statusConfig[status].dot}`} />
-      <span className="text-xs font-semibold text-slate-300">{statusConfig[status].label}</span>
+      <span className="text-xs font-semibold text-slate-300">{isVi ? statusConfig[status].labelVi : statusConfig[status].labelEn}</span>
       <span className="ml-auto text-[10px] text-slate-600 bg-[#162032] px-1.5 py-0.5 rounded-full">{tasks.length}</span>
     </div>
     <div className="flex-1 min-h-20">
       {tasks.length === 0 ? (
         <div className="border border-dashed border-slate-700 rounded-lg p-3 text-center">
-          <p className="text-[10px] text-slate-700">No tasks</p>
+          <p className="text-[10px] text-slate-700">{isVi ? 'Không có công việc' : 'No tasks'}</p>
         </div>
       ) : (
         tasks.map(task => (
           <KanbanCard
             key={task.id}
             task={task}
+            isVi={isVi}
             isSelected={task.id === selectedTaskId}
             onOpen={onOpenTask}
             onApprove={onApprove}
@@ -153,10 +157,10 @@ const KanbanColumn: React.FC<{
     </div>
   </div>
 );
-const OverviewTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
+const OverviewTab: React.FC<{ group: LecturerGroup; isVi: boolean }> = ({ group, isVi }) => (
   <div className="p-6 space-y-5">
     <div className="bg-[#0F1A2A] rounded-xl p-4 border border-[#3A3317]">
-      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Project Description</h4>
+      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{isVi ? 'Mô tả dự án' : 'Project description'}</h4>
       <p className="text-sm text-slate-300 leading-relaxed">{group.description}</p>
     </div>
 
@@ -164,7 +168,7 @@ const OverviewTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
       {/* Members */}
       <div className="bg-[#0F1A2A] rounded-xl p-4 border border-[#3A3317]">
         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <Users size={11} />Members ({group.members})
+          <Users size={11} />{isVi ? 'Thành viên' : 'Members'} ({group.members})
         </h4>
         <div className="space-y-2">
           {group.avatarInitials.map((init, i) => (
@@ -173,8 +177,8 @@ const OverviewTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
                 {init[0]}
               </div>
               <div>
-                <p className="text-xs font-medium text-white">Student {init}</p>
-                <p className="text-[10px] text-slate-500">Member</p>
+                <p className="text-xs font-medium text-white">{isVi ? 'Sinh viên' : 'Student'} {init}</p>
+                <p className="text-[10px] text-slate-500">{isVi ? 'Thành viên' : 'Member'}</p>
               </div>
             </div>
           ))}
@@ -184,11 +188,11 @@ const OverviewTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
       {/* Progress */}
       <div className="bg-[#0F1A2A] rounded-xl p-4 border border-[#3A3317] space-y-3">
         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-          <CheckCircle size={11} />Progress
+          <CheckCircle size={11} />{isVi ? 'Tiến độ' : 'Progress'}
         </h4>
         <div>
           <div className="flex justify-between mb-1.5">
-            <span className="text-xs text-slate-400">Overall</span>
+            <span className="text-xs text-slate-400">{isVi ? 'Tổng thể' : 'Overall'}</span>
             <span className="text-xs font-bold text-white">{group.progress}%</span>
           </div>
           <div className="h-2 bg-[#162032] rounded-full overflow-hidden">
@@ -198,19 +202,19 @@ const OverviewTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
         </div>
         <div className="pt-2 border-t border-[#162032] grid grid-cols-2 gap-2 text-xs">
           <div>
-            <p className="text-slate-600 text-[10px]">Approved</p>
+            <p className="text-slate-600 text-[10px]">{isVi ? 'Đã duyệt' : 'Approved'}</p>
             <p className="text-green-400 font-semibold">{group.tasks.filter(t => t.status === 'approved').length}</p>
           </div>
           <div>
-            <p className="text-slate-600 text-[10px]">In Review</p>
+            <p className="text-slate-600 text-[10px]">{isVi ? 'Chờ duyệt' : 'In review'}</p>
             <p className="text-amber-400 font-semibold">{group.tasks.filter(t => t.status === 'ready-for-review').length}</p>
           </div>
           <div>
-            <p className="text-slate-600 text-[10px]">In Progress</p>
+            <p className="text-slate-600 text-[10px]">{isVi ? 'Đang thực hiện' : 'In progress'}</p>
             <p className="text-blue-400 font-semibold">{group.tasks.filter(t => t.status === 'in-progress').length}</p>
           </div>
           <div>
-            <p className="text-slate-600 text-[10px]">To Do</p>
+            <p className="text-slate-600 text-[10px]">{isVi ? 'Cần làm' : 'To do'}</p>
             <p className="text-slate-400 font-semibold">{group.tasks.filter(t => t.status === 'todo').length}</p>
           </div>
         </div>
@@ -223,11 +227,11 @@ const OverviewTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
         <Calendar size={16} className="text-[#22C55E]" />
       </div>
       <div>
-        <p className="text-xs text-slate-500">Submission Deadline</p>
+        <p className="text-xs text-slate-500">{isVi ? 'Hạn nộp' : 'Deadline'}</p>
         <p className="text-sm font-bold text-white">{group.deadline}</p>
       </div>
       {group.reviewStatus === 'overdue' && (
-        <span className="ml-auto flex items-center gap-1 text-xs text-red-400 font-semibold"><AlertTriangle size={12} />Overdue</span>
+        <span className="ml-auto flex items-center gap-1 text-xs text-red-400 font-semibold"><AlertTriangle size={12} />{isVi ? 'Quá hạn' : 'Overdue'}</span>
       )}
     </div>
   </div>
@@ -247,6 +251,8 @@ const TasksTab: React.FC<{
 }> = ({ tasks, selectedTask, selectedTaskId, taskComments, reviewHint, onSelectTask, onAddComment, onApprove, onRequestChanges }) => {
   const [newComment, setNewComment] = useState('');
 
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const handleSend = () => {
     if (!selectedTask || !newComment.trim()) return;
     onAddComment(selectedTask.id, newComment.trim());
@@ -258,12 +264,12 @@ const TasksTab: React.FC<{
   return (
     <div className="p-6">
       <div className="flex items-center gap-2 mb-4">
-        <span className="text-xs text-slate-500 bg-[#22C55E]/10 border border-[#F59E0B]/30 px-2 py-1 rounded-lg text-[#22C55E] font-medium">Select a task to review details, status, and task-specific feedback</span>
+        <span className="text-xs text-slate-500 bg-[#22C55E]/10 border border-[#F59E0B]/30 px-2 py-1 rounded-lg text-[#22C55E] font-medium">{isVi ? 'Chọn công việc để xem chi tiết, trạng thái và phản hồi' : 'Select a task to view details, status, and feedback'}</span>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4">
         <div className="flex gap-4 overflow-x-auto pb-4">
           {columns.map(status => (
-            <KanbanColumn key={status} status={status}
+            <KanbanColumn key={status} status={status} isVi={isVi}
               tasks={tasks.filter(t => t.status === status)}
               selectedTaskId={selectedTaskId}
               onOpenTask={onSelectTask}
@@ -278,7 +284,7 @@ const TasksTab: React.FC<{
             <>
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-slate-500">Selected task</p>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500">{isVi ? 'Công việc đã chọn' : 'Selected task'}</p>
                   <h3 className="mt-1 text-sm font-bold text-white leading-snug">{selectedTask.title}</h3>
                 </div>
                 <span className={`text-[9px] font-semibold px-2 py-1 rounded-full border flex-shrink-0 ${priorityColors[selectedTask.priority]}`}>
@@ -289,32 +295,32 @@ const TasksTab: React.FC<{
               <div className="space-y-3 border-b border-[#F59E0B]/15 pb-4">
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
-                    <p className="text-[10px] text-slate-500">Status</p>
-                    <p className="mt-0.5 font-semibold text-[#6EE7B7]">{statusConfig[selectedTask.status].label}</p>
+                    <p className="text-[10px] text-slate-500">Trạng thái</p>
+                    <p className="mt-0.5 font-semibold text-[#6EE7B7]">{isVi ? statusConfig[selectedTask.status].labelVi : statusConfig[selectedTask.status].labelEn}</p>
                   </div>
                   <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
-                    <p className="text-[10px] text-slate-500">Assignee</p>
+                    <p className="text-[10px] text-slate-500">{isVi ? 'Người phụ trách' : 'Assignee'}</p>
                     <p className="mt-0.5 font-semibold text-white">{selectedTask.assignee}</p>
                   </div>
                   <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
-                    <p className="text-[10px] text-slate-500">Start</p>
+                    <p className="text-[10px] text-slate-500">{isVi ? 'Bắt đầu' : 'Start'}</p>
                     <p className="mt-0.5 font-semibold text-white">{selectedTask.startDate || '-'}</p>
                   </div>
                   <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
-                    <p className="text-[10px] text-slate-500">Deadline</p>
+                    <p className="text-[10px] text-slate-500">{isVi ? 'Hạn hoàn thành' : 'Due date'}</p>
                     <p className="mt-0.5 font-semibold text-white">{selectedTask.deadline}</p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Description</p>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{isVi ? 'Mô tả' : 'Description'}</p>
                   <p className="text-xs leading-relaxed text-slate-300">
-                    {selectedTask.description || 'No description provided.'}
+                    {selectedTask.description || (isVi ? 'Chưa có mô tả.' : 'No description.')}
                   </p>
                 </div>
 
                 <div className="rounded-lg border border-[#22C55E]/10 bg-[#162032]/70 p-2 text-xs text-slate-400">
-                  <p className="font-semibold text-slate-200">Review lifecycle</p>
+                  <p className="font-semibold text-slate-200">{isVi ? 'Quy trình duyệt' : 'Review workflow'}</p>
                   <p className="mt-1">{reviewHint}</p>
                 </div>
 
@@ -322,11 +328,11 @@ const TasksTab: React.FC<{
                   <div className="grid grid-cols-2 gap-2">
                     <button type="button" onClick={() => onApprove(selectedTask.id)}
                       className="flex items-center justify-center gap-1.5 py-2 bg-green-500/10 hover:bg-green-500/20 text-green-300 text-xs font-semibold rounded-lg border border-amber-500/30 transition-all duration-200">
-                      <CheckCheck size={12} />Approve
+                      <CheckCheck size={12} />{isVi ? 'Phê duyệt' : 'Approve'}
                     </button>
                     <button type="button" onClick={() => onRequestChanges(selectedTask.id)}
                       className="flex items-center justify-center gap-1.5 py-2 bg-[#22C55E]/10 hover:bg-[#22C55E]/20 text-[#6EE7B7] text-xs font-semibold rounded-lg border border-[#F59E0B]/30 transition-all duration-200">
-                      <RotateCcw size={12} />Changes
+                      <RotateCcw size={12} />{isVi ? 'Yêu cầu sửa' : 'Request changes'}
                     </button>
                   </div>
                 )}
@@ -334,15 +340,15 @@ const TasksTab: React.FC<{
 
               <div className="mb-3 mt-4 flex items-center justify-between gap-2">
                 <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  <MessageSquare size={13} className="text-[#22C55E]" />Review Feedback Timeline
+                  <MessageSquare size={13} className="text-[#22C55E]" />{isVi ? 'Lịch sử phản hồi' : 'Feedback history'}
                 </h4>
-                <span className="text-[11px] text-slate-500">{taskComments.length} comments</span>
+                <span className="text-[11px] text-slate-500">{taskComments.length} {isVi ? 'phản hồi' : 'comments'}</span>
               </div>
 
               <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                 {taskComments.length === 0 && (
                   <div className="rounded-lg border border-dashed border-slate-700 p-3 text-center">
-                    <p className="text-[11px] text-slate-500">No feedback yet. Leave guidance or wait for the student to submit work.</p>
+                    <p className="text-[11px] text-slate-500">{isVi ? 'Chưa có phản hồi. Hãy để lại hướng dẫn hoặc chờ sinh viên nộp bài.' : 'No feedback yet. Leave guidance or wait for the student to submit.'}</p>
                   </div>
                 )}
                 {taskComments.map(c => (
@@ -366,20 +372,20 @@ const TasksTab: React.FC<{
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                  placeholder="Leave feedback or request a specific change..."
+                  placeholder={isVi ? 'Nhập phản hồi hoặc yêu cầu chỉnh sửa...' : 'Enter feedback or request changes...'}
                   className="flex-1 px-3 py-2 bg-[#162032] border border-[#3A3317] rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#F59E0B]/45"
                 />
                 <button onClick={handleSend}
                   className="px-3 py-2 bg-gradient-to-r from-[#22C55E] to-[#EAB308] text-white rounded-lg border border-[#F59E0B]/40 hover:border-[#FDE68A]/70 transition-all duration-200 flex items-center gap-1.5 text-xs font-semibold flex-shrink-0">
-                  <Send size={12} />Send
+                  <Send size={12} />{isVi ? 'Gửi' : 'Send'}
                 </button>
               </div>
             </>
           ) : (
             <div className="flex min-h-72 flex-col items-center justify-center rounded-lg border border-dashed border-slate-700 text-center">
               <Eye size={18} className="mb-2 text-slate-500" />
-              <p className="text-sm font-semibold text-white">Select a task to review</p>
-              <p className="mt-1 text-xs text-slate-500">Open a task to see details, approve it, or leave feedback.</p>
+              <p className="text-sm font-semibold text-white">{isVi ? 'Chọn công việc để duyệt' : 'Select a task to review'}</p>
+              <p className="mt-1 text-xs text-slate-500">{isVi ? 'Mở công việc để xem chi tiết, phê duyệt hoặc để lại phản hồi.' : 'Open a task to view details, approve it, or leave feedback.'}</p>
             </div>
           )}
         </div>
@@ -389,6 +395,8 @@ const TasksTab: React.FC<{
 };
 const ContributionsTab: React.FC<{ tasks: LecturerTask[] }> = ({ tasks }) => {
   const memberContributions = buildMemberContributions(tasks);
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const topContributor = memberContributions[0];
 
   const totalAssigned = memberContributions.reduce((sum, member) => sum + member.assigned, 0);
@@ -403,35 +411,35 @@ const ContributionsTab: React.FC<{ tasks: LecturerTask[] }> = ({ tasks }) => {
       <div className="rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-4">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h3 className="text-sm font-bold text-white">Contribution Intelligence</h3>
-            <p className="mt-1 text-xs text-slate-400">Live member activity based on approved, review, and in-progress tasks.</p>
+            <h3 className="text-sm font-bold text-white">{isVi ? 'Phân tích đóng góp' : 'Contribution intelligence'}</h3>
+            <p className="mt-1 text-xs text-slate-400">{isVi ? 'Hoạt động thành viên dựa trên công việc đã duyệt, chờ duyệt và đang thực hiện.' : 'Live member activity based on approved, review, and in-progress tasks.'}</p>
           </div>
           <span className="rounded-full border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-2.5 py-1 text-[10px] font-semibold text-[#FCD34D]">
-            Updated from Kanban status
+            {isVi ? 'Cập nhật từ trạng thái Kanban' : 'Updated from Kanban status'}
           </span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-3">
-          <p className="text-[10px] uppercase tracking-wider text-slate-500">Avg completion</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">{isVi ? 'Hoàn thành TB' : 'Avg completion'}</p>
           <p className="mt-1 text-xl font-black text-white">{averageCompletion}%</p>
-          <p className="text-[11px] text-slate-500">Team velocity</p>
+          <p className="text-[11px] text-slate-500">{isVi ? 'Tốc độ nhóm' : 'Team velocity'}</p>
         </div>
         <div className="rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-3">
-          <p className="text-[10px] uppercase tracking-wider text-slate-500">Assigned</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">{isVi ? 'Đã giao' : 'Assigned'}</p>
           <p className="mt-1 text-xl font-black text-white">{totalAssigned}</p>
-          <p className="text-[11px] text-slate-500">Visible tasks</p>
+          <p className="text-[11px] text-slate-500">{isVi ? 'Công việc hiển thị' : 'Visible tasks'}</p>
         </div>
         <div className="rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-3">
-          <p className="text-[10px] uppercase tracking-wider text-slate-500">Approved</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">{isVi ? 'Đã duyệt' : 'Approved'}</p>
           <p className="mt-1 text-xl font-black text-green-400">{totalApproved}</p>
-          <p className="text-[11px] text-slate-500">Delivered items</p>
+          <p className="text-[11px] text-slate-500">{isVi ? 'Hạng mục hoàn tất' : 'Delivered items'}</p>
         </div>
         <div className="rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-3">
-          <p className="text-[10px] uppercase tracking-wider text-slate-500">In review</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">{isVi ? 'Chờ duyệt' : 'In review'}</p>
           <p className="mt-1 text-xl font-black text-[#6EE7B7]">{totalInReview}</p>
-          <p className="text-[11px] text-slate-500">Awaiting feedback</p>
+          <p className="text-[11px] text-slate-500">{isVi ? 'Đang chờ phản hồi' : 'Awaiting feedback'}</p>
         </div>
       </div>
 
@@ -479,7 +487,7 @@ const ContributionsTab: React.FC<{ tasks: LecturerTask[] }> = ({ tasks }) => {
               </div>
 
               <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
-                {getContributionNote(member)}
+                {getContributionNote(member, isVi)}
               </p>
             </div>
           ))}
@@ -487,22 +495,22 @@ const ContributionsTab: React.FC<{ tasks: LecturerTask[] }> = ({ tasks }) => {
 
         <div className="xl:col-span-4 space-y-3">
           <div className="rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Top Contributor</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">{isVi ? 'Đóng góp nổi bật' : 'Top contributor'}</h4>
             {topContributor ? (
               <>
                 <p className="mt-2 text-lg font-bold text-white">{topContributor.memberName}</p>
-                <p className="text-xs text-[#6EE7B7]">{topContributor.completion}% contribution score</p>
+                <p className="text-xs text-[#6EE7B7]">{topContributor.completion}% {isVi ? 'điểm đóng góp' : 'contribution score'}</p>
                 <div className="mt-3 rounded-lg border border-[#F59E0B]/30 bg-[#162032] p-2 text-[11px] text-slate-300">
-                  {getContributionNote(topContributor)}
+                  {getContributionNote(topContributor, isVi)}
                 </div>
               </>
             ) : (
-              <p className="mt-2 text-xs text-slate-500">No contribution data available yet.</p>
+              <p className="mt-2 text-xs text-slate-500">{isVi ? 'Chưa có dữ liệu đóng góp.' : 'No contribution data available yet.'}</p>
             )}
           </div>
 
           <div className="rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Leaderboard</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">{isVi ? 'Bảng xếp hạng' : 'Leaderboard'}</h4>
             <div className="space-y-2">
               {memberContributions.map((member) => (
                 <div key={`rank-${member.memberName}`}>
@@ -519,17 +527,17 @@ const ContributionsTab: React.FC<{ tasks: LecturerTask[] }> = ({ tasks }) => {
                 </div>
               ))}
               {memberContributions.length === 0 && (
-                <p className="text-[11px] text-slate-500">No member data yet.</p>
+                <p className="text-[11px] text-slate-500">{isVi ? 'Chưa có dữ liệu thành viên.' : 'No member data yet.'}</p>
               )}
             </div>
           </div>
 
           <div className="rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Supervision Tips</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">{isVi ? 'Gợi ý hướng dẫn' : 'Supervision tips'}</h4>
             <div className="space-y-1.5 text-[11px] text-slate-400">
-              <p className="rounded-lg border border-[#3A3317] bg-[#162032] px-2 py-1.5">Push "in review" tasks to closure within 24h.</p>
-              <p className="rounded-lg border border-[#3A3317] bg-[#162032] px-2 py-1.5">Reassign "todo" overload when one member falls below 50% score.</p>
-              <p className="rounded-lg border border-[#3A3317] bg-[#162032] px-2 py-1.5">Use weekly checkpoints to keep approval ratio increasing.</p>
+              <p className="rounded-lg border border-[#3A3317] bg-[#162032] px-2 py-1.5">{isVi ? 'Hoàn tất công việc đang chờ duyệt trong vòng 24 giờ.' : 'Push in-review tasks to closure within 24 hours.'}</p>
+              <p className="rounded-lg border border-[#3A3317] bg-[#162032] px-2 py-1.5">{isVi ? 'Phân công lại khi một thành viên có điểm dưới 50%.' : 'Reassign todo overload when one member falls below 50%.'}</p>
+              <p className="rounded-lg border border-[#3A3317] bg-[#162032] px-2 py-1.5">{isVi ? 'Dùng mốc kiểm tra hàng tuần để tăng tỷ lệ duyệt.' : 'Use weekly checkpoints to keep the approval ratio increasing.'}</p>
             </div>
           </div>
         </div>
@@ -539,12 +547,12 @@ const ContributionsTab: React.FC<{ tasks: LecturerTask[] }> = ({ tasks }) => {
 };
 
 // Timeline tab
-const TimelineTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
+const TimelineTab: React.FC<{ group: LecturerGroup; isVi: boolean }> = ({ group, isVi }) => (
   <div className="p-6">
     <div className="mb-5 rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-4">
-      <h3 className="text-sm font-bold text-white">What is Timeline used for?</h3>
+      <h3 className="text-sm font-bold text-white">{isVi ? 'Timeline dùng để làm gì?' : 'What is Timeline used for?'}</h3>
       <p className="mt-2 text-xs leading-relaxed text-slate-400">
-        Timeline shows milestone checkpoints by week so you can quickly see if the group is on schedule, identify delays early, and prepare supervision meetings with clear next targets.
+        {isVi ? 'Timeline hiển thị các cột mốc theo tuần để bạn nhanh chóng theo dõi tiến độ, phát hiện chậm trễ và chuẩn bị mục tiêu rõ ràng cho buổi hướng dẫn.' : 'Timeline shows milestone checkpoints by week so you can quickly see if the group is on schedule, identify delays early, and prepare supervision meetings with clear next targets.'}
       </p>
     </div>
 
@@ -564,7 +572,7 @@ const TimelineTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
               </div>
               <p className={`text-sm font-semibold ${item.done ? 'text-white' : 'text-slate-400'}`}>{item.milestone}</p>
               <span className={`mt-1 inline-block text-[10px] px-2 py-0.5 rounded-full font-medium ${item.done ? 'bg-green-500/10 text-green-400' : 'bg-slate-700 text-slate-500'}`}>
-                {item.done ? 'Completed' : 'Pending'}
+                {item.done ? (isVi ? 'Hoàn thành' : 'Completed') : (isVi ? 'Đang chờ' : 'Pending')}
               </span>
             </div>
           </div>
@@ -577,6 +585,8 @@ const TimelineTab: React.FC<{ group: LecturerGroup }> = ({ group }) => (
 // GroupDetail
 export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
   const { user } = useAuth();
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [tasks, setTasks] = useState<LecturerTask[]>(group.tasks);
   const [comments, setComments] = useState<GroupComment[]>(group.comments);
@@ -590,7 +600,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
       setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'approved' } : t));
     } catch (err) {
       console.error("Failed to approve task:", err);
-      alert("Failed to approve task: " + (err as Error).message);
+      alert((isVi ? 'Không thể phê duyệt công việc: ' : 'Failed to approve task: ') + (err as Error).message);
     }
   };
 
@@ -600,14 +610,14 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
       setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'in-progress' } : t));
     } catch (err) {
       console.error("Failed to request changes:", err);
-      alert("Failed to request changes: " + (err as Error).message);
+      alert((isVi ? 'Không thể yêu cầu chỉnh sửa: ' : 'Failed to request changes: ') + (err as Error).message);
     }
   };
 
   const handleAddComment = async (taskId: string, text: string) => {
     const selectedTask = tasks.find(task => task.id === taskId);
     if (!selectedTask) {
-      alert("Cannot add comment: Task not found.");
+      alert(isVi ? 'Không thể thêm phản hồi: Không tìm thấy công việc.' : 'Cannot add comment: Task not found.');
       return;
     }
 
@@ -616,32 +626,32 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
       setComments(prev => [...prev, {
         id: `c${Date.now()}`,
         taskId,
-        author: user?.name || 'Lecturer',
+        author: user?.name || (isVi ? 'Giảng viên' : 'Lecturer'),
         role: 'lecturer',
         text,
-        time: 'Just now',
+        time: isVi ? 'Vừa xong' : 'Just now',
         taskRef: selectedTask.title,
       }]);
     } catch (err) {
       console.error("Failed to add comment:", err);
-      alert("Failed to add comment: " + (err as Error).message);
+      alert((isVi ? 'Không thể thêm phản hồi: ' : 'Failed to add comment: ') + (err as Error).message);
     }
   };
 
   const selectedTask = tasks.find(task => task.id === selectedTaskId) ?? null;
   const taskComments = selectedTask ? comments.filter(comment => comment.taskId === selectedTask.id) : [];
   const reviewHint = selectedTask?.status === 'approved'
-    ? 'Approved. The task is closed for review.'
+    ? (isVi ? 'Đã phê duyệt. Công việc đã hoàn tất quy trình duyệt.' : 'Approved. The task is closed for review.')
     : selectedTask?.status === 'ready-for-review'
-      ? 'Submitted by student. Review the work, then approve or request changes.'
+      ? (isVi ? 'Sinh viên đã nộp. Hãy xem nội dung rồi phê duyệt hoặc yêu cầu chỉnh sửa.' : 'Submitted by student. Review the work, then approve or request changes.')
       : taskComments.length > 0
-        ? 'Changes were requested or feedback exists. Wait for the student to update and resubmit.'
-        : 'Not submitted yet. Feedback can still be added as guidance.';
+        ? (isVi ? 'Đã có phản hồi hoặc yêu cầu chỉnh sửa. Chờ sinh viên cập nhật và nộp lại.' : 'Changes were requested or feedback exists. Wait for the student to update and resubmit.')
+        : (isVi ? 'Chưa nộp. Bạn vẫn có thể thêm phản hồi để hướng dẫn.' : 'Not submitted yet. Feedback can still be added as guidance.');
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview',  label: 'Overview',  icon: <LayoutGrid size={13} />     },
-    { id: 'tasks',     label: 'Tasks',     icon: <CheckCircle size={13} />    },
-    { id: 'contributions', label: 'Contributions', icon: <BarChart3 size={13} /> },
-    { id: 'timeline',  label: 'Milestones',  icon: <GitBranch size={13} />      },
+    { id: 'overview', label: isVi ? 'Tổng quan' : 'Overview', icon: <LayoutGrid size={13} /> },
+    { id: 'tasks', label: isVi ? 'Công việc' : 'Tasks', icon: <CheckCircle size={13} /> },
+    { id: 'contributions', label: isVi ? 'Đóng góp' : 'Contributions', icon: <BarChart3 size={13} /> },
+    { id: 'timeline', label: isVi ? 'Cột mốc' : 'Milestones', icon: <GitBranch size={13} /> },
   ];
 
   const reviewCount = tasks.filter(t => t.status === 'ready-for-review').length;
@@ -651,7 +661,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
       {/* Group Header */}
       <div className="px-6 py-4 bg-[#0F1A2A] border-b border-[#F59E0B]/15 flex-shrink-0">
         <button onClick={onBack} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-[#6EE7B7] transition-colors duration-200 mb-3">
-          <ArrowLeft size={13} />Back to groups
+          <ArrowLeft size={13} />{isVi ? 'Quay lại danh sách nhóm' : 'Back to groups'}
         </button>
 
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -663,19 +673,19 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5 text-xs text-slate-400">
               <Users size={13} className="text-[#22C55E]" />
-              <span>{group.members} members</span>
+              <span>{group.members} {isVi ? 'thành viên' : 'members'}</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-slate-400">
               <Calendar size={13} className="text-[#22C55E]" />
-              <span>Deadline: {group.deadline}</span>
+              <span>{isVi ? 'Hạn nộp' : 'Deadline'}: {group.deadline}</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-slate-400">
               <CheckCircle size={13} className="text-[#22C55E]" />
-              <span>{group.progress}% complete</span>
+              <span>{group.progress}% {isVi ? 'hoàn thành' : 'complete'}</span>
             </div>
             {reviewCount > 0 && (
               <span className="text-xs font-semibold px-2 py-1 rounded-lg bg-[#22C55E]/10 border border-[#F59E0B]/35 text-[#22C55E] flex items-center gap-1">
-                <Clock size={11} />{reviewCount} awaiting review
+                <Clock size={11} />{reviewCount} {isVi ? 'chờ duyệt' : 'awaiting review'}
               </span>
             )}
           </div>
@@ -706,7 +716,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
             <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <OverviewTab group={group} />
+              <OverviewTab group={group} isVi={isVi} />
             </motion.div>
           )}
           {activeTab === 'tasks' && (
@@ -731,7 +741,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
           )}
           {activeTab === 'timeline' && (
             <motion.div key="timeline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <TimelineTab group={group} />
+              <TimelineTab group={group} isVi={isVi} />
             </motion.div>
           )}
         </AnimatePresence>

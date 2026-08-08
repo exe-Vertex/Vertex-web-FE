@@ -4,6 +4,7 @@ import { ProjectFileItem, ProjectLinkItem } from '../utils/dashboardTypes';
 import { listProjectLinks, addProjectLink, deleteProjectLink } from '../../../api/project';
 import { getAuthToken } from '../utils/dashboardUtils';
 import { useToast } from '../../ui/Toast';
+import { useLang } from '../../../contexts/LanguageContext';
 
 export const ProjectFilesView: React.FC<{
   projectId: string;
@@ -16,6 +17,8 @@ export const ProjectFilesView: React.FC<{
 }> = ({ projectId, orgId, role, files, onUpload, onDelete, onRename }) => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'files' | 'links'>('files');
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [previewFile, setPreviewFile] = useState<ProjectFileItem | null>(null);
   const [contextMenu, setContextMenu] = useState<{ file?: ProjectFileItem; link?: ProjectLinkItem; x: number; y: number } | null>(null);
@@ -52,13 +55,13 @@ export const ProjectFilesView: React.FC<{
         url: newLinkUrl,
         title: newLinkTitle
       }, role);
-      showToast('Link added successfully');
+      showToast(isVi ? 'Đã thêm liên kết' : 'Link added');
       setNewLinkUrl('');
       setNewLinkTitle('');
       setIsAddingLink(false);
       loadLinks();
     } catch (err: any) {
-      showToast(err.message || 'Failed to add link', 'error');
+      showToast(err.message || (isVi ? 'Không thể thêm liên kết' : 'Could not add link'), 'error');
     }
   };
 
@@ -68,10 +71,10 @@ export const ProjectFilesView: React.FC<{
     
     try {
       await deleteProjectLink(token, orgId, projectId, linkId);
-      showToast('Link deleted successfully');
+      showToast(isVi ? 'Đã xóa liên kết' : 'Link deleted');
       loadLinks();
     } catch (err: any) {
-      showToast(err.message || 'Failed to delete link', 'error');
+      showToast(err.message || (isVi ? 'Không thể xóa liên kết' : 'Could not delete link'), 'error');
     }
   };
 
@@ -128,7 +131,7 @@ export const ProjectFilesView: React.FC<{
 
   const renderPreviewBody = (file: ProjectFileItem) => {
     if (!file.objectUrl) {
-      return <div className="h-[360px] flex items-center justify-center text-sm text-slate-500">Preview unavailable for this file.</div>;
+      return <div className="h-[360px] flex items-center justify-center text-sm text-slate-500">{isVi ? 'Không thể xem trước tệp này.' : 'This file cannot be previewed.'}</div>;
     }
     if (isImage(file)) {
       return <img src={file.objectUrl} alt={file.name} className="max-h-[60vh] w-auto max-w-full object-contain rounded-lg border border-[#22C55E]/12" />;
@@ -139,7 +142,7 @@ export const ProjectFilesView: React.FC<{
     if (isVideo(file)) {
       return <video controls src={file.objectUrl} className="max-h-[60vh] w-auto max-w-full rounded-lg border border-[#22C55E]/12" />;
     }
-    return <div className="h-[360px] flex items-center justify-center text-sm text-slate-500">Preview unavailable for this file type.</div>;
+    return <div className="h-[360px] flex items-center justify-center text-sm text-slate-500">{isVi ? 'Định dạng tệp này không hỗ trợ xem trước.' : 'Preview is not supported for this file type.'}</div>;
   };
 
   return (
@@ -148,21 +151,21 @@ export const ProjectFilesView: React.FC<{
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div>
-              <h2 className="text-xl font-bold text-white">Project Cloud</h2>
-              <p className="text-sm text-slate-500 mt-1">Manage files and links.</p>
+              <h2 className="text-xl font-bold text-white">{isVi ? 'Tài liệu dự án' : 'Project files'}</h2>
+              <p className="text-sm text-slate-500 mt-1">{isVi ? 'Quản lý tệp và liên kết.' : 'Manage files and links.'}</p>
             </div>
             <div className="flex bg-[#162032] p-1 rounded-lg ml-2">
               <button
                 onClick={() => setActiveTab('files')}
                 className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${activeTab === 'files' ? 'bg-[#0F1A2A] text-[#22C55E] shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                Files
+                {isVi ? 'Tệp' : 'Files'}
               </button>
               <button
                 onClick={() => setActiveTab('links')}
                 className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${activeTab === 'links' ? 'bg-[#0F1A2A] text-[#22C55E] shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                Links
+                {isVi ? 'Liên kết' : 'Links'}
               </button>
             </div>
           </div>
@@ -174,20 +177,20 @@ export const ProjectFilesView: React.FC<{
                   onClick={() => setViewMode('grid')}
                   className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 ${viewMode === 'grid' ? 'bg-[#0F1A2A] text-[#22C55E]' : 'text-slate-400 hover:text-slate-200'}`}
                 >
-                  <Grid3X3 size={13} /> Grid
+                  <Grid3X3 size={13} /> {isVi ? 'Lưới' : 'Grid'}
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
                   className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-[#0F1A2A] text-[#22C55E]' : 'text-slate-400 hover:text-slate-200'}`}
                 >
-                  <List size={13} /> List
+                  <List size={13} /> {isVi ? 'Danh sách' : 'List'}
                 </button>
               </div>
 
               {role === 'Leader' && (
                 <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#22C55E]/20 text-xs font-semibold text-[#6EE7B7] hover:bg-[#162032] cursor-pointer">
                   <Paperclip size={14} />
-                  Upload Files
+                  {isVi ? 'Tải tệp lên' : 'Upload files'}
                   <input type="file" className="hidden" multiple onChange={(e) => onUpload(e.target.files)} />
                 </label>
               )}
@@ -198,7 +201,7 @@ export const ProjectFilesView: React.FC<{
                 onClick={() => setIsAddingLink(true)}
                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#22C55E]/10 text-[#6EE7B7] hover:bg-[#22C55E]/20 text-xs font-semibold transition-all"
               >
-                + Add Link
+                {isVi ? '+ Thêm liên kết' : '+ Add link'}
               </button>
             )
           )}
@@ -208,8 +211,8 @@ export const ProjectFilesView: React.FC<{
           <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-2.5'}>
           {files.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[#22C55E]/20 bg-[#0F1A2A] px-4 py-8 text-center text-sm text-slate-500 sm:col-span-2 lg:col-span-3">
-              <p className="font-semibold text-slate-300 mb-1">No files uploaded yet</p>
-              <p>Drag files here or use Upload Files</p>
+              <p className="font-semibold text-slate-300 mb-1">{isVi ? 'Chưa có tệp nào' : 'No files yet'}</p>
+              <p>{isVi ? 'Kéo thả tệp vào đây hoặc chọn Tải tệp lên' : 'Drag files here or select Upload files'}</p>
             </div>
           ) : files.map(file => {
             const compact = viewMode === 'list';
@@ -240,15 +243,15 @@ export const ProjectFilesView: React.FC<{
                           <p className="text-xs font-semibold text-white truncate">{file.name}</p>
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-[#22C55E]/20 text-[#6EE7B7]">{getExt(file.name)}</span>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">{file.sizeLabel} • {file.uploadedBy} • {new Date(file.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">{file.sizeLabel} • {file.uploadedBy} • {new Date(file.uploadedAt).toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric' })}</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1.5 text-[11px]">
-                      <button onClick={() => setPreviewFile(file)} className="px-2 py-1 rounded-md border border-[#22C55E]/20 text-[#6EE7B7] hover:bg-[#162032]">Preview</button>
-                      <button onClick={() => downloadFile(file)} disabled={!file.objectUrl} className="px-2 py-1 rounded-md border border-[#22C55E]/20 text-slate-300 hover:bg-[#162032] disabled:opacity-40">Download</button>
+                      <button onClick={() => setPreviewFile(file)} className="px-2 py-1 rounded-md border border-[#22C55E]/20 text-[#6EE7B7] hover:bg-[#162032]">{isVi ? 'Xem trước' : 'Preview'}</button>
+                      <button onClick={() => downloadFile(file)} disabled={!file.objectUrl} className="px-2 py-1 rounded-md border border-[#22C55E]/20 text-slate-300 hover:bg-[#162032] disabled:opacity-40">{isVi ? 'Tải xuống' : 'Download'}</button>
                       {role === 'Leader' && (
-                        <button onClick={() => onDelete(file.id)} className="px-2 py-1 rounded-md border border-red-500/20 text-red-300 hover:bg-red-500/10">Remove</button>
+                        <button onClick={() => onDelete(file.id)} className="px-2 py-1 rounded-md border border-red-500/20 text-red-300 hover:bg-red-500/10">{isVi ? 'Xóa' : 'Delete'}</button>
                       )}
                     </div>
                   </div>
@@ -270,7 +273,7 @@ export const ProjectFilesView: React.FC<{
                           <p className="text-sm font-semibold text-white truncate">{file.name}</p>
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-[#22C55E]/20 text-[#6EE7B7]">{getExt(file.name)}</span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5 truncate">{file.sizeLabel} • {file.uploadedBy} • {new Date(file.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                        <p className="text-xs text-slate-500 mt-0.5 truncate">{file.sizeLabel} • {file.uploadedBy} • {new Date(file.uploadedAt).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' })}</p>
                       </div>
                     </div>
 
@@ -279,21 +282,21 @@ export const ProjectFilesView: React.FC<{
                         onClick={() => setPreviewFile(file)}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[#22C55E]/20 text-[#6EE7B7] hover:bg-[#162032]"
                       >
-                        <Eye size={12} /> Preview
+                        <Eye size={12} /> {isVi ? 'Xem trước' : 'Preview'}
                       </button>
                       <button
                         onClick={() => downloadFile(file)}
                         disabled={!file.objectUrl}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[#22C55E]/20 text-slate-300 hover:bg-[#162032] disabled:opacity-40"
                       >
-                        <Download size={12} /> Download
+                        <Download size={12} /> {isVi ? 'Tải xuống' : 'Download'}
                       </button>
                       {role === 'Leader' && (
                         <button
                           onClick={() => onDelete(file.id)}
                           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-red-500/20 text-red-300 hover:bg-red-500/10"
                         >
-                          <Trash2 size={12} /> Remove
+                          <Trash2 size={12} /> {isVi ? 'Xóa' : 'Delete'}
                         </button>
                       )}
                     </div>
@@ -311,19 +314,19 @@ export const ProjectFilesView: React.FC<{
             <div className="relative bg-[#0F1A2A] border border-[#22C55E]/15 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
               <div className="px-4 py-3 border-b border-[#22C55E]/10 flex items-center justify-between">
                 <p className="text-sm font-semibold text-white truncate pr-4">{previewFile.name}</p>
-                <button onClick={() => downloadFile(previewFile)} className="text-xs px-2.5 py-1.5 rounded-md border border-[#22C55E]/20 text-[#6EE7B7] hover:bg-[#162032]">Download</button>
+                <button onClick={() => downloadFile(previewFile)} className="text-xs px-2.5 py-1.5 rounded-md border border-[#22C55E]/20 text-[#6EE7B7] hover:bg-[#162032]">{isVi ? 'Tải xuống' : 'Download'}</button>
               </div>
               <div className="p-4 flex items-center justify-center bg-[#0A0F1A]">
                 {renderPreviewBody(previewFile)}
               </div>
               <div className="px-4 py-3 border-t border-[#22C55E]/10 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-slate-500">{previewFile.sizeLabel} • Uploaded by {previewFile.uploadedBy} • {new Date(previewFile.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                <p className="text-xs text-slate-500">{previewFile.sizeLabel} • {isVi ? 'Được tải lên bởi' : 'Uploaded by'} {previewFile.uploadedBy} • {new Date(previewFile.uploadedAt).toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric' })}</p>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => downloadFile(previewFile)} className="text-xs px-2.5 py-1.5 rounded-md border border-[#22C55E]/20 text-slate-300 hover:bg-[#162032]">Download</button>
+                  <button onClick={() => downloadFile(previewFile)} className="text-xs px-2.5 py-1.5 rounded-md border border-[#22C55E]/20 text-slate-300 hover:bg-[#162032]">{isVi ? 'Tải xuống' : 'Download'}</button>
                   {previewFile.objectUrl && (
-                    <a href={previewFile.objectUrl} target="_blank" rel="noreferrer" className="text-xs px-2.5 py-1.5 rounded-md border border-[#22C55E]/20 text-slate-300 hover:bg-[#162032]">Open full size</a>
+                    <a href={previewFile.objectUrl} target="_blank" rel="noreferrer" className="text-xs px-2.5 py-1.5 rounded-md border border-[#22C55E]/20 text-slate-300 hover:bg-[#162032]">{isVi ? 'Mở kích thước đầy đủ' : 'Open full size'}</a>
                   )}
-                  <button onClick={() => setPreviewFile(null)} className="text-xs px-2.5 py-1.5 rounded-md border border-red-500/20 text-red-300 hover:bg-red-500/10">Close</button>
+                  <button onClick={() => setPreviewFile(null)} className="text-xs px-2.5 py-1.5 rounded-md border border-red-500/20 text-red-300 hover:bg-red-500/10">{isVi ? 'Đóng' : 'Close'}</button>
                 </div>
               </div>
             </div>
@@ -335,19 +338,19 @@ export const ProjectFilesView: React.FC<{
             className="fixed z-[130] w-40 rounded-xl border border-[#22C55E]/15 bg-[#0F1A2A] p-1.5 shadow-2xl"
             style={{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }}
           >
-            <button onClick={() => { setPreviewFile(contextMenu.file); setContextMenu(null); }} className="w-full text-left px-2.5 py-2 text-xs text-slate-300 hover:bg-[#162032] rounded-md">Preview</button>
-            <button onClick={() => { downloadFile(contextMenu.file); setContextMenu(null); }} className="w-full text-left px-2.5 py-2 text-xs text-slate-300 hover:bg-[#162032] rounded-md">Download</button>
+            <button onClick={() => { setPreviewFile(contextMenu.file); setContextMenu(null); }} className="w-full text-left px-2.5 py-2 text-xs text-slate-300 hover:bg-[#162032] rounded-md">{isVi ? 'Xem trước' : 'Preview'}</button>
+            <button onClick={() => { downloadFile(contextMenu.file); setContextMenu(null); }} className="w-full text-left px-2.5 py-2 text-xs text-slate-300 hover:bg-[#162032] rounded-md">{isVi ? 'Tải xuống' : 'Download'}</button>
             <button
               onClick={() => {
-                const nextName = window.prompt('Rename file', contextMenu.file.name);
+                const nextName = window.prompt(isVi ? 'Đổi tên tệp' : 'Rename file', contextMenu.file.name);
                 if (nextName) onRename(contextMenu.file.id, nextName);
                 setContextMenu(null);
               }}
               className="w-full text-left px-2.5 py-2 text-xs text-slate-300 hover:bg-[#162032] rounded-md"
             >
-              Rename
+              {isVi ? 'Đổi tên' : 'Rename'}
             </button>
-            <button onClick={() => { onDelete(contextMenu.file.id); setContextMenu(null); }} className="w-full text-left px-2.5 py-2 text-xs text-red-300 hover:bg-red-500/10 rounded-md">Remove</button>
+            <button onClick={() => { onDelete(contextMenu.file.id); setContextMenu(null); }} className="w-full text-left px-2.5 py-2 text-xs text-red-300 hover:bg-red-500/10 rounded-md">{isVi ? 'Xóa' : 'Delete'}</button>
           </div>
         )}
 
@@ -355,8 +358,8 @@ export const ProjectFilesView: React.FC<{
           <div className="space-y-3">
             {links.length === 0 ? (
               <div className="rounded-xl border border-dashed border-[#22C55E]/20 bg-[#0F1A2A] px-4 py-8 text-center text-sm text-slate-500">
-                <p className="font-semibold text-slate-300 mb-1">No links added yet</p>
-                <p>Click + Add Link to save important URLs</p>
+                <p className="font-semibold text-slate-300 mb-1">{isVi ? 'Chưa có liên kết nào' : 'No links yet'}</p>
+                <p>{isVi ? 'Chọn + Thêm liên kết để lưu URL quan trọng' : 'Select + Add link to save an important URL'}</p>
               </div>
             ) : links.map(link => (
               <div key={link.id} className="rounded-xl border border-[#22C55E]/12 bg-[#0F1A2A] px-4 py-3 flex items-center justify-between gap-3">
@@ -365,16 +368,16 @@ export const ProjectFilesView: React.FC<{
                     {link.title || link.url}
                   </a>
                   <div className="text-xs text-slate-500 mt-1 truncate">
-                    <span className="text-slate-400">{link.url}</span> • Added by {link.uploadedBy} • {new Date(link.uploadedAt).toLocaleDateString('en-US')}
+                    <span className="text-slate-400">{link.url}</span> • {isVi ? 'Được thêm bởi' : 'Added by'} {link.uploadedBy} • {new Date(link.uploadedAt).toLocaleDateString(isVi ? 'vi-VN' : 'en-US')}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <a href={link.url} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 rounded-md border border-[#22C55E]/20 text-slate-300 hover:bg-[#162032] text-xs">
-                    Open
+                    {isVi ? 'Mở' : 'Open'}
                   </a>
                   {role === 'Leader' && (
                     <button onClick={() => handleDeleteLink(link.id)} className="px-2.5 py-1.5 rounded-md border border-red-500/20 text-red-300 hover:bg-red-500/10 text-xs">
-                      Remove
+                      {isVi ? 'Xóa' : 'Delete'}
                     </button>
                   )}
                 </div>
@@ -387,7 +390,7 @@ export const ProjectFilesView: React.FC<{
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={() => setIsAddingLink(false)} />
             <div className="relative bg-[#0F1A2A] border border-[#22C55E]/15 rounded-2xl w-full max-w-md p-5">
-              <h3 className="text-lg font-bold text-white mb-4">Add New Link</h3>
+              <h3 className="text-lg font-bold text-white mb-4">{isVi ? 'Thêm liên kết mới' : 'Add a new link'}</h3>
               
               <div className="space-y-4">
                 <div>
@@ -401,12 +404,12 @@ export const ProjectFilesView: React.FC<{
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">Title (Optional)</label>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">{isVi ? 'Tiêu đề (không bắt buộc)' : 'Title (optional)'}</label>
                   <input
                     type="text"
                     value={newLinkTitle}
                     onChange={(e) => setNewLinkTitle(e.target.value)}
-                    placeholder="e.g., Figma Design"
+                    placeholder={isVi ? 'Ví dụ: Thiết kế Figma' : 'Example: Figma design'}
                     className="w-full bg-[#162032] border border-[#22C55E]/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#22C55E]/50"
                   />
                 </div>
@@ -417,14 +420,14 @@ export const ProjectFilesView: React.FC<{
                   onClick={() => setIsAddingLink(false)}
                   className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:bg-[#162032]"
                 >
-                  Cancel
+                  {isVi ? 'Hủy' : 'Cancel'}
                 </button>
                 <button
                   onClick={handleAddLink}
                   disabled={!newLinkUrl.trim()}
                   className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#22C55E] text-black hover:bg-[#22C55E]/90 disabled:opacity-50"
                 >
-                  Add Link
+                  {isVi ? 'Thêm liên kết' : 'Add link'}
                 </button>
               </div>
             </div>

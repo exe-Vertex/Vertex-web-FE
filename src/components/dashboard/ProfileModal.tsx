@@ -5,6 +5,7 @@ import { Avatar } from '../ui/Avatar';
 import { useToast } from '../ui/Toast';
 import { WorkspaceMember } from '../../types';
 import { SKILL_SUGGESTIONS, SKILL_CATEGORIES } from '../../data/skillSuggestions';
+import { useLang } from '../../contexts/LanguageContext';
 
 interface ProfileModalProps {
   open: boolean;
@@ -15,6 +16,8 @@ interface ProfileModalProps {
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, member, onSave }) => {
   const { showToast } = useToast();
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [draft, setDraft] = useState<WorkspaceMember | null>(null);
   const [skillInput, setSkillInput] = useState('');
   const [name, setName] = useState('');
@@ -82,7 +85,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
       profile: {
         ...draft.profile,
         name: name.trim() || draft.profile.name,
-        title: title.trim() || 'Contributor',
+        title: title.trim() || (isVi ? 'Cộng tác viên' : 'Contributor'),
         bio: bio.trim(),
         email: email.trim() || undefined,
       },
@@ -91,10 +94,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
     setSaving(true);
     try {
       await onSave(updated);
-      showToast('Profile and skills saved');
+      showToast(isVi ? 'Đã lưu hồ sơ và kỹ năng' : 'Profile and skills saved');
       onClose();
     } catch (err: any) {
-      showToast(err?.message || 'Failed to save profile and skills', 'error');
+      showToast(err?.message || (isVi ? 'Không thể lưu hồ sơ và kỹ năng' : 'Could not save profile and skills'), 'error');
     } finally {
       setSaving(false);
     }
@@ -124,11 +127,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
             <div className="flex h-full flex-col">
               <div className="px-6 py-5 border-b border-[#22C55E]/12 flex items-start justify-between gap-4 bg-gradient-to-r from-[#22C55E]/10 to-[#60A5FA]/10">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Profile</p>
-                  <h3 className="mt-2 text-xl font-bold text-white">Profile</h3>
-                  <p className="mt-1 text-sm text-slate-400">Skills saved here feed the members database and AI planner.</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{isVi ? 'Hồ sơ' : 'Profile'}</p>
+                  <h3 className="mt-2 text-xl font-bold text-white">{isVi ? 'Hồ sơ cá nhân' : 'Personal profile'}</h3>
+                  <p className="mt-1 text-sm text-slate-400">{isVi ? 'Kỹ năng tại đây được dùng cho danh sách thành viên và trình lập kế hoạch AI.' : 'These skills are used in the member directory and AI planner.'}</p>
                 </div>
-                <button onClick={onClose} className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-[#162032] transition-colors" aria-label="Close profile panel">
+                <button onClick={onClose} className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-[#162032] transition-colors" aria-label={isVi ? 'Đóng hồ sơ' : 'Close profile'}>
                   <X size={18} />
                 </button>
               </div>
@@ -139,25 +142,25 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
                     <Avatar src={draft.profile.avatar} fallback={draft.profile.name.charAt(0)} size="md" className="w-16 h-16" />
                     <div>
                       <p className="text-lg font-semibold text-white">{draft.profile.name}</p>
-                      <p className="text-sm text-slate-400">{draft.profile.email || 'Workspace member'}</p>
+                      <p className="text-sm text-slate-400">{draft.profile.email || (isVi ? 'Thành viên không gian làm việc' : 'Workspace member')}</p>
                     </div>
                   </div>
                 </section>
 
                 <section className="space-y-4">
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Name</label>
+                    <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{isVi ? 'Tên' : 'Name'}</label>
                     <input value={name} onChange={(e) => setName(e.target.value)} className="mt-2 w-full rounded-xl border border-[#22C55E]/10 bg-[#162032] px-3.5 py-3 text-sm text-white outline-none focus:border-[#22C55E]/35" />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</label>
-                    <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Designer" className="mt-2 w-full rounded-xl border border-[#22C55E]/10 bg-[#162032] px-3.5 py-3 text-sm text-white outline-none focus:border-[#22C55E]/35" />
+                    <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{isVi ? 'Vai trò' : 'Role'}</label>
+                    <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={isVi ? 'Nhà thiết kế' : 'Designer'} className="mt-2 w-full rounded-xl border border-[#22C55E]/10 bg-[#162032] px-3.5 py-3 text-sm text-white outline-none focus:border-[#22C55E]/35" />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Bio</label>
-                    <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} placeholder="Tell the team what you are strongest at." className="mt-2 w-full rounded-xl border border-[#22C55E]/10 bg-[#162032] px-3.5 py-3 text-sm text-white outline-none focus:border-[#22C55E]/35 resize-none" />
+                    <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{isVi ? 'Giới thiệu' : 'About'}</label>
+                    <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} placeholder={isVi ? 'Chia sẻ thế mạnh của bạn với nhóm.' : 'Share your strengths with the team.'} className="mt-2 w-full rounded-xl border border-[#22C55E]/10 bg-[#162032] px-3.5 py-3 text-sm text-white outline-none focus:border-[#22C55E]/35 resize-none" />
                   </div>
 
                   <div>
@@ -168,13 +171,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
 
                 <section className="rounded-2xl border border-[#22C55E]/10 bg-[#162032]/45 p-4 space-y-4">
                   <div>
-                    <h4 className="text-sm font-semibold text-white">Skills</h4>
-                    <p className="mt-1 text-xs text-slate-500">Add the skills you want Vertex AI to consider for scoring and assignment suggestions.</p>
+                    <h4 className="text-sm font-semibold text-white">{isVi ? 'Kỹ năng' : 'Skills'}</h4>
+                    <p className="mt-1 text-xs text-slate-500">{isVi ? 'Thêm kỹ năng để Vertex AI dùng khi chấm điểm và đề xuất phân công.' : 'Add skills for Vertex AI to use when scoring and suggesting assignments.'}</p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
                     {draft.skills.length === 0 ? (
-                      <span className="text-xs text-slate-500">No skills added yet.</span>
+                      <span className="text-xs text-slate-500">{isVi ? 'Chưa có kỹ năng.' : 'No skills yet.'}</span>
                     ) : draft.skills.map(skill => (
                       <button
                         key={skill}
@@ -190,7 +193,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
 
                   {/* Suggested Skills */}
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-[0.12em]">Suggested Skills</p>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-[0.12em]">{isVi ? 'Kỹ năng đề xuất' : 'Suggested skills'}</p>
                     <div className="space-y-4 mt-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
                       {[...SKILL_CATEGORIES, 'General'].map(category => (
                         <div key={category} className="space-y-2">
@@ -230,20 +233,20 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
                           addSkill();
                         }
                       }}
-                      placeholder="Or type a custom skill..."
+                      placeholder={isVi ? 'Hoặc nhập kỹ năng khác...' : 'Or enter another skill...'}
                       className="flex-1 rounded-xl border border-[#22C55E]/10 bg-[#0F1A2A] px-3.5 py-3 text-sm text-white outline-none focus:border-[#22C55E]/35"
                     />
                     <button onClick={addSkill} className="inline-flex items-center gap-2 rounded-xl border border-[#22C55E]/20 bg-[#22C55E]/12 px-4 py-3 text-sm font-semibold text-[#6EE7B7] hover:bg-[#22C55E]/18 transition-colors">
                       <Plus size={14} />
-                      Add
+                      {isVi ? 'Thêm' : 'Add'}
                     </button>
                   </div>
                 </section>
 
                 <section className="rounded-2xl border border-[#22C55E]/10 bg-[#162032]/45 p-4 space-y-3">
                   <div>
-                    <h4 className="text-sm font-semibold text-white">Availability</h4>
-                    <p className="mt-1 text-xs text-slate-500">This helps workload balancing choose who has capacity for the next task.</p>
+                    <h4 className="text-sm font-semibold text-white">{isVi ? 'Trạng thái sẵn sàng' : 'Availability'}</h4>
+                    <p className="mt-1 text-xs text-slate-500">{isVi ? 'Thông tin này giúp cân bằng khối lượng khi chọn người nhận công việc tiếp theo.' : 'This helps balance workload when choosing the next assignee.'}</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -258,7 +261,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
                             : 'border-[#22C55E]/10 bg-[#0F1A2A] text-slate-400 hover:text-white'
                         }`}
                       >
-                        {option}
+                        {option === 'available' ? (isVi ? 'Sẵn sàng' : 'Available') : (isVi ? 'Đang bận' : 'Busy')}
                       </button>
                     ))}
                   </div>
@@ -266,8 +269,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ open, onClose, membe
               </div>
 
               <div className="border-t border-[#22C55E]/12 px-6 py-4 flex items-center justify-end gap-3 bg-[#0F1A2A]">
-                <button onClick={onClose} className="rounded-xl border border-[#22C55E]/10 bg-[#162032] px-4 py-2.5 text-sm font-medium text-slate-300 hover:text-white transition-colors">Cancel</button>
-                <button onClick={handleSave} disabled={saving} className="rounded-xl bg-gradient-to-r from-[#22C55E] to-[#60A5FA] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#22C55E]/15 hover:brightness-110 transition disabled:opacity-60 disabled:cursor-not-allowed">{saving ? 'Saving...' : 'Save'}</button>
+                <button onClick={onClose} className="rounded-xl border border-[#22C55E]/10 bg-[#162032] px-4 py-2.5 text-sm font-medium text-slate-300 hover:text-white transition-colors">{isVi ? 'Hủy' : 'Cancel'}</button>
+                <button onClick={handleSave} disabled={saving} className="rounded-xl bg-gradient-to-r from-[#22C55E] to-[#60A5FA] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#22C55E]/15 hover:brightness-110 transition disabled:opacity-60 disabled:cursor-not-allowed">{saving ? (isVi ? 'Đang lưu...' : 'Saving...') : (isVi ? 'Lưu' : 'Save')}</button>
               </div>
             </div>
           </motion.aside>

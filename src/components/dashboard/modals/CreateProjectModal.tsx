@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../../ui/Button';
+import { useLang } from '../../../contexts/LanguageContext';
 
 // Create Project Modal
 export const CreateProjectModal: React.FC<{
@@ -8,6 +9,8 @@ export const CreateProjectModal: React.FC<{
   onClose: () => void;
   onSubmit: (name: string) => void;
 }> = ({ isOpen, onClose, onSubmit }) => {
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [name, setName] = useState('');
 
   if (!isOpen) return null;
@@ -28,24 +31,24 @@ export const CreateProjectModal: React.FC<{
         className="relative bg-[#0F1A2A] rounded-2xl shadow-2xl shadow-black/30 w-full max-w-sm border border-[#22C55E]/10 overflow-hidden"
       >
         <div className="px-6 py-4 border-b border-[#22C55E]/10">
-          <h3 className="font-bold text-white">New Project</h3>
+          <h3 className="font-bold text-white">{isVi ? 'Dự án mới' : 'New Project'}</h3>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Project name</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">{isVi ? 'Tên dự án' : 'Project name'}</label>
             <input
               type="text"
               required
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter project name..."
+              placeholder={isVi ? 'Nhập tên dự án...' : 'Enter project name...'}
               className="w-full px-4 py-2 rounded-lg border border-[#22C55E]/10 bg-[#162032] text-white placeholder-slate-500 focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button type="submit" variant="primary">Create</Button>
+            <Button type="button" variant="ghost" onClick={onClose}>{isVi ? 'Hủy' : 'Cancel'}</Button>
+            <Button type="submit" variant="primary">{isVi ? 'Tạo dự án' : 'Create'}</Button>
           </div>
         </form>
       </motion.div>

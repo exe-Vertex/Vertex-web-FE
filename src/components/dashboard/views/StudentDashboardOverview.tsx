@@ -2,12 +2,15 @@ import React from 'react';
 import { ProjectWithMembers } from '../utils/dashboardTypes';
 import { computeProgressFromTasks } from '../utils/dashboardUtils';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useLang } from '../../../contexts/LanguageContext';
 
 export const StudentDashboardOverview: React.FC<{
   projects: ProjectWithMembers[];
   onOpenProject: (projectId: string) => void;
 }> = ({ projects, onOpenProject }) => {
   const { user } = useAuth();
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const today = new Date();
   const todayStart = new Date(today);
   todayStart.setHours(0, 0, 0, 0);
@@ -57,18 +60,18 @@ export const StudentDashboardOverview: React.FC<{
     <div className="flex-1 overflow-y-auto bg-[#0A0F1A] p-6">
       <div className="max-w-6xl mx-auto space-y-10">
         <section className="border-b border-[#22C55E]/10 pb-8">
-          <h2 className="text-xl font-bold text-white">Project Summary</h2>
+          <h2 className="text-xl font-bold text-white">{isVi ? 'Tổng quan dự án' : 'Project Summary'}</h2>
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-[#0F1A2A] border border-[#22C55E]/12 rounded-xl p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Active projects</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{isVi ? 'Dự án đang hoạt động' : 'Active projects'}</p>
               <p className="mt-3 text-3xl font-bold text-white">{activeProjects}</p>
             </div>
             <div className="bg-[#0F1A2A] border border-[#22C55E]/12 rounded-xl p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Tasks due today</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{isVi ? 'Công việc đến hạn hôm nay' : 'Tasks due today'}</p>
               <p className="mt-3 text-3xl font-bold text-white">{tasksDueToday}</p>
             </div>
             <div className="bg-[#0F1A2A] border border-[#22C55E]/12 rounded-xl p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Overdue tasks</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{isVi ? 'Công việc quá hạn' : 'Overdue tasks'}</p>
               <p className="mt-3 text-3xl font-bold text-white">{overdueTaskCount}</p>
             </div>
           </div>
@@ -76,13 +79,13 @@ export const StudentDashboardOverview: React.FC<{
 
         <section className="border-b border-[#22C55E]/10 pb-8">
           <div className="mb-5">
-            <h2 className="text-xl font-bold text-white">My Projects</h2>
+            <h2 className="text-xl font-bold text-white">{isVi ? 'Dự án của tôi' : 'My Projects'}</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {projects.map(project => {
               const progress = computeProgressFromTasks(project);
               const pendingTasks = project.tasks.filter(task => task.status !== 'done').length;
-              const leader = project.members[0]?.name || 'Unassigned';
+              const leader = project.members[0]?.name || (isVi ? 'Chưa phân công' : 'Unassigned');
 
               return (
                 <button
@@ -93,15 +96,15 @@ export const StudentDashboardOverview: React.FC<{
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="text-white font-semibold text-sm">{project.name}</h3>
-                      <p className="mt-1 text-xs text-slate-500">Leader: {leader}</p>
+                      <p className="mt-1 text-xs text-slate-500">{isVi ? 'Trưởng nhóm' : 'Leader'}: {leader}</p>
                     </div>
                     <span className="text-xs font-semibold text-[#22C55E]">{progress}%</span>
                   </div>
                   <div className="mt-4 space-y-2 text-xs text-slate-400">
-                    <p className="flex items-center justify-between"><span>Members</span><span className="text-slate-200 font-semibold">{project.members.length}</span></p>
-                    <p className="flex items-center justify-between"><span>Total tasks</span><span className="text-slate-200 font-semibold">{project.tasks.length}</span></p>
-                    <p className="flex items-center justify-between"><span>Pending tasks</span><span className="text-slate-200 font-semibold">{pendingTasks}</span></p>
-                    <p className="flex items-center justify-between"><span>Deadline</span><span className="text-slate-200 font-semibold">{new Date(project.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></p>
+                    <p className="flex items-center justify-between"><span>{isVi ? 'Thành viên' : 'Members'}</span><span className="text-slate-200 font-semibold">{project.members.length}</span></p>
+                    <p className="flex items-center justify-between"><span>{isVi ? 'Tổng công việc' : 'Total tasks'}</span><span className="text-slate-200 font-semibold">{project.tasks.length}</span></p>
+                    <p className="flex items-center justify-between"><span>{isVi ? 'Chưa hoàn thành' : 'Pending tasks'}</span><span className="text-slate-200 font-semibold">{pendingTasks}</span></p>
+                    <p className="flex items-center justify-between"><span>{isVi ? 'Hạn chót' : 'Deadline'}</span><span className="text-slate-200 font-semibold">{new Date(project.deadline).toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric' })}</span></p>
                   </div>
                   <div className="h-1.5 mt-4 bg-[#162032] rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-[#22C55E] to-[#EAB308]" style={{ width: `${progress}%` }} />
@@ -114,12 +117,12 @@ export const StudentDashboardOverview: React.FC<{
 
         <section className="border-b border-[#22C55E]/10 pb-8">
           <div className="mb-5">
-            <h2 className="text-xl font-bold text-white">My Tasks Today</h2>
+            <h2 className="text-xl font-bold text-white">{isVi ? 'Công việc hôm nay của tôi' : 'My Tasks Today'}</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {myTasksToday.length === 0 ? (
               <div className="md:col-span-2 rounded-xl border border-[#22C55E]/12 bg-[#0F1A2A] px-4 py-5 text-sm text-slate-500">
-                No active tasks assigned to you today.
+                {isVi ? 'Hôm nay bạn không có công việc đang thực hiện.' : 'No active tasks assigned to you today.'}
               </div>
             ) : myTasksToday.map(task => (
               <button
@@ -136,12 +139,12 @@ export const StudentDashboardOverview: React.FC<{
 
         <section className="border-b border-[#22C55E]/10 pb-8">
           <div className="mb-5">
-            <h2 className="text-xl font-bold text-white">Overdue Tasks</h2>
+            <h2 className="text-xl font-bold text-white">{isVi ? 'Công việc quá hạn' : 'Overdue Tasks'}</h2>
           </div>
           <div className="space-y-3">
             {overdueTasks.length === 0 ? (
               <div className="rounded-xl border border-[#22C55E]/12 bg-[#0F1A2A] px-4 py-5 text-sm text-slate-500">
-                No overdue tasks. Great progress.
+                {isVi ? 'Không có công việc quá hạn. Tiến độ rất tốt.' : 'No overdue tasks. Great progress.'}
               </div>
             ) : overdueTasks.map(task => {
               const overdueDays = Math.max(1, Math.ceil((todayStart.getTime() - new Date(task.endDate).getTime()) / 86400000));
@@ -157,7 +160,7 @@ export const StudentDashboardOverview: React.FC<{
                       <p className="text-[11px] text-slate-500 mt-0.5 truncate">{task.projectName}</p>
                     </div>
                     <span className="text-[11px] font-semibold px-2 py-1 rounded-md bg-red-500/10 border border-red-500/20 text-red-300">
-                      {overdueDays}d overdue
+                      {isVi ? `Quá hạn ${overdueDays} ngày` : `${overdueDays}d overdue`}
                     </span>
                   </div>
                 </button>
@@ -168,7 +171,7 @@ export const StudentDashboardOverview: React.FC<{
 
         <section>
           <div className="mb-5">
-            <h2 className="text-xl font-bold text-white">Upcoming Deadlines</h2>
+            <h2 className="text-xl font-bold text-white">{isVi ? 'Hạn chót sắp tới' : 'Upcoming Deadlines'}</h2>
           </div>
           <div className="space-y-3">
             {upcomingDeadlines.map(project => (
@@ -179,7 +182,7 @@ export const StudentDashboardOverview: React.FC<{
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium text-white">{project.name}</span>
-                  <span className="text-sm text-slate-400">{new Date(project.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  <span className="text-sm text-slate-400">{new Date(project.deadline).toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric' })}</span>
                 </div>
               </button>
             ))}

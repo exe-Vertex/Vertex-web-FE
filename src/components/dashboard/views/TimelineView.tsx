@@ -3,10 +3,13 @@ import { motion } from 'motion/react';
 import { Filter } from 'lucide-react';
 import { Avatar } from '../../ui/Avatar';
 import { Project, Task, Status } from '../../../types';
+import { useLang } from '../../../contexts/LanguageContext';
 
 // Timeline Subcomponent (Simplified Gantt)
 export const TimelineView: React.FC<{ project: Project; onTaskClick: (task: Task) => void }> = ({ project, onTaskClick }) => {
   const [scale, setScale] = useState<'day' | 'week' | 'month'>('week');
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const sortedTasks = [...project.tasks].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   const DAY_MS = 86400000;
@@ -64,7 +67,7 @@ export const TimelineView: React.FC<{ project: Project; onTaskClick: (task: Task
       const labels = Array.from({ length: totalUnits }).map((_, idx) => {
         const ms = start + idx * DAY_MS;
         return {
-          text: new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          text: new Date(ms).toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric' }),
           key: `d_${ms}`,
         };
       });
@@ -80,7 +83,7 @@ export const TimelineView: React.FC<{ project: Project; onTaskClick: (task: Task
         const d = new Date(start);
         d.setMonth(d.getMonth() + idx);
         return {
-          text: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          text: d.toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { month: 'short', year: 'numeric' }),
           key: `m_${d.getFullYear()}_${d.getMonth()}`,
         };
       });
@@ -96,21 +99,21 @@ export const TimelineView: React.FC<{ project: Project; onTaskClick: (task: Task
       const rangeStart = new Date(ms);
       const rangeEnd = new Date(ms + 6 * DAY_MS);
       return {
-        text: `${rangeStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${rangeEnd.toLocaleDateString('en-US', { day: 'numeric' })}`,
+        text: `${rangeStart.toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric' })} - ${rangeEnd.toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { day: 'numeric' })}`,
         key: `w_${ms}`,
       };
     });
     return { start, totalUnits, unitPx, labels };
-  }, [timelineBounds, scale]);
+  }, [timelineBounds, scale, isVi]);
 
   const timelineWidth = Math.max(920, gridModel.totalUnits * gridModel.unitPx);
 
   const periodLabel = useMemo(() => {
-    if (gridModel.labels.length === 0) return 'No tasks';
+    if (gridModel.labels.length === 0) return isVi ? 'Chưa có công việc' : 'No tasks';
     const first = gridModel.labels[0].text;
     const last = gridModel.labels[gridModel.labels.length - 1].text;
     return first === last ? first : `${first} - ${last}`;
-  }, [gridModel.labels]);
+  }, [gridModel.labels, isVi]);
 
   const getOffsetUnits = (ms: number) => {
     if (scale === 'day') return Math.floor((startOfDay(ms) - gridModel.start) / DAY_MS);
@@ -159,7 +162,7 @@ export const TimelineView: React.FC<{ project: Project; onTaskClick: (task: Task
                   : 'bg-[#162032] border-[#22C55E]/10 text-slate-400 hover:text-[#22C55E]'
               }`}
             >
-              {mode}
+              {mode === 'day' ? (isVi ? 'Ngày' : 'Day') : mode === 'week' ? (isVi ? 'Tuần' : 'Week') : (isVi ? 'Tháng' : 'Month')}
             </button>
           ))}
         </div>
@@ -168,7 +171,7 @@ export const TimelineView: React.FC<{ project: Project; onTaskClick: (task: Task
       <div className="flex-1 overflow-auto p-4">
         <div className="min-w-[980px]" style={{ width: `${250 + timelineWidth}px` }}>
           <div className="sticky top-0 z-20 flex border-b border-[#22C55E]/10 bg-[#0F1A2A]">
-            <div className="w-[250px] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Task</div>
+            <div className="w-[250px] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{isVi ? 'Công việc' : 'Task'}</div>
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               <div className="absolute inset-0 pointer-events-none">
                 {gridModel.labels.map((label, idx) => (
@@ -180,7 +183,7 @@ export const TimelineView: React.FC<{ project: Project; onTaskClick: (task: Task
                 ))}
                 {todayUnits >= 0 && todayUnits < gridModel.totalUnits && (
                   <div className="absolute top-0 bottom-0 border-l border-[#EAB308]/70" style={{ left: `${todayX}px` }}>
-                    <span className="absolute -top-5 -left-5 rounded bg-[#1A2638] px-1.5 py-0.5 text-[10px] font-semibold text-[#EAB308]">Today</span>
+                    <span className="absolute -top-5 -left-5 rounded bg-[#1A2638] px-1.5 py-0.5 text-[10px] font-semibold text-[#EAB308]">{isVi ? 'Hôm nay' : 'Today'}</span>
                   </div>
                 )}
               </div>
@@ -211,7 +214,7 @@ export const TimelineView: React.FC<{ project: Project; onTaskClick: (task: Task
                     <Avatar src={task.assignee?.avatar} fallback="?" size="sm" className="w-7 h-7 text-[11px]" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-slate-200 truncate">{task.title}</p>
-                      <p className="text-[11px] text-slate-500">{new Date(task.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(task.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                      <p className="text-[11px] text-slate-500">{new Date(task.startDate).toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric' })} - {new Date(task.endDate).toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric' })}</p>
                     </div>
                   </div>
 
@@ -240,7 +243,7 @@ export const TimelineView: React.FC<{ project: Project; onTaskClick: (task: Task
               );
             })}
             {sortedTasks.length === 0 && (
-              <div className="py-14 text-center text-sm text-slate-500">No tasks yet. Create tasks to populate the timeline.</div>
+              <div className="py-14 text-center text-sm text-slate-500">{isVi ? 'Chưa có công việc. Hãy tạo công việc để hiển thị trên dòng thời gian.' : 'No tasks yet. Create a task to show it on the timeline.'}</div>
             )}
           </div>
         </div>

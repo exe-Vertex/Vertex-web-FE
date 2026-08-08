@@ -4,6 +4,7 @@ import { Plus, Calendar as CalendarIcon, FileText, Paperclip, MessageSquare, Tra
 import { Avatar } from '../../ui/Avatar';
 import { Badge } from '../../ui/Badge';
 import { Project, Task, Status } from '../../../types';
+import { useLang } from '../../../contexts/LanguageContext';
 
 // Kanban Subcomponent
 export const KanbanBoard: React.FC<{
@@ -14,6 +15,8 @@ export const KanbanBoard: React.FC<{
   onAddTask: (status: Status) => void;
   onDeleteTask: (taskId: string) => void;
 }> = ({ project, currentUserRole, onTaskClick, onTaskDrop, onAddTask, onDeleteTask }) => {
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [menuTaskId, setMenuTaskId] = useState<string | null>(null);
   const todayStartMs = useMemo(() => {
@@ -37,11 +40,15 @@ export const KanbanBoard: React.FC<{
   }, [menuTaskId]);
 
   const columns: { id: Status; title: string; color: string }[] = [
-    { id: 'todo', title: 'Todo', color: 'bg-slate-500' },
-    { id: 'in-progress', title: 'In Progress', color: 'bg-blue-500' },
-    { id: 'ready-for-review', title: 'Ready for Review', color: 'bg-[#EAB308]' },
-    { id: 'done', title: 'Done', color: 'bg-green-500' }
+    { id: 'todo', title: isVi ? 'Cần làm' : 'To Do', color: 'bg-slate-500' },
+    { id: 'in-progress', title: isVi ? 'Đang thực hiện' : 'In Progress', color: 'bg-blue-500' },
+    { id: 'ready-for-review', title: isVi ? 'Chờ duyệt' : 'Ready for Review', color: 'bg-[#EAB308]' },
+    { id: 'done', title: isVi ? 'Hoàn thành' : 'Done', color: 'bg-green-500' }
   ];
+
+  const priorityLabels = isVi
+    ? { low: 'Thấp', medium: 'Trung bình', high: 'Cao' }
+    : { low: 'Low', medium: 'Medium', high: 'High' };
 
   return (
     <div className="flex h-full gap-6 min-w-[1000px]">
@@ -108,11 +115,11 @@ export const KanbanBoard: React.FC<{
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-1.5">
                         <Badge variant={task.priority === 'high' ? 'danger' : task.priority === 'medium' ? 'warning' : 'info'} className="text-[10px] px-1.5 py-0">
-                          {task.priority}
+                          {priorityLabels[task.priority]}
                         </Badge>
                         {isOverdue && (
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-red-500/25 bg-red-500/10 text-red-300">
-                            Overdue
+                            {isVi ? 'Quá hạn' : 'Overdue'}
                           </span>
                         )}
                       </div>
@@ -142,7 +149,7 @@ export const KanbanBoard: React.FC<{
                           className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-300 hover:bg-red-500/10 transition-colors"
                         >
                           <Trash2 size={14} />
-                          Delete task
+                          {isVi ? 'Xóa công việc' : 'Delete task'}
                         </button>
                       </div>
                     )}
@@ -152,7 +159,7 @@ export const KanbanBoard: React.FC<{
                     <div className="flex items-center gap-2 mb-2 min-h-4">
                       {task.description && (
                         <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 bg-[#0F1A2A] border border-[#22C55E]/10 px-1.5 py-0.5 rounded-full">
-                          <FileText size={10} /> Note
+                          <FileText size={10} /> {isVi ? 'Ghi chú' : 'Note'}
                         </span>
                       )}
                       {(task.commentCount ?? 0) > 0 && (
@@ -166,7 +173,7 @@ export const KanbanBoard: React.FC<{
                     <div className="flex items-center justify-between mt-3">
                       <div className={`flex items-center gap-1 text-xs ${isOverdue ? 'text-red-300' : 'text-slate-500'}`}>
                         <CalendarIcon size={12} />
-                        <span>{new Date(task.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }).replace('/', '-')}</span>
+                        <span>{new Date(task.endDate).toLocaleDateString(isVi ? 'vi-VN' : 'en-GB', { day: '2-digit', month: '2-digit' }).replace('/', '-')}</span>
                       </div>
                       {task.assignee && (
                         <Avatar src={task.assignee.avatar} fallback={task.assignee.name.charAt(0)} size="sm" className="w-6 h-6 text-[10px]" />

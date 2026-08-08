@@ -7,6 +7,7 @@ import { motion } from 'motion/react';
 import { Button } from '../components/ui/Button';
 import { getAccessToken } from '../utils/authStorage';
 import { CONTACT_EMAIL, CONTACT_URL } from '../config/contact';
+import { useLang } from '../contexts/LanguageContext';
 
 interface PricingPageProps {
   onNavigate: (page: string) => void;
@@ -106,6 +107,44 @@ const featureCategories: FeatureCategory[] = [
   },
 ];
 
+const viPricingText: Record<string, string> = {
+  'For individuals & small teams': 'Dành cho cá nhân và nhóm nhỏ',
+  'For growing teams & capstone projects': 'Dành cho nhóm đang phát triển và dự án capstone',
+  'For schools and mid-sized companies': 'Dành cho trường học và doanh nghiệp vừa',
+  'For large universities and enterprises': 'Dành cho trường đại học và doanh nghiệp lớn',
+  'Get Started': 'Bắt đầu',
+  'Start Free Trial': 'Dùng thử miễn phí',
+  'Upgrade to Business': 'Nâng cấp Business',
+  'Contact Sales': 'Liên hệ tư vấn',
+  'Project Management': 'Quản lý dự án',
+  'Dashboard overview': 'Tổng quan dashboard',
+  'Kanban board view': 'Bảng Kanban',
+  'Timeline view': 'Dòng thời gian',
+  'Calendar view': 'Lịch',
+  'Task status workflow': 'Quy trình trạng thái công việc',
+  'Project members management': 'Quản lý thành viên dự án',
+  'Project files management': 'Quản lý tệp dự án',
+  'AI Features': 'Tính năng AI',
+  'AI planner tab': 'Lập kế hoạch bằng AI',
+  'AI task generation': 'Tạo công việc bằng AI',
+  'Insights dashboard': 'Dashboard phân tích',
+  'Workspace AI settings': 'Cài đặt AI cho workspace',
+  'Group insights panel': 'Phân tích nhóm',
+  'Organization & Administration': 'Tổ chức và quản trị',
+  'In-app notifications': 'Thông báo trong ứng dụng',
+  'Workspace switcher': 'Chuyển đổi workspace',
+  'Role management (Admin/Lecturer/Member)': 'Quản lý vai trò (Admin/Giảng viên/Thành viên)',
+  'Lecturer dashboard': 'Dashboard giảng viên',
+  'Manage student groups & classes': 'Quản lý nhóm sinh viên và lớp học',
+  'Single Sign-On (SSO)': 'Đăng nhập một lần (SSO)',
+  'Audit logs': 'Nhật ký kiểm tra',
+  'Storage & Support': 'Lưu trữ và hỗ trợ',
+  'Storage quota': 'Dung lượng lưu trữ',
+  'Priority support': 'Hỗ trợ ưu tiên',
+  'Up to 5': 'Tối đa 5', 'Up to 20': 'Tối đa 20', 'Unlimited': 'Không giới hạn',
+  '24/7 Dedicated': 'Hỗ trợ riêng 24/7',
+};
+
 const renderCellValue = (value: FeatureValue) => {
   if (value === true) return <Check size={16} className="text-[#22C55E] mx-auto" />;
   if (value === false) return <X size={14} className="text-slate-600 mx-auto" />;
@@ -116,22 +155,24 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
   const { showToast } = useToast();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const handleChoosePlan = (planName: string) => {
     const token = getAccessToken();
     
     if (planName === 'Enterprise') {
       window.open(CONTACT_URL, '_blank', 'noopener,noreferrer');
-      showToast(`Opening email composer to contact ${CONTACT_EMAIL}...`, 'info');
+      showToast(isVi ? `Đang mở email để liên hệ ${CONTACT_EMAIL}...` : `Opening email composer to contact ${CONTACT_EMAIL}...`, 'info');
       return;
     }
     if (!token) {
-      showToast('Vui lòng đăng nhập để nâng cấp gói dịch vụ.', 'info');
+      showToast(isVi ? 'Vui lòng đăng nhập để nâng cấp gói dịch vụ.' : 'Please sign in to upgrade your plan.', 'info');
       setTimeout(() => onNavigate('login'), 800);
       return;
     }
 
     if (planName === 'Free') {
-      showToast('Gói Free mặc định đã được kích hoạt.');
+      showToast(isVi ? 'Gói Free mặc định đã được kích hoạt.' : 'The Free plan is already active.');
       setTimeout(() => onNavigate('dashboard'), 800);
       return;
     }
@@ -139,12 +180,12 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
     // Lưu gói muốn nâng cấp vào localStorage và chuyển hướng sang dashboard
     localStorage.setItem('checkout_plan_on_mount', planName.toLowerCase());
     localStorage.setItem('checkout_cycle_on_mount', billingCycle);
-    showToast(`Đang chuyển hướng tới trang thanh toán gói ${planName}...`, 'success');
+    showToast(isVi ? `Đang chuyển tới trang thanh toán gói ${planName}...` : `Redirecting to ${planName} checkout...`, 'success');
     setTimeout(() => onNavigate('dashboard'), 800);
   };
 
   const getPrice = (plan: typeof plans[0]) => {
-    if (plan.price === 'Custom') return 'Custom';
+    if (plan.price === 'Custom') return isVi ? 'Liên hệ' : 'Custom';
     if (billingCycle === 'yearly') {
       if (plan.price === '$5') return '$4';
       if (plan.price === '$12') return '$10';
@@ -159,8 +200,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
 
   const getYearlySavings = (plan: typeof plans[0]) => {
     if (billingCycle !== 'yearly') return null;
-    if (plan.price === '$5') return 'Save $12/user/yr';
-    if (plan.price === '$12') return 'Save $24/user/yr';
+    if (plan.price === '$5') return isVi ? 'Tiết kiệm $12/người/năm' : 'Save $12/user/yr';
+    if (plan.price === '$12') return isVi ? 'Tiết kiệm $24/người/năm' : 'Save $24/user/yr';
     return null;
   };
 
@@ -204,17 +245,17 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#22C55E]/20 text-[#86EFAC]">
                 <Sparkles size={12} />
               </span>
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">Simple pricing</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">{isVi ? 'Bảng giá đơn giản' : 'Simple pricing'}</span>
               <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]/70" />
-              <span className="text-xs text-slate-400">No hidden fees</span>
+              <span className="text-xs text-slate-400">{isVi ? 'Không phí ẩn' : 'No hidden fees'}</span>
             </motion.div>
 
             <h1 className="mt-6 text-4xl font-display font-bold leading-[1.05] tracking-tight text-white md:text-5xl lg:text-6xl">
-              Choose your <span className="text-gradient">plan</span>
+              {isVi ? 'Chọn ' : 'Choose your '}<span className="text-gradient">{isVi ? 'gói phù hợp' : 'plan'}</span>
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg text-slate-300/90">
-              Start free and scale as your team grows. All plans include core features.
+              {isVi ? 'Bắt đầu miễn phí và nâng cấp khi đội nhóm phát triển. Mọi gói đều có các tính năng cốt lõi.' : 'Start free and scale as your team grows. All plans include core features.'}
             </p>
 
             {/* Billing toggle */}
@@ -226,7 +267,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                 transition={{ type: 'spring', stiffness: 320, damping: 24, mass: 0.6 }}
                 className={`transform-gpu will-change-transform px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-out ${billingCycle === 'monthly' ? 'bg-[#22C55E] text-white shadow-lg shadow-green-500/25' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                Monthly
+                {isVi ? 'Hàng tháng' : 'Monthly'}
               </motion.button>
               <motion.button
                 onClick={() => setBillingCycle('yearly')}
@@ -235,7 +276,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                 transition={{ type: 'spring', stiffness: 320, damping: 24, mass: 0.6 }}
                 className={`transform-gpu will-change-transform px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-out flex items-center gap-2 ${billingCycle === 'yearly' ? 'bg-[#22C55E] text-white shadow-lg shadow-green-500/25' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                Yearly
+                {isVi ? 'Hàng năm' : 'Yearly'}
                 <span className="text-[10px] bg-[#EAB308]/20 text-[#EAB308] px-2 py-0.5 rounded-full font-bold">-20%</span>
               </motion.button>
             </div>
@@ -260,14 +301,14 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                 <div className="mb-5 flex min-h-6 items-center justify-between gap-2">
                   {plan.highlight ? (
                     <div className="rounded-full bg-gradient-to-r from-[#22C55E] to-[#EAB308] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-                      Most Popular
+                      {isVi ? 'Phổ biến nhất' : 'Most Popular'}
                     </div>
                   ) : (
                     <span className="h-6" />
                   )}
                   {billingCycle === 'yearly' && plan.price !== '$0' && plan.price !== 'Custom' ? (
                     <div className="rounded-full border border-[#EAB308]/45 bg-[#EAB308]/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#FDE68A]">
-                      Yearly Deal
+                      {isVi ? 'Ưu đãi năm' : 'Yearly Deal'}
                     </div>
                   ) : (
                     <span className="h-6" />
@@ -275,12 +316,12 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                 </div>
                 <div className="mb-4">
                   <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-                  <p className="text-slate-400 text-sm">{plan.description}</p>
+                  <p className="text-slate-400 text-sm">{isVi ? (viPricingText[plan.description] ?? plan.description) : plan.description}</p>
                 </div>
                 <div className={`mb-6 ${billingCycle === 'yearly' ? 'min-h-[92px]' : 'min-h-[72px]'}`}>
                   <div className="flex items-end gap-2">
                     <span className="text-4xl font-bold text-white">{getPrice(plan)}</span>
-                    <span className="text-slate-400">{plan.period}</span>
+                    <span className="text-slate-400">{isVi && plan.period ? '/người/tháng' : plan.period}</span>
                     {getOriginalMonthlyPrice(plan) && (
                       <span className="mb-1 text-sm text-slate-500 line-through">{getOriginalMonthlyPrice(plan)}</span>
                     )}
@@ -290,7 +331,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                       <span className="inline-flex rounded-full border border-[#22C55E]/35 bg-[#22C55E]/12 px-2.5 py-1 text-[11px] font-semibold text-[#86EFAC]">
                         {getYearlySavings(plan)}
                       </span>
-                      <span className="block text-xs text-slate-500">Billed annually</span>
+                      <span className="block text-xs text-slate-500">{isVi ? 'Thanh toán theo năm' : 'Billed annually'}</span>
                     </div>
                   )}
                 </div>
@@ -312,10 +353,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                       <span className="pricing-cta-sparkle pricing-cta-sparkle-1" />
                       <span className="pricing-cta-sparkle pricing-cta-sparkle-2" />
                       <span className="pricing-cta-sparkle pricing-cta-sparkle-3" />
-                      <span className="relative z-10">{plan.cta}</span>
+                      <span className="relative z-10">{isVi ? (viPricingText[plan.cta] ?? plan.cta) : plan.cta}</span>
                     </>
                   ) : (
-                    plan.cta
+                    isVi ? (viPricingText[plan.cta] ?? plan.cta) : plan.cta
                   )}
                 </motion.button>
               </motion.div>
@@ -329,15 +370,15 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
             viewport={{ once: true }}
           >
             <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold text-white mb-3">Compare all features</h2>
-              <p className="text-slate-400">Detailed breakdown of what's included in each plan</p>
+              <h2 className="text-3xl font-bold text-white mb-3">{isVi ? 'So sánh toàn bộ tính năng' : 'Compare all features'}</h2>
+              <p className="text-slate-400">{isVi ? 'Chi tiết quyền lợi có trong từng gói' : "Detailed breakdown of what's included in each plan"}</p>
             </div>
 
             <div className="bg-[#0F1A2A]/50 backdrop-blur-xl rounded-2xl border border-[#22C55E]/10 overflow-x-auto">
               {/* Table header */}
               <div className="grid grid-cols-5 border-b border-[#22C55E]/10 bg-[#0F1A2A]/80 min-w-[700px]">
                 <div className="px-6 py-4">
-                  <span className="text-sm font-medium text-slate-500">Features</span>
+                  <span className="text-sm font-medium text-slate-500">{isVi ? 'Tính năng' : 'Features'}</span>
                 </div>
                 {plans.map((plan) => (
                   <div key={plan.name} className="px-4 py-4 text-center">
@@ -352,7 +393,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                   {/* Category header */}
                   <div className="grid grid-cols-5 bg-[#162032]/40 border-b border-[#22C55E]/5 min-w-[700px]">
                     <div className="col-span-5 px-6 py-3">
-                      <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider">{cat.category}</span>
+                      <span className="text-xs font-bold text-[#22C55E] uppercase tracking-wider">{isVi ? (viPricingText[cat.category] ?? cat.category) : cat.category}</span>
                     </div>
                   </div>
 
@@ -365,19 +406,19 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                       }`}
                     >
                       <div className="px-6 py-3.5 flex items-center">
-                        <span className="text-sm text-slate-300">{feature.name}</span>
+                        <span className="text-sm text-slate-300">{isVi ? (viPricingText[feature.name] ?? feature.name) : feature.name}</span>
                       </div>
                       <div className="px-4 py-3.5 flex items-center justify-center">
-                        {renderCellValue(feature.free)}
+                        {renderCellValue(isVi && typeof feature.free === 'string' ? (viPricingText[feature.free] ?? feature.free) : feature.free)}
                       </div>
                       <div className="px-4 py-3.5 flex items-center justify-center">
-                        {renderCellValue(feature.pro)}
+                        {renderCellValue(isVi && typeof feature.pro === 'string' ? (viPricingText[feature.pro] ?? feature.pro) : feature.pro)}
                       </div>
                       <div className="px-4 py-3.5 flex items-center justify-center">
-                        {renderCellValue(feature.business)}
+                        {renderCellValue(isVi && typeof feature.business === 'string' ? (viPricingText[feature.business] ?? feature.business) : feature.business)}
                       </div>
                       <div className="px-4 py-3.5 flex items-center justify-center">
-                        {renderCellValue(feature.enterprise)}
+                        {renderCellValue(isVi && typeof feature.enterprise === 'string' ? (viPricingText[feature.enterprise] ?? feature.enterprise) : feature.enterprise)}
                       </div>
                     </div>
                   ))}
@@ -395,13 +436,13 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
           >
             <div className="bg-gradient-to-r from-[#22C55E]/10 to-[#EAB308]/10 rounded-3xl border border-[#22C55E]/15 p-12 backdrop-blur-xl max-w-3xl mx-auto">
               <h2 className="text-3xl font-display font-bold text-white mb-4">
-                Not sure which plan?
+                {isVi ? 'Chưa biết chọn gói nào?' : 'Not sure which plan?'}
               </h2>
               <p className="text-slate-400 mb-8 max-w-lg mx-auto">
-                Start with the Free plan and upgrade anytime. No credit card required.
+                {isVi ? 'Bắt đầu với gói Free và nâng cấp bất cứ lúc nào. Không cần thẻ tín dụng.' : 'Start with the Free plan and upgrade anytime. No credit card required.'}
               </p>
               <Button size="lg" onClick={() => onNavigate('dashboard')} icon={<ArrowRight size={20} />}>
-                Start Free Trial
+                {isVi ? 'Dùng thử miễn phí' : 'Start Free Trial'}
               </Button>
             </div>
           </motion.div>

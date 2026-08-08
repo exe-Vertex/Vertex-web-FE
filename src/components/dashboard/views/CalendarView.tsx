@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Project, Task, Status } from '../../../types';
+import { useLang } from '../../../contexts/LanguageContext';
 
 export const CalendarView: React.FC<{ project: Project; onTaskClick: (task: Task) => void }> = ({ project, onTaskClick }) => {
   const [monthOffset, setMonthOffset] = useState(0);
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
 
   const visibleMonthStart = useMemo(() => {
     const d = new Date();
@@ -58,22 +61,22 @@ export const CalendarView: React.FC<{ project: Project; onTaskClick: (task: Task
           onClick={() => setMonthOffset(prev => prev - 1)}
           className="px-2.5 py-1.5 rounded-md border border-[#22C55E]/15 text-xs text-slate-300 hover:bg-[#162032]"
         >
-          Previous
+          {isVi ? 'Trước' : 'Previous'}
         </button>
         <p className="text-sm font-semibold text-slate-200">
-          {visibleMonthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          {visibleMonthStart.toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { month: 'long', year: 'numeric' })}
         </p>
         <button
           onClick={() => setMonthOffset(prev => prev + 1)}
           className="px-2.5 py-1.5 rounded-md border border-[#22C55E]/15 text-xs text-slate-300 hover:bg-[#162032]"
         >
-          Next
+          {isVi ? 'Sau' : 'Next'}
         </button>
       </div>
 
       <div className="flex-1 overflow-auto p-4">
         <div className="grid grid-cols-7 gap-2 mb-2">
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+          {(isVi ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']).map(day => (
             <div key={day} className="text-[11px] uppercase tracking-wider text-slate-500 px-1 py-1">{day}</div>
           ))}
         </div>
@@ -107,7 +110,7 @@ export const CalendarView: React.FC<{ project: Project; onTaskClick: (task: Task
                     </button>
                   ))}
                   {dayTasks.length > 3 && (
-                    <p className="text-[10px] text-slate-500 px-1">+{dayTasks.length - 3} more</p>
+                    <p className="text-[10px] text-slate-500 px-1">+{dayTasks.length - 3} {isVi ? 'công việc khác' : 'more tasks'}</p>
                   )}
                 </div>
               </div>

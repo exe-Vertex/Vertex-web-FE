@@ -2,8 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Sparkles, Minimize2, Loader2 } from 'lucide-react';
 import { chatWithAi, getAiHistory, AiHistory } from '../../api/ai';
 import { getAccessToken } from '../../utils/authStorage';
+import { useLang } from '../../contexts/LanguageContext';
 
 export const FloatingAiChat: React.FC = () => {
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<AiHistory[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -66,7 +69,7 @@ export const FloatingAiChat: React.FC = () => {
       setMessages(prev => prev.map(m => m.id === tempId ? response : m));
     } catch (error) {
       console.error('AI Chat Error:', error);
-      const message = error instanceof Error ? error.message : 'Unable to connect to AI.';
+      const message = error instanceof Error ? error.message : (isVi ? 'Không thể kết nối với AI.' : 'Could not connect to AI.');
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, planSummary: message } : m));
     } finally {
       setIsLoading(false);
@@ -98,7 +101,7 @@ export const FloatingAiChat: React.FC = () => {
             <h3 className="text-sm font-semibold text-white">Vertex AI</h3>
             <p className="text-[10px] text-green-400 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-              Online
+              {isVi ? 'Trực tuyến' : 'Online'}
             </p>
           </div>
         </div>
@@ -117,8 +120,8 @@ export const FloatingAiChat: React.FC = () => {
             <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-2">
               <MessageSquare className="w-8 h-8 text-green-500" />
             </div>
-            <p className="text-sm">Hi there! I am Vertex AI.</p>
-            <p className="text-xs">How can I help you manage your projects today?</p>
+            <p className="text-sm">{isVi ? 'Xin chào! Tôi là Vertex AI.' : 'Hello! I am Vertex AI.'}</p>
+            <p className="text-xs">{isVi ? 'Tôi có thể giúp gì cho dự án của bạn hôm nay?' : 'How can I help with your project today?'}</p>
           </div>
         )}
         
@@ -166,7 +169,7 @@ export const FloatingAiChat: React.FC = () => {
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask me anything..."
+            placeholder={isVi ? 'Nhập câu hỏi của bạn...' : 'Ask a question...'}
             className="w-full bg-[#162032] text-sm text-white placeholder-slate-400 border border-slate-700/50 rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 transition-all"
           />
           <button

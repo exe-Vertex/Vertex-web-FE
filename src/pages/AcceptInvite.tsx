@@ -6,6 +6,7 @@ import { getAuthToken } from '../components/dashboard/utils/dashboardUtils';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserSkills } from '../api/auth';
 import { updateProjectMemberRole } from '../api/project';
+import { useLang } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/Button';
 
 const SUGGESTED_TARGET_SKILLS = [
@@ -16,6 +17,8 @@ const SUGGESTED_TARGET_SKILLS = [
 const AcceptInvite: React.FC = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -33,7 +36,7 @@ const AcceptInvite: React.FC = () => {
 
   useEffect(() => {
     if (!token) {
-      setError('Token không hợp lệ hoặc không tồn tại.');
+      setError(isVi ? 'Token không hợp lệ hoặc không tồn tại.' : 'The invitation token is invalid or missing.');
       setLoading(false);
       return;
     }
@@ -44,10 +47,10 @@ const AcceptInvite: React.FC = () => {
         setLoading(false);
       })
       .catch((err: any) => {
-        setError(err.message || 'Có lỗi xảy ra khi xác thực thư mời.');
+        setError(err.message || (isVi ? 'Có lỗi xảy ra khi xác thực thư mời.' : 'An error occurred while verifying the invitation.'));
         setLoading(false);
       });
-  }, [token]);
+  }, [token, isVi]);
 
   // Load user core skills to pre-fill target skills
   useEffect(() => {
@@ -84,11 +87,11 @@ const AcceptInvite: React.FC = () => {
       if (invitationInfo?.targetType === 'Project') {
         setShowSkillsSetup(true);
       } else {
-        alert('Chấp nhận lời mời thành công!');
+        alert(isVi ? 'Chấp nhận lời mời thành công!' : 'Invitation accepted successfully!');
         navigate('/dashboard');
       }
     } catch (err: any) {
-      setError(err.message || 'Có lỗi xảy ra khi chấp nhận lời mời.');
+      setError(err.message || (isVi ? 'Có lỗi xảy ra khi chấp nhận lời mời.' : 'An error occurred while accepting the invitation.'));
     } finally {
       setAccepting(false);
     }
@@ -146,7 +149,7 @@ const AcceptInvite: React.FC = () => {
       <div className="flex h-screen items-center justify-center bg-[#090F1A]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-[#22C55E]/30 border-t-[#22C55E] rounded-full animate-spin"></div>
-          <div className="text-slate-400 text-sm font-medium">Đang kiểm tra thư mời...</div>
+          <div className="text-slate-400 text-sm font-medium">{isVi ? 'Đang kiểm tra thư mời...' : 'Checking invitation...'}</div>
         </div>
       </div>
     );
@@ -174,14 +177,14 @@ const AcceptInvite: React.FC = () => {
                   <div className="w-16 h-16 bg-red-500/10 border border-red-500/25 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500 text-3xl shadow-[0_0_20px_rgba(239,68,68,0.15)]">
                     ❌
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Không thể xác nhận thư mời</h2>
+                  <h2 className="text-2xl font-bold text-white mb-2">{isVi ? 'Không thể xác nhận thư mời' : 'Unable to verify invitation'}</h2>
                   <p className="text-slate-400 mb-8 text-sm">{error}</p>
                   <Button
                     onClick={() => navigate('/')}
                     variant="secondary"
                     className="w-full"
                   >
-                    Về trang chủ
+                    {isVi ? 'Về trang chủ' : 'Back to home'}
                   </Button>
                 </>
               ) : invitationInfo ? (
@@ -189,14 +192,14 @@ const AcceptInvite: React.FC = () => {
                   <div className="w-16 h-16 bg-[#22C55E]/10 border border-[#22C55E]/20 rounded-full flex items-center justify-center mx-auto mb-6 text-[#4ADE80] text-3xl shadow-[0_0_20px_rgba(34,197,94,0.15)] animate-bounce">
                     ✉️
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-3">Bạn có một lời mời!</h2>
+                  <h2 className="text-2xl font-bold text-white mb-3">{isVi ? 'Bạn có một lời mời!' : 'You have an invitation!'}</h2>
                   <p className="text-slate-300 mb-6 text-sm leading-relaxed">
-                    Bạn được mời tham gia vào dự án <strong>{invitationInfo.targetType === 'Project' ? 'Dự án' : 'Tổ chức'}</strong> với vai trò <span className="px-2 py-0.5 rounded bg-[#22C55E]/10 text-[#4ADE80] border border-[#22C55E]/20 text-xs font-semibold">{invitationInfo.role}</span>.
+                    {isVi ? 'Bạn được mời tham gia ' : 'You have been invited to join '}<strong>{invitationInfo.targetType === 'Project' ? (isVi ? 'Dự án' : 'Project') : (isVi ? 'Tổ chức' : 'Organization')}</strong>{isVi ? ' với vai trò ' : ' as '}<span className="px-2 py-0.5 rounded bg-[#22C55E]/10 text-[#4ADE80] border border-[#22C55E]/20 text-xs font-semibold">{invitationInfo.role}</span>.
                   </p>
                   
                   {!getAuthToken() && (
                     <div className="mb-6 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl text-left leading-relaxed">
-                      ⚠️ Bạn cần phải <strong>Đăng nhập</strong> hoặc <strong>Tạo tài khoản</strong> bằng email <span className="underline font-semibold">{invitationInfo.email}</span> để chấp nhận lời mời này.
+                      {isVi ? 'Bạn cần ' : 'You need to '}<strong>{isVi ? 'Đăng nhập' : 'Sign in'}</strong>{isVi ? ' hoặc ' : ' or '}<strong>{isVi ? 'Tạo tài khoản' : 'Create an account'}</strong>{isVi ? ' bằng email ' : ' with the email '}<span className="underline font-semibold">{invitationInfo.email}</span>{isVi ? ' để chấp nhận lời mời này.' : ' to accept this invitation.'}
                     </div>
                   )}
 
@@ -207,7 +210,7 @@ const AcceptInvite: React.FC = () => {
                     className="w-full"
                     isLoading={accepting}
                   >
-                    {!getAuthToken() ? 'Đăng nhập để chấp nhận' : 'Chấp nhận tham gia'}
+                    {!getAuthToken() ? (isVi ? 'Đăng nhập để chấp nhận' : 'Sign in to accept') : (isVi ? 'Chấp nhận tham gia' : 'Accept invitation')}
                   </Button>
                 </>
               ) : null}
@@ -225,18 +228,18 @@ const AcceptInvite: React.FC = () => {
                 <div className="w-14 h-14 bg-[#3B82F6]/10 border border-[#3B82F6]/20 rounded-full flex items-center justify-center mx-auto mb-4 text-[#60A5FA] text-2xl shadow-[0_0_15px_rgba(59,130,246,0.15)]">
                   ⚡
                 </div>
-                <h2 className="text-xl font-bold text-white">Lựa chọn kỹ năng cho dự án</h2>
+                <h2 className="text-xl font-bold text-white">{isVi ? 'Lựa chọn kỹ năng cho dự án' : 'Choose your project skills'}</h2>
                 <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                  Hãy chỉ định các kỹ năng hoặc vai trò bạn muốn đảm nhận trong dự án này để AI hỗ trợ phân công công việc tối ưu nhất.
+                  {isVi ? 'Hãy chỉ định các kỹ năng hoặc vai trò bạn muốn đảm nhận trong dự án này để AI hỗ trợ phân công công việc tối ưu nhất.' : 'Select the skills or roles you want to take on so AI can suggest the most suitable work assignments.'}
                 </p>
               </div>
 
               {/* Display selected chips */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Kỹ năng tham gia dự án</label>
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{isVi ? 'Kỹ năng tham gia dự án' : 'Project skills'}</label>
                 {selectedSkills.length === 0 ? (
                   <div className="text-xs text-slate-500 italic p-3 bg-[#162032]/40 rounded-xl border border-dashed border-slate-700/50 text-center">
-                    Chưa chọn kỹ năng nào. Hãy chọn từ gợi ý hoặc nhập bên dưới.
+                    {isVi ? 'Chưa chọn kỹ năng nào. Hãy chọn từ gợi ý hoặc nhập bên dưới.' : 'No skills selected. Choose a suggestion or add one below.'}
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-1.5 p-3 bg-[#162032]/60 rounded-xl border border-[#22C55E]/10 max-h-[100px] overflow-y-auto">
@@ -265,18 +268,18 @@ const AcceptInvite: React.FC = () => {
                   type="text"
                   value={customSkill}
                   onChange={(e) => setCustomSkill(e.target.value)}
-                  placeholder="Nhập kỹ năng khác và nhấn Enter..."
+                  placeholder={isVi ? 'Nhập kỹ năng khác và nhấn Enter...' : 'Enter another skill and press Enter...'}
                   className="flex-1 px-3 py-2 rounded-xl border border-slate-700 bg-[#162032] text-white placeholder-slate-500 focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all text-xs"
                 />
                 <Button type="submit" variant="secondary" size="sm" className="!py-2">
-                  Thêm
+                  {isVi ? 'Thêm' : 'Add'}
                 </Button>
               </form>
 
               {/* Suggested core skills */}
               {coreSkills.length > 0 && (
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Kỹ năng cá nhân của bạn (Core Skills)</label>
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{isVi ? 'Kỹ năng cá nhân của bạn' : 'Your core skills'}</label>
                   <div className="flex flex-wrap gap-2">
                     {coreSkills.map(skill => {
                       const isSelected = selectedSkills.includes(skill);
@@ -300,7 +303,7 @@ const AcceptInvite: React.FC = () => {
 
               {/* Suggestions */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Gợi ý vai trò phổ biến</label>
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{isVi ? 'Gợi ý vai trò phổ biến' : 'Suggested roles'}</label>
                 <div className="flex flex-wrap gap-2">
                   {SUGGESTED_TARGET_SKILLS.map(skill => {
                     const isSelected = selectedSkills.includes(skill);
@@ -329,7 +332,7 @@ const AcceptInvite: React.FC = () => {
                   className="flex-1"
                   disabled={savingSkills}
                 >
-                  Bỏ qua
+                  {isVi ? 'Bỏ qua' : 'Skip'}
                 </Button>
                 <Button
                   onClick={handleSaveSkills}
@@ -337,7 +340,7 @@ const AcceptInvite: React.FC = () => {
                   className="flex-1"
                   isLoading={savingSkills}
                 >
-                  Lưu & Tiếp tục
+                  {isVi ? 'Lưu & Tiếp tục' : 'Save & continue'}
                 </Button>
               </div>
             </motion.div>

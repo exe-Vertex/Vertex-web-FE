@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../../ui/Button';
+import { useLang } from '../../../contexts/LanguageContext';
 
 interface PromptCommentModalProps {
   isOpen: boolean;
@@ -13,6 +14,8 @@ export const PromptCommentModal: React.FC<PromptCommentModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [comment, setComment] = useState('');
 
   if (!isOpen) return null;
@@ -41,21 +44,21 @@ export const PromptCommentModal: React.FC<PromptCommentModalProps> = ({
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-[#0F1A2A] border border-[#22C55E]/20 rounded-2xl shadow-2xl z-50 overflow-hidden"
           >
             <div className="p-6">
-              <h3 className="text-xl font-bold text-white mb-2">Vui lòng nhập nhận xét/lý do cho member biết:</h3>
-              <p className="text-sm text-slate-400 mb-6">Nhận xét này sẽ được ghi vào phần mô tả của công việc.</p>
+              <h3 className="text-xl font-bold text-white mb-2">{isVi ? 'Nhập nhận xét hoặc lý do cho thành viên' : 'Add feedback or a reason for the member'}</h3>
+              <p className="text-sm text-slate-400 mb-6">{isVi ? 'Nhận xét này sẽ được ghi vào phần mô tả của công việc.' : 'This feedback will be added to the task description.'}</p>
               
               <form onSubmit={handleSubmit} className="space-y-4">
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="Ghi chú của bạn..."
+                  placeholder={isVi ? 'Ghi chú của bạn...' : 'Your note...'}
                   className="w-full min-h-[120px] px-4 py-3 rounded-xl border border-[#22C55E]/20 bg-[#162032] text-white placeholder-slate-500 focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all resize-y"
                   autoFocus
                 />
                 
                 <div className="flex justify-end gap-3 pt-4">
-                  <Button type="button" variant="ghost" onClick={onClose}>Hủy (Cancel drop)</Button>
-                  <Button type="submit" variant="primary">Xác nhận</Button>
+                  <Button type="button" variant="ghost" onClick={onClose}>{isVi ? 'Hủy thay đổi' : 'Cancel'}</Button>
+                  <Button type="submit" variant="primary">{isVi ? 'Xác nhận' : 'Confirm'}</Button>
                 </div>
               </form>
             </div>

@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { Avatar } from '../../ui/Avatar';
 import { Badge } from '../../ui/Badge';
 import { MembersDatabaseRow } from '../utils/dashboardTypes';
+import { useLang } from '../../../contexts/LanguageContext';
 
 export const MembersDatabaseView: React.FC<{
   members: MembersDatabaseRow[];
@@ -13,6 +14,8 @@ export const MembersDatabaseView: React.FC<{
 }> = ({ members, searchQuery, onClearSearch, onOpenProject }) => {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
 
   const filteredMembers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -49,6 +52,17 @@ export const MembersDatabaseView: React.FC<{
     busy: 'text-amber-200 bg-amber-500/10 border-amber-500/25',
     away: 'text-slate-300 bg-slate-500/10 border-slate-500/20',
   };
+  const availabilityLabels = {
+    available: isVi ? 'Sẵn sàng' : 'Available',
+    busy: isVi ? 'Đang bận' : 'Busy',
+    away: isVi ? 'Vắng mặt' : 'Away',
+  };
+  const workloadLabels = {
+    balanced: isVi ? 'Cân bằng' : 'Balanced',
+    overloaded: isVi ? 'Quá tải' : 'Overloaded',
+    underutilized: isVi ? 'Chưa đủ tải' : 'Underutilized',
+  };
+
 
   return (
     <div className="flex-1 bg-[#0A0F1A] p-6 overflow-hidden relative">
@@ -56,19 +70,19 @@ export const MembersDatabaseView: React.FC<{
         <section className="min-h-0 rounded-2xl border border-[#22C55E]/12 bg-[#0F1A2A] overflow-hidden flex flex-col">
           <div className="px-5 py-4 border-b border-[#22C55E]/12 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold text-white">Members Database</h2>
-              <p className="text-xs text-slate-500 mt-1">Read-only member directory powered by profile skills, task history, and AI workload analysis.</p>
+              <h2 className="text-lg font-bold text-white">{isVi ? 'Danh sách thành viên' : 'Member directory'}</h2>
+              <p className="text-xs text-slate-500 mt-1">{isVi ? 'Danh sách chỉ đọc dựa trên kỹ năng, lịch sử công việc và phân tích khối lượng bằng AI.' : 'A read-only directory based on skills, task history, and AI workload analysis.'}</p>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <span className="px-2 py-1 rounded-md border border-[#22C55E]/20 bg-[#22C55E]/10 text-[#6EE7B7]">
-                {filteredMembers.length} shown
+                {isVi ? 'Đang hiển thị' : 'Showing'} {filteredMembers.length}
               </span>
               {searchQuery.trim() && (
                 <button
                   onClick={onClearSearch}
                   className="px-2 py-1 rounded-md border border-[#22C55E]/12 hover:border-[#22C55E]/25 hover:bg-[#162032] transition-colors"
                 >
-                  Clear search
+                  {isVi ? 'Xóa tìm kiếm' : 'Clear search'}
                 </button>
               )}
             </div>
@@ -78,22 +92,22 @@ export const MembersDatabaseView: React.FC<{
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-[#0F1A2A] border-b border-[#22C55E]/12 text-xs uppercase tracking-wider text-slate-500">
                 <tr>
-                  <th className="text-left font-semibold px-4 py-3">Member</th>
-                  <th className="text-left font-semibold px-4 py-3">Role</th>
-                  <th className="text-left font-semibold px-4 py-3">Skills</th>
-                  <th className="text-left font-semibold px-4 py-3">Availability</th>
-                  <th className="text-left font-semibold px-4 py-3">Skill score</th>
-                  <th className="text-left font-semibold px-4 py-3">Workload</th>
-                  <th className="text-left font-semibold px-4 py-3">Projects</th>
-                  <th className="text-left font-semibold px-4 py-3">Done</th>
-                  <th className="text-left font-semibold px-4 py-3">In progress</th>
-                  <th className="text-left font-semibold px-4 py-3">Suggestions</th>
+                  <th className="text-left font-semibold px-4 py-3">{isVi ? 'Thành viên' : 'Member'}</th>
+                  <th className="text-left font-semibold px-4 py-3">{isVi ? 'Vai trò' : 'Role'}</th>
+                  <th className="text-left font-semibold px-4 py-3">{isVi ? 'Kỹ năng' : 'Skills'}</th>
+                  <th className="text-left font-semibold px-4 py-3">{isVi ? 'Trạng thái' : 'Status'}</th>
+                  <th className="text-left font-semibold px-4 py-3">{isVi ? 'Điểm kỹ năng' : 'Skill score'}</th>
+                  <th className="text-left font-semibold px-4 py-3">{isVi ? 'Khối lượng' : 'Workload'}</th>
+                  <th className="text-left font-semibold px-4 py-3">{isVi ? 'Dự án' : 'Projects'}</th>
+                  <th className="text-left font-semibold px-4 py-3">{isVi ? 'Hoàn thành' : 'Completed'}</th>
+                  <th className="text-left font-semibold px-4 py-3">{isVi ? 'Đang làm' : 'In progress'}</th>
+                  <th className="text-left font-semibold px-4 py-3">{isVi ? 'Đề xuất' : 'Suggestion'}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredMembers.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-sm text-slate-500">No members match your search.</td>
+                    <td colSpan={10} className="px-4 py-8 text-center text-sm text-slate-500">{isVi ? 'Không có thành viên phù hợp.' : 'No matching members.'}</td>
                   </tr>
                 ) : filteredMembers.map(member => {
                   const isActive = selectedMemberId === member.id;
@@ -119,7 +133,7 @@ export const MembersDatabaseView: React.FC<{
                       <td className="px-4 py-3.5">
                         <div className="flex max-w-[220px] flex-wrap gap-1.5">
                           {member.skills.length === 0 ? (
-                            <span className="text-xs text-slate-500">No skills</span>
+                            <span className="text-xs text-slate-500">{isVi ? 'Chưa có kỹ năng' : 'No skills'}</span>
                           ) : (
                             <>
                               {member.skills.slice(0, 2).map(skill => (
@@ -138,7 +152,7 @@ export const MembersDatabaseView: React.FC<{
                       </td>
                       <td className="px-4 py-3.5">
                         <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${availabilityStyle[member.availability]}`}>
-                          {member.availability}
+                          {availabilityLabels[member.availability]}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
@@ -160,9 +174,9 @@ export const MembersDatabaseView: React.FC<{
                                 ? 'text-sky-200 bg-sky-500/10 border-sky-500/20'
                                 : 'text-emerald-200 bg-emerald-500/10 border-emerald-500/20'
                           }`}>
-                            {member.workloadLabel}
+                            {workloadLabels[member.workloadLabel]}
                           </span>
-                          <p className="text-[11px] text-slate-500">{member.workloadUtilization}% load</p>
+                          <p className="text-[11px] text-slate-500">{isVi ? 'Mức tải' : 'Utilization'} {member.workloadUtilization}%</p>
                         </div>
                       </td>
                       <td className="px-4 py-3.5 text-slate-300">{member.projectNames.length}</td>
@@ -199,7 +213,7 @@ export const MembersDatabaseView: React.FC<{
             >
               <div className="p-5 border-b border-[#22C55E]/12 flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Member Profile</p>
+                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{isVi ? 'Hồ sơ thành viên' : 'Member profile'}</p>
                   <div className="mt-4 flex items-center gap-3">
                     <Avatar src={selectedMember.avatar} fallback={selectedMember.name.charAt(0)} size="sm" className="w-12 h-12" />
                     <div>
@@ -211,7 +225,7 @@ export const MembersDatabaseView: React.FC<{
                   <div className="mt-4 flex items-center gap-2">
                     <Badge variant="purple">{selectedMember.role}</Badge>
                     <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold capitalize ${availabilityStyle[selectedMember.availability]}`}>
-                      {selectedMember.availability}
+                      {availabilityLabels[selectedMember.availability]}
                     </span>
                   </div>
                 </div>
@@ -227,14 +241,14 @@ export const MembersDatabaseView: React.FC<{
 
               <div className="p-5 space-y-5 h-[calc(100%-7.5rem)] overflow-y-auto">
                 <section>
-                  <h4 className="text-xs uppercase tracking-[0.12em] text-slate-500 mb-2">Focus</h4>
+                  <h4 className="text-xs uppercase tracking-[0.12em] text-slate-500 mb-2">{isVi ? 'Chuyên môn' : 'Expertise'}</h4>
                   <p className="text-sm text-slate-200">{selectedMember.title}</p>
                   {selectedMember.bio && (
                     <p className="mt-2 text-sm leading-6 text-slate-400">{selectedMember.bio}</p>
                   )}
                   <div className="mt-3 flex flex-wrap gap-2">
                     {selectedMember.skills.length === 0 ? (
-                      <span className="text-xs text-slate-500">No skills tagged yet.</span>
+                      <span className="text-xs text-slate-500">{isVi ? 'Chưa gắn kỹ năng.' : 'No skills assigned.'}</span>
                     ) : selectedMember.skills.map(skill => (
                       <span key={skill} className="px-2 py-1 text-[11px] rounded-md border border-[#22C55E]/15 bg-[#162032] text-slate-300">{skill}</span>
                     ))}
@@ -242,50 +256,50 @@ export const MembersDatabaseView: React.FC<{
                 </section>
 
                 <section>
-                  <h4 className="text-xs uppercase tracking-[0.12em] text-slate-500 mb-2">Workload Snapshot</h4>
+                  <h4 className="text-xs uppercase tracking-[0.12em] text-slate-500 mb-2">{isVi ? 'Tổng quan khối lượng' : 'Workload overview'}</h4>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="rounded-lg border border-[#22C55E]/10 bg-[#162032]/60 px-3 py-2">
-                      <p className="text-[11px] text-slate-500">Completed</p>
+                      <p className="text-[11px] text-slate-500">{isVi ? 'Hoàn thành' : 'Completed'}</p>
                       <p className="text-base font-bold text-emerald-300">{selectedMember.completedTasks}</p>
                     </div>
                     <div className="rounded-lg border border-[#22C55E]/10 bg-[#162032]/60 px-3 py-2">
-                      <p className="text-[11px] text-slate-500">In progress</p>
+                      <p className="text-[11px] text-slate-500">{isVi ? 'Đang thực hiện' : 'In progress'}</p>
                       <p className="text-base font-bold text-amber-200">{selectedMember.inProgressTasks}</p>
                     </div>
                   </div>
                   <div className="mt-3 rounded-lg border border-[#22C55E]/10 bg-[#162032]/60 px-3 py-2.5">
                     <div className="flex items-center justify-between text-[11px] text-slate-400">
-                      <span>AI skill score</span>
+                      <span>{isVi ? 'Điểm kỹ năng AI' : 'AI skill score'}</span>
                       <span className="font-semibold text-[#6EE7B7]">{selectedMember.skillScore}%</span>
                     </div>
                     <div className="mt-2 h-1.5 rounded-full bg-[#0F1A2A] overflow-hidden">
                       <div className="h-full rounded-full bg-gradient-to-r from-[#22C55E] to-[#60A5FA]" style={{ width: `${selectedMember.skillScore}%` }} />
                     </div>
                     <p className="text-[11px] text-slate-500 mt-2">
-                      Workload balance: <span className="capitalize text-slate-300">{selectedMember.workloadLabel}</span> ({selectedMember.workloadUtilization}% of team average)
+                      {isVi ? 'Cân bằng khối lượng:' : 'Workload balance:'} <span className="text-slate-300">{workloadLabels[selectedMember.workloadLabel]}</span> ({selectedMember.workloadUtilization}% {isVi ? 'mức trung bình nhóm' : 'of team average'})
                     </p>
                   </div>
                 </section>
 
                 <section>
-                  <h4 className="text-xs uppercase tracking-[0.12em] text-slate-500 mb-2">AI Assignment Suggestion</h4>
+                  <h4 className="text-xs uppercase tracking-[0.12em] text-slate-500 mb-2">{isVi ? 'Đề xuất phân công AI' : 'AI assignment suggestion'}</h4>
                   {selectedMember.topSuggestion ? (
                     <div className="rounded-lg border border-[#22C55E]/14 bg-[#162032]/65 px-3 py-2.5 space-y-1.5">
                       <p className="text-sm text-slate-100 font-semibold">{selectedMember.topSuggestion.taskTitle}</p>
                       <p className="text-[11px] text-slate-500">{selectedMember.topSuggestion.projectName}</p>
                       <p className="text-xs text-slate-300">{selectedMember.topSuggestion.reason}</p>
-                      <p className="text-[11px] text-[#6EE7B7] font-semibold">Confidence: {selectedMember.topSuggestion.confidence}%</p>
+                      <p className="text-[11px] text-[#6EE7B7] font-semibold">{isVi ? 'Độ tin cậy:' : 'Confidence:'} {selectedMember.topSuggestion.confidence}%</p>
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-500">No reassignment suggestions currently. Existing assignments look balanced.</p>
+                    <p className="text-xs text-slate-500">{isVi ? 'Hiện chưa cần phân công lại. Khối lượng hiện tại tương đối cân bằng.' : 'No reassignment is needed. The current workload is relatively balanced.'}</p>
                   )}
                 </section>
 
                 <section>
-                  <h4 className="text-xs uppercase tracking-[0.12em] text-slate-500 mb-2">Projects</h4>
+                  <h4 className="text-xs uppercase tracking-[0.12em] text-slate-500 mb-2">{isVi ? 'Dự án' : 'Projects'}</h4>
                   <div className="space-y-2">
                     {selectedMember.projectNames.length === 0 ? (
-                      <p className="text-xs text-slate-500">Not assigned to any project yet.</p>
+                      <p className="text-xs text-slate-500">{isVi ? 'Chưa được phân công vào dự án nào.' : 'Not assigned to any project.'}</p>
                     ) : selectedMember.projectNames.map((projectName, index) => (
                       <button
                         key={`${selectedMember.id}_${projectName}`}
@@ -299,10 +313,10 @@ export const MembersDatabaseView: React.FC<{
                 </section>
 
                 <section>
-                  <h4 className="text-xs uppercase tracking-[0.12em] text-slate-500 mb-2">Recent History</h4>
+                  <h4 className="text-xs uppercase tracking-[0.12em] text-slate-500 mb-2">{isVi ? 'Lịch sử gần đây' : 'Recent history'}</h4>
                   <div className="space-y-2">
                     {selectedMember.history.length === 0 ? (
-                      <p className="text-xs text-slate-500">No historical records yet.</p>
+                      <p className="text-xs text-slate-500">{isVi ? 'Chưa có dữ liệu lịch sử.' : 'No history yet.'}</p>
                     ) : selectedMember.history.slice(0, 4).map(entry => (
                       <div key={entry.id} className="rounded-lg border border-[#22C55E]/10 bg-[#162032]/55 px-3 py-2">
                         <p className="text-sm text-slate-200">{entry.projectName}</p>

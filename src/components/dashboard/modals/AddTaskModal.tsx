@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../../ui/Button';
 import { Status, Priority, User } from '../../../types';
+import { useLang } from '../../../contexts/LanguageContext';
 
 // Add Task Modal
 export const AddTaskModal: React.FC<{
@@ -11,6 +12,8 @@ export const AddTaskModal: React.FC<{
   onClose: () => void;
   onSubmit: (title: string, priority: Priority, description: string, attachmentCount: number, endDate: string, assigneeId: string | null) => void;
 }> = ({ isOpen, status, assigneeOptions, onClose, onSubmit }) => {
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [description, setDescription] = useState('');
@@ -26,7 +29,7 @@ export const AddTaskModal: React.FC<{
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !displayDate || !assigneeId) {
-      alert("Vui lòng nhập đủ Tên công việc, Ngày hết hạn và Chọn người phụ trách!");
+      alert(isVi ? 'Vui lòng nhập đủ Tên công việc, Ngày hết hạn và Chọn người phụ trách!' : 'Please provide a task title, deadline, and assignee.');
       return;
     }
     onSubmit(title.trim(), priority, description, 0, displayDate, assigneeId || null);
@@ -37,10 +40,15 @@ export const AddTaskModal: React.FC<{
   };
 
   const statusLabels: Record<Status, string> = {
-    'todo': 'Todo',
-    'in-progress': 'In Progress',
-    'ready-for-review': 'Ready for Review',
-    'done': 'Done',
+    'todo': isVi ? 'Cần làm' : 'To Do',
+    'in-progress': isVi ? 'Đang thực hiện' : 'In Progress',
+    'ready-for-review': isVi ? 'Chờ duyệt' : 'Ready for Review',
+    'done': isVi ? 'Hoàn thành' : 'Done',
+  };
+  const priorityLabels: Record<Priority, string> = {
+    low: isVi ? 'Thấp' : 'Low',
+    medium: isVi ? 'Trung bình' : 'Medium',
+    high: isVi ? 'Cao' : 'High',
   };
 
   return (
@@ -52,24 +60,24 @@ export const AddTaskModal: React.FC<{
         className="relative bg-[#0F1A2A] rounded-2xl shadow-2xl shadow-black/30 w-full max-w-md border border-[#22C55E]/10 overflow-hidden"
       >
         <div className="px-6 py-4 border-b border-[#22C55E]/10 flex items-center justify-between">
-          <h3 className="font-bold text-white">New Task</h3>
+          <h3 className="font-bold text-white">{isVi ? 'Công việc mới' : 'New Task'}</h3>
           <span className="text-xs text-slate-500 bg-[#162032] px-2 py-1 rounded">{statusLabels[status]}</span>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Task title</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">{isVi ? 'Tên công việc' : 'Task title'}</label>
             <input
               type="text"
               required
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter task title..."
+              placeholder={isVi ? 'Nhập tên công việc...' : 'Enter task title...'}
               className="w-full px-4 py-2 rounded-lg border border-[#22C55E]/10 bg-[#162032] text-white placeholder-slate-500 focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Priority</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">{isVi ? 'Mức ưu tiên' : 'Priority'}</label>
             <div className="flex gap-3">
               {(['low', 'medium', 'high'] as Priority[]).map(p => (
                 <button
@@ -84,20 +92,20 @@ export const AddTaskModal: React.FC<{
                       : 'border-[#22C55E]/10 text-slate-400 hover:bg-[#162032]'
                   }`}
                 >
-                  {p}
+                  {priorityLabels[p]}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Assignee</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">{isVi ? 'Người phụ trách' : 'Assignee'}</label>
             <select
               value={assigneeId}
               onChange={(e) => setAssigneeId(e.target.value)}
               required
               className="w-full px-4 py-2 rounded-lg border border-[#22C55E]/10 bg-[#162032] text-white focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all"
             >
-              <option value="" disabled>-- Chọn người phụ trách --</option>
+              <option value="" disabled>{isVi ? '-- Chọn người phụ trách --' : '-- Select assignee --'}</option>
               {assigneeOptions.map(member => (
                 <option key={member.id} value={member.id}>
                   {member.name}
@@ -106,7 +114,7 @@ export const AddTaskModal: React.FC<{
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Deadline</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">{isVi ? 'Hạn hoàn thành' : 'Deadline'}</label>
             <input
               type="date"
               required
@@ -116,17 +124,17 @@ export const AddTaskModal: React.FC<{
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Note (optional)</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">{isVi ? 'Ghi chú (không bắt buộc)' : 'Note (optional)'}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add quick note for this task..."
+              placeholder={isVi ? 'Thêm ghi chú cho công việc...' : 'Add a quick note for this task...'}
               className="w-full min-h-20 px-4 py-2 rounded-lg border border-[#22C55E]/10 bg-[#162032] text-white placeholder-slate-500 focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button type="submit" variant="primary">Create Task</Button>
+            <Button type="button" variant="ghost" onClick={onClose}>{isVi ? 'Hủy' : 'Cancel'}</Button>
+            <Button type="submit" variant="primary">{isVi ? 'Tạo công việc' : 'Create Task'}</Button>
           </div>
         </form>
       </motion.div>

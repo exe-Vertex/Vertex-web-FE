@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, AlertTriangle, Clock, CheckCircle, Filter } from 'lucide-react';
 import { LecturerGroup } from '../../../data/lecturerTypes';
+import { useLang } from '../../../contexts/LanguageContext';
 
 interface DeadlineCalendarProps {
   groups: LecturerGroup[];
@@ -29,6 +30,8 @@ const groupByDeadline = (groups: LecturerGroup[]) => {
 
 export const DeadlineCalendar: React.FC<DeadlineCalendarProps> = ({ groups, onSelectGroup }) => {
   const [filter, setFilter] = useState<'all' | 'late' | 'review'>('all');
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
 
   const filtered = groups.filter(g => {
     if (filter === 'late')   return g.reviewStatus === 'overdue';
@@ -48,16 +51,16 @@ export const DeadlineCalendar: React.FC<DeadlineCalendarProps> = ({ groups, onSe
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Calendar size={18} className="text-[#22C55E]" />
-            Deadline Overview
+            {isVi ? 'Tổng quan hạn nộp' : 'Deadline overview'}
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">All group deadlines across your classes</p>
+          <p className="text-xs text-slate-500 mt-0.5">{isVi ? 'Tất cả hạn nộp của các nhóm trong lớp' : 'All group deadlines across your classes'}</p>
         </div>
         <div className="flex items-center gap-2">
           <Filter size={13} className="text-slate-500" />
           {(['all', 'late', 'review'] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${filter === f ? 'bg-[#22C55E]/20 text-[#6EE7B7] border border-[#F59E0B]/35 shadow-[0_10px_22px_rgba(34,197,94,0.14)]' : 'bg-[#162032] text-slate-400 border border-transparent hover:border-[#F59E0B]/30 hover:text-white hover:shadow-[0_10px_22px_rgba(10,15,26,0.42)]'}`}>
-              {f === 'all' ? 'All Groups' : f === 'late' ? `Late Tasks (${overdueCount})` : `Review (${reviewCount})`}
+              {f === 'all' ? (isVi ? 'Tất cả nhóm' : 'All groups') : f === 'late' ? `${isVi ? 'Quá hạn' : 'Overdue'} (${overdueCount})` : `${isVi ? 'Chờ duyệt' : 'Awaiting review'} (${reviewCount})`}
             </button>
           ))}
         </div>
@@ -67,15 +70,15 @@ export const DeadlineCalendar: React.FC<DeadlineCalendarProps> = ({ groups, onSe
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="bg-[#0F1A2A] rounded-xl p-3 border border-[#3A3317] flex items-center gap-3">
           <Clock size={16} className="text-[#22C55E] flex-shrink-0" />
-          <div><p className="text-lg font-bold text-white">{groups.length}</p><p className="text-[10px] text-slate-500">Total Deadlines</p></div>
+          <div><p className="text-lg font-bold text-white">{groups.length}</p><p className="text-[10px] text-slate-500">{isVi ? 'Tổng hạn nộp' : 'Total deadlines'}</p></div>
         </div>
         <div className="bg-[#0F1A2A] rounded-xl p-3 border border-red-500/20 flex items-center gap-3">
           <AlertTriangle size={16} className="text-red-400 flex-shrink-0" />
-          <div><p className="text-lg font-bold text-white">{overdueCount}</p><p className="text-[10px] text-slate-500">Overdue</p></div>
+          <div><p className="text-lg font-bold text-white">{overdueCount}</p><p className="text-[10px] text-slate-500">{isVi ? 'Quá hạn' : 'Overdue'}</p></div>
         </div>
         <div className="bg-[#0F1A2A] rounded-xl p-3 border border-amber-500/30 flex items-center gap-3">
           <CheckCircle size={16} className="text-green-400 flex-shrink-0" />
-          <div><p className="text-lg font-bold text-white">{groups.filter(g => g.progress >= 100).length}</p><p className="text-[10px] text-slate-500">Completed</p></div>
+          <div><p className="text-lg font-bold text-white">{groups.filter(g => g.progress >= 100).length}</p><p className="text-[10px] text-slate-500">{isVi ? 'Hoàn thành' : 'Completed'}</p></div>
         </div>
       </div>
 
@@ -83,7 +86,7 @@ export const DeadlineCalendar: React.FC<DeadlineCalendarProps> = ({ groups, onSe
       {byDate.length === 0 ? (
         <div className="flex flex-col items-center py-16 text-slate-600">
           <Calendar size={32} className="mb-3" />
-          <p className="text-sm">No deadlines match the selected filter.</p>
+          <p className="text-sm">{isVi ? 'Không có hạn nộp phù hợp với bộ lọc.' : 'No deadlines match this filter.'}</p>
         </div>
       ) : (
         <div className="relative">
@@ -120,11 +123,11 @@ export const DeadlineCalendar: React.FC<DeadlineCalendarProps> = ({ groups, onSe
                             <span className="flex items-center gap-1"><Calendar size={9} />{group.deadline}</span>
                             {gReview > 0 && (
                               <span className={`font-semibold ${sc.text} flex items-center gap-0.5`}>
-                                <Clock size={9} />{gReview} review
+                                <Clock size={9} />{gReview} {isVi ? 'chờ duyệt' : 'review'}
                               </span>
                             )}
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${sc.bg} ${sc.text} ${sc.border}`}>
-                              {group.reviewStatus === 'on-track' ? 'On Track' : group.reviewStatus === 'at-risk' ? 'At Risk' : 'Overdue'}
+                              {group.reviewStatus === 'on-track' ? (isVi ? 'Đúng tiến độ' : 'On track') : group.reviewStatus === 'at-risk' ? (isVi ? 'Có rủi ro' : 'At risk') : (isVi ? 'Quá hạn' : 'Overdue')}
                             </span>
                           </div>
                         </div>

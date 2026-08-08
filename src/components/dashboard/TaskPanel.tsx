@@ -10,6 +10,7 @@ import { API_BASE_URL } from '../../api/http';
 import { generateSubtasks } from '../../api/ai';
 import { getAuthToken } from './utils/dashboardUtils';
 import { useToast } from '../ui/Toast';
+import { useLang } from '../../contexts/LanguageContext';
 
 interface TaskPanelProps {
   task: Task | null;
@@ -40,6 +41,8 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const { showToast } = useToast();
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -104,10 +107,10 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   };
   const canAttachToTask = () => Boolean(task && currentUserId === task.assignee?.id && task.status === 'in-progress');
 
-  const uploadAttachmentFiles = async (files: File[], successMessage = 'File uploaded successfully') => {
+  const uploadAttachmentFiles = async (files: File[], successMessage = isVi ? 'Đã tải tệp lên' : 'File uploaded') => {
     if (!task || !orgId || !projectId || files.length === 0) return;
     if (!canAttachToTask()) {
-      showToast('Only the assignee can attach files while the task is in progress', 'error');
+      showToast(isVi ? 'Chỉ người phụ trách mới có thể đính kèm tệp khi công việc đang thực hiện' : 'Only the assignee can attach files while the task is in progress', 'error');
       return;
     }
     const token = getAuthToken();
@@ -118,9 +121,9 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
         await uploadTaskFile(token, orgId, projectId, task.id, file);
       }
       await loadAttachments();
-      showToast(files.length > 1 ? `${files.length} files uploaded successfully` : successMessage, 'success');
+      showToast(files.length > 1 ? (isVi ? `Đã tải lên ${files.length} tệp` : `${files.length} files uploaded successfully`) : successMessage, 'success');
     } catch (err: any) {
-      showToast(err.message || 'Failed to upload file', 'error');
+      showToast(err.message || (isVi ? 'Không thể tải tệp lên' : 'Could not upload file'), 'error');
     } finally {
       setIsUploadingAttachment(false);
     }
@@ -145,7 +148,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 
     if (imageFiles.length === 0) return;
     e.preventDefault();
-    await uploadAttachmentFiles(imageFiles, 'Screenshot pasted and uploaded');
+    await uploadAttachmentFiles(imageFiles, isVi ? 'Đã dán và tải ảnh chụp màn hình lên' : 'Screenshot pasted and uploaded');
   };
   const handleAddLink = async () => {
     if (!task || !orgId || !projectId || !newLinkUrl.trim()) return;
@@ -157,9 +160,9 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
       setIsAddingLink(false);
       setNewLinkUrl('');
       setNewLinkTitle('');
-      showToast('Link added successfully', 'success');
+      showToast(isVi ? 'Đã thêm liên kết' : 'Link added', 'success');
     } catch (err: any) {
-      showToast(err.message || 'Failed to add link', 'error');
+      showToast(err.message || (isVi ? 'Không thể thêm liên kết' : 'Could not add link'), 'error');
     }
   };
 
@@ -170,9 +173,9 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     try {
       await deleteTaskAttachment(token, orgId, projectId, task.id, attachmentId, currentUserRole || 'Member');
       await loadAttachments();
-      showToast('Attachment deleted', 'success');
+      showToast(isVi ? 'Đã xóa tệp đính kèm' : 'Attachment deleted', 'success');
     } catch (err: any) {
-      showToast(err.message || 'Failed to delete attachment', 'error');
+      showToast(err.message || (isVi ? 'Không thể xóa tệp đính kèm' : 'Could not delete attachment'), 'error');
     }
   };
 
@@ -182,9 +185,9 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     if (!token) return;
     try {
       await promoteTaskAttachment(token, orgId, projectId, task.id, attachmentId, currentUserRole || 'Member');
-      showToast('Attachment promoted to Project Files', 'success');
+      showToast(isVi ? 'Đã chuyển tệp đính kèm vào Tệp dự án' : 'Attachment moved to Project Files', 'success');
     } catch (err: any) {
-      showToast(err.message || 'Failed to promote attachment', 'error');
+      showToast(err.message || (isVi ? 'Không thể chuyển tệp đính kèm' : 'Could not move attachment'), 'error');
     }
   };
 
@@ -192,29 +195,35 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 
   const latestFeedback = comments[comments.length - 1];
   const reviewHint = task.status === 'done'
-    ? 'Approved by reviewer. This task is complete.'
+    ? (isVi ? 'Người duyệt đã phê duyệt. Công việc đã hoàn thành.' : 'The reviewer approved this task. It is complete.')
     : task.status === 'ready-for-review'
-      ? 'Submitted for lecturer/leader review. Wait for approval or feedback.'
+      ? (isVi
+        ? 'Đã gửi cho giảng viên hoặc trưởng nhóm duyệt. Hãy chờ phê duyệt hoặc phản hồi.'
+        : 'Submitted to the lecturer or team leader. Wait for approval or feedback.')
       : comments.length > 0
-        ? 'Feedback received. Update the task, reply if needed, then submit again.'
-        : 'Work on the task and submit it when ready for review.';
+        ? (isVi
+          ? 'Đã nhận phản hồi. Hãy cập nhật công việc, trả lời nếu cần rồi gửi lại.'
+          : 'Feedback received. Update the task, reply if needed, then resubmit.')
+        : (isVi
+          ? 'Thực hiện công việc và gửi duyệt khi đã sẵn sàng.'
+          : 'Complete the task and submit it for review when ready.');
 
   const canManageSubtasks = currentUserId === task.assignee?.id || currentUserRole === 'Leader';
 
   const deadlineMeta = (() => {
     const due = new Date(task.endDate);
-    if (Number.isNaN(due.getTime())) return { label: task.endDate, hint: 'No deadline status' };
+    if (Number.isNaN(due.getTime())) return { label: task.endDate, hint: isVi ? 'Không xác định được hạn' : 'Unknown deadline' };
 
     const now = new Date();
     const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
     const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const diffDays = Math.round((dueDay - nowDay) / 86400000);
 
-    const label = due.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    if (diffDays < 0) return { label, hint: 'Quá hạn', hintClass: 'text-red-400 font-medium' };
-    if (diffDays === 0) return { label, hint: 'Đến hạn hôm nay', hintClass: 'text-amber-400 font-medium' };
-    if (diffDays === 1) return { label, hint: 'Còn 1 ngày nữa', hintClass: 'text-[#6EE7B7] font-medium' };
-    return { label, hint: `Còn ${diffDays} ngày nữa`, hintClass: 'text-[#6EE7B7] font-medium' };
+    const label = due.toLocaleDateString(isVi ? 'vi-VN' : 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (diffDays < 0) return { label, hint: isVi ? 'Quá hạn' : 'Overdue', hintClass: 'text-red-400 font-medium' };
+    if (diffDays === 0) return { label, hint: isVi ? 'Đến hạn hôm nay' : 'Due today', hintClass: 'text-amber-400 font-medium' };
+    if (diffDays === 1) return { label, hint: isVi ? 'Còn 1 ngày nữa' : '1 day left', hintClass: 'text-[#6EE7B7] font-medium' };
+    return { label, hint: isVi ? `Còn ${diffDays} ngày nữa` : `${diffDays} days left`, hintClass: 'text-[#6EE7B7] font-medium' };
   })();
 
   const mentionMatch = commentInput.match(/@([a-zA-Z]*)$/);
@@ -243,9 +252,9 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
         await createSubtask(token, orgId, projectId, task.id, { title });
       }
       await loadSubtasks();
-      showToast('Subtasks generated successfully', 'success');
+      showToast(isVi ? 'Đã tạo công việc con' : 'Subtasks created', 'success');
     } catch (err: any) {
-      showToast(err.message || 'Failed to generate subtasks', 'error');
+      showToast(err.message || (isVi ? 'Không thể tạo công việc con' : 'Could not create subtasks'), 'error');
     } finally {
       setIsGeneratingSubtasks(false);
     }
@@ -277,7 +286,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     try {
       await updateSubtask(token, orgId, projectId, task.id, subtaskId, { isCompleted: !currentCompleted });
     } catch (err: any) {
-      showToast(err.message || 'Failed to toggle subtask', 'error');
+      showToast(err.message || (isVi ? 'Không thể cập nhật công việc con' : 'Could not update subtask'), 'error');
       await loadSubtasks();
     }
   };
@@ -292,7 +301,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
       setNewSubtask('');
       await loadSubtasks();
     } catch (err: any) {
-      showToast(err.message || 'Failed to add subtask', 'error');
+      showToast(err.message || (isVi ? 'Không thể thêm công việc con' : 'Could not add subtask'), 'error');
     }
   };
 
@@ -306,7 +315,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     try {
       await deleteSubtask(token, orgId, projectId, task.id, subtaskId);
     } catch (err: any) {
-      showToast(err.message || 'Failed to delete subtask', 'error');
+      showToast(err.message || (isVi ? 'Không thể xóa công việc con' : 'Could not delete subtask'), 'error');
       await loadSubtasks();
     }
   };
@@ -349,7 +358,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
       );
     } catch (err: any) {
       setSubtasks(currentOrder);
-      showToast(err.message || 'Failed to reorder subtasks', 'error');
+      showToast(err.message || (isVi ? 'Không thể sắp xếp công việc con' : 'Could not reorder subtasks'), 'error');
       await loadSubtasks();
     }
   };
@@ -367,7 +376,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
       setComments(prev => [...prev, created]);
       setCommentInput('');
     } catch (err: any) {
-      showToast(err.message || 'Failed to send comment', 'error');
+      showToast(err.message || (isVi ? 'Không thể gửi phản hồi' : 'Could not send feedback'), 'error');
     }
   };
   const applyMention = (name: string) => {
@@ -399,11 +408,11 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
         <div className="px-6 py-4 border-b border-white/6 flex items-center justify-between gap-3 bg-[#0B1220]">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <Badge variant={task.status === 'done' ? 'success' : task.status === 'in-progress' ? 'info' : task.status === 'ready-for-review' ? 'warning' : 'default'} className="shrink-0">
-                {task.status === 'done' ? 'Done' : task.status === 'in-progress' ? 'In Progress' : task.status === 'ready-for-review' ? 'Ready for Review' : 'Todo'}
+                {task.status === 'done' ? (isVi ? 'Hoàn thành' : 'Done') : task.status === 'in-progress' ? (isVi ? 'Đang thực hiện' : 'In progress') : task.status === 'ready-for-review' ? (isVi ? 'Chờ duyệt' : 'Review') : (isVi ? 'Cần làm' : 'To do')}
             </Badge>
             <div className="flex items-center gap-2 min-w-0">
               <Avatar src={task.assignee?.avatar} fallback={task.assignee?.name?.charAt(0) || '?'} size="sm" className="w-6 h-6 shrink-0" />
-              <span className="text-xs text-slate-300 truncate">{task.assignee?.name || 'Unassigned'}</span>
+              <span className="text-xs text-slate-300 truncate">{task.assignee?.name || (isVi ? 'Chưa phân công' : 'Unassigned')}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -411,15 +420,15 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
               <button
                 onClick={handleSubmitForReview}
                 className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#6EE7B7] border border-[#22C55E]/30 bg-[#22C55E]/10 hover:border-[#22C55E]/50 transition-colors"
-                title="Submit for review"
+                title={isVi ? 'Gửi duyệt' : 'Submit for review'}
               >
-                Submit
+                {isVi ? 'Gửi duyệt' : 'Submit'}
               </button>
             )}
             <button
               onClick={handleDelete}
               className="p-2 text-slate-500 hover:text-red-300 hover:bg-red-500/10 rounded-full transition-colors"
-              title="Delete task"
+              title={isVi ? 'Xóa công việc' : 'Delete task'}
             >
               <Trash2 size={18} />
             </button>
@@ -437,7 +446,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
             {/* Properties */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 block">Assignee</label>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 block">{isVi ? 'Người phụ trách' : 'Assignee'}</label>
                 <div className="relative">
                   <button
                     onClick={() => setAssigneeOpen(open => !open)}
@@ -445,7 +454,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <Avatar src={task.assignee?.avatar} fallback={task.assignee?.name.charAt(0) || '?'} size="sm" />
-                      <span className="text-sm font-medium text-slate-300 truncate">{task.assignee?.name || 'Unassigned'}</span>
+                      <span className="text-sm font-medium text-slate-300 truncate">{task.assignee?.name || (isVi ? 'Chưa phân công' : 'Unassigned')}</span>
                     </div>
                     <ChevronDown size={14} className="text-slate-500" />
                   </button>
@@ -465,14 +474,14 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                         onClick={() => handleSetAssignee(undefined)}
                         className="w-full px-3 py-2 text-sm text-slate-400 hover:bg-[#162032] text-left border-t border-white/6"
                       >
-                        Unassigned
+                        {isVi ? 'Chưa phân công' : 'Unassigned'}
                       </button>
                     </div>
                   )}
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 block">Deadline</label>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 block">{isVi ? 'Hạn hoàn thành' : 'Due date'}</label>
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center gap-2 p-2 rounded-xl bg-[#121C2C] border border-white/6 relative cursor-pointer group">
                     <Calendar size={16} className="text-slate-400" />
@@ -501,7 +510,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 block">Priority</label>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 block">{isVi ? 'Mức ưu tiên' : 'Priority'}</label>
                 <div className="flex items-center gap-2 p-2 rounded-xl bg-[#121C2C] border border-white/6">
                   <Flag size={16} className={
                     task.priority === 'high' ? 'text-red-500' : 
@@ -512,9 +521,9 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                     onChange={(e) => onUpdateTask({ ...task, priority: e.target.value as Priority })}
                     className="w-full text-sm font-medium text-slate-300 capitalize bg-transparent outline-none cursor-pointer"
                   >
-                    <option value="low" className="bg-[#121C2C]">Low</option>
-                    <option value="medium" className="bg-[#121C2C]">Medium</option>
-                    <option value="high" className="bg-[#121C2C]">High</option>
+                    <option value="low" className="bg-[#121C2C]">{isVi ? 'Thấp' : 'Low'}</option>
+                    <option value="medium" className="bg-[#121C2C]">{isVi ? 'Trung bình' : 'Medium'}</option>
+                    <option value="high" className="bg-[#121C2C]">{isVi ? 'Cao' : 'High'}</option>
                   </select>
                 </div>
               </div>
@@ -523,12 +532,12 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
             {/* Description */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block">Description</label>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block">{isVi ? 'Mô tả' : 'Description'}</label>
                 <button
                   onClick={handleRewriteDescription}
                   className="text-xs text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors inline-flex items-center gap-1"
                 >
-                  <Sparkles size={12} /> Generate description with AI
+                  <Sparkles size={12} /> {isVi ? 'Tạo mô tả bằng AI' : 'Generate with AI'}
                 </button>
               </div>
               <textarea
@@ -538,7 +547,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                     onUpdateTask({ ...task, description: e.target.value });
                   }
                 }}
-                placeholder="No description for this task. Click to edit..."
+                placeholder={isVi ? 'Công việc chưa có mô tả. Chọn để chỉnh sửa...' : 'No description yet. Click to edit...'}
                 className="w-full text-sm text-slate-300 leading-relaxed bg-[#0B1220] p-4 rounded-xl border border-white/6 outline-none focus:border-[#22C55E]/50 min-h-[100px] resize-y"
               />
             </div>
@@ -546,21 +555,21 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
             {/* Attachments */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block">Attachments</label>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block">{isVi ? 'Tệp đính kèm' : 'Attachments'}</label>
                 {currentUserId === task.assignee?.id && task.status === 'in-progress' && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => setIsAddingLink(!isAddingLink)}
                       className="text-xs text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors inline-flex items-center gap-1"
                     >
-                      <LinkIcon size={12} /> Add Link
+                      <LinkIcon size={12} /> {isVi ? 'Thêm liên kết' : 'Add link'}
                     </button>
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploadingAttachment}
                       className="text-xs text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors inline-flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {isUploadingAttachment ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />} Add File
+                      {isUploadingAttachment ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />} {isVi ? 'Thêm tệp' : 'Add file'}
                     </button>
                     <input
                       type="file"
@@ -573,7 +582,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
               </div>
               {currentUserId === task.assignee?.id && task.status === 'in-progress' && (
                 <p className="text-[11px] text-slate-500 mb-2">
-                  Paste a screenshot here with Ctrl+V to attach it directly.
+                  {isVi ? 'Dán ảnh chụp màn hình bằng Ctrl+V để đính kèm trực tiếp.' : 'Paste a screenshot with Ctrl+V to attach it directly.'}
                 </p>
               )}
 
@@ -588,21 +597,21 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                   />
                   <input
                     type="text"
-                    placeholder="Title (Optional)"
+                    placeholder={isVi ? 'Tiêu đề (không bắt buộc)' : 'Title (optional)'}
                     value={newLinkTitle}
                     onChange={(e) => setNewLinkTitle(e.target.value)}
                     className="w-full bg-[#0B1220] border border-white/6 rounded-lg px-3 py-2 text-sm text-slate-300 placeholder:text-slate-600 focus:border-[#22C55E]/50 focus:outline-none"
                   />
                   <div className="flex justify-end gap-2 mt-1">
-                    <Button variant="ghost" onClick={() => setIsAddingLink(false)} className="h-8 text-xs px-3">Cancel</Button>
-                    <Button onClick={handleAddLink} className="h-8 text-xs px-3">Save</Button>
+                    <Button variant="ghost" onClick={() => setIsAddingLink(false)} className="h-8 text-xs px-3">{isVi ? 'Hủy' : 'Cancel'}</Button>
+                    <Button onClick={handleAddLink} className="h-8 text-xs px-3">{isVi ? 'Lưu' : 'Save'}</Button>
                   </div>
                 </div>
               )}
 
               {attachments.length === 0 ? (
                 <div className="text-sm text-slate-500 italic p-3 bg-[#121C2C] border border-white/6 rounded-xl text-center">
-                  No attachments yet.
+                  {isVi ? 'Chưa có tệp đính kèm.' : 'No attachments yet.'}
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
@@ -644,7 +653,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                         {currentUserRole === 'Leader' && (
                           <button
                             onClick={() => handlePromoteAttachment(att.id)}
-                            title="Add to Project Files"
+                            title={isVi ? 'Thêm vào Tệp dự án' : 'Add to Project Files'}
                             className="p-1.5 text-slate-400 hover:text-yellow-400 hover:bg-[#0B1220] rounded-lg transition-colors"
                           >
                             <Star size={14} />
@@ -667,12 +676,12 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 
             {/* Quick actions */}
             <div>
-              <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 block">Quick Actions</label>
+              <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 block">{isVi ? 'Thao tác nhanh' : 'Quick actions'}</label>
               <div className="grid grid-cols-1 gap-2">
                 {canManageSubtasks && (
                   <button disabled={isGeneratingSubtasks} onClick={handleGenerateSubtasks} className="px-3 py-2.5 text-xs rounded-xl bg-[#121C2C] border border-white/6 text-slate-300 hover:text-white hover:border-slate-500/40 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                     {isGeneratingSubtasks ? <Loader2 size={14} className="animate-spin" /> : null}
-                    Generate subtasks
+                    {isVi ? 'Tạo công việc con' : 'Generate subtasks'}
                   </button>
                 )}
               </div>
@@ -681,7 +690,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
             {/* Subtasks */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block">Subtasks</label>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block">{isVi ? 'Công việc con' : 'Subtasks'}</label>
                 <span className="text-xs text-slate-500">
                   {subtasks.filter(t => t.isCompleted).length}/{subtasks.length}
                 </span>
@@ -734,7 +743,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                         type="text"
                         value={newSubtask}
                         onChange={(e) => setNewSubtask(e.target.value)}
-                        placeholder="Add a subtask..."
+                        placeholder={isVi ? 'Thêm công việc con...' : 'Add a subtask...'}
                         className="w-full bg-[#121C2C] border border-white/6 rounded-xl pl-3 pr-10 py-2.5 text-sm text-slate-300 placeholder:text-slate-600 focus:border-[#22C55E]/50 focus:outline-none"
                       />
                       <button type="submit" disabled={!newSubtask.trim()} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-white disabled:opacity-50 disabled:hover:text-slate-400 transition-colors bg-[#0B1220] rounded-lg">
@@ -743,7 +752,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                     </div>
                   </form>
                 ) : (
-                  <p className="text-xs text-slate-500 mt-2">Only the assignee or project Leader can manage subtasks.</p>
+                  <p className="text-xs text-slate-500 mt-2">{isVi ? 'Chỉ người phụ trách hoặc trưởng nhóm mới có thể quản lý công việc con.' : 'Only the assignee or team leader can manage subtasks.'}</p>
                 )}
               </div>
             </div>
@@ -756,17 +765,17 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
           <div className="px-4 pt-3">
             <div className="rounded-xl border border-[#22C55E]/10 bg-[#121C2C] px-3 py-2 text-xs text-slate-400">
               <div className="flex items-center gap-2 text-slate-200 font-semibold">
-                <CheckSquare size={13} className="text-[#6EE7B7]" /> Review flow
+                <CheckSquare size={13} className="text-[#6EE7B7]" /> {isVi ? 'Quy trình duyệt' : 'Review workflow'}
               </div>
               <p className="mt-1">{reviewHint}</p>
               {latestFeedback && (
-                <p className="mt-1 text-slate-500">Latest feedback: <span className="text-slate-300">{latestFeedback.content}</span></p>
+                <p className="mt-1 text-slate-500">{isVi ? 'Phản hồi mới nhất:' : 'Latest feedback:'} <span className="text-slate-300">{latestFeedback.content}</span></p>
               )}
             </div>
           </div>
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-              <MessageSquare size={15} className="text-[#6EE7B7]" /> Feedback
+              <MessageSquare size={15} className="text-[#6EE7B7]" /> {isVi ? 'Phản hồi' : 'Feedback'}
             </div>
             <span className="text-xs text-slate-500">{comments.length}</span>
           </div>
@@ -774,7 +783,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
           <div className="px-4 pb-3 space-y-2 max-h-44 overflow-y-auto">
             {comments.length === 0 ? (
               <div className="rounded-xl border border-dashed border-white/10 bg-[#121C2C] px-3 py-3 text-center">
-                <p className="text-sm text-slate-500">No feedback yet.</p>
+                <p className="text-sm text-slate-500">{isVi ? 'Chưa có phản hồi.' : 'No feedback yet.'}</p>
               </div>
             ) : comments.map(comment => {
               const isMine = comment.userId === currentUserId;
@@ -786,7 +795,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                       {comment.content}
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1 px-1">
-                      {comment.userName} - {new Date(comment.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      {comment.userName} - {new Date(comment.createdAt).toLocaleString(isVi ? 'vi-VN' : 'en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
@@ -815,11 +824,11 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                 value={commentInput}
                 onChange={(e) => setCommentInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendComment()}
-                placeholder="Reply to feedback..."
+                placeholder={isVi ? 'Trả lời phản hồi...' : 'Reply to feedback...'}
                 className="flex-1 rounded-xl border border-white/6 bg-[#121C2C] px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-[#22C55E]/45"
               />
               <Button onClick={handleSendComment} disabled={!commentInput.trim()} className="px-3">
-                Send
+                {isVi ? 'Gửi' : 'Send'}
               </Button>
             </div>
           </div>

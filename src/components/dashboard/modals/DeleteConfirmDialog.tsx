@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '../../ui/Button';
+import { useLang } from '../../../contexts/LanguageContext';
 
 interface DeleteConfirmDialogProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
   onClose,
   onConfirm,
 }) => {
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   if (!isOpen) return null;
 
   return (
@@ -38,12 +41,12 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
             {message}
           </p>
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={onClose}>Hủy</Button>
+            <Button type="button" variant="ghost" onClick={onClose}>{isVi ? 'Hủy' : 'Cancel'}</Button>
             <button
               onClick={onConfirm}
               className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 font-medium text-sm transition-colors shadow-lg shadow-red-500/15"
             >
-              Xóa
+              {isVi ? 'Xóa' : 'Delete'}
             </button>
           </div>
         </div>

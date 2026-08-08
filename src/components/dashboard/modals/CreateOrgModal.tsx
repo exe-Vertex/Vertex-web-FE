@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Building2 } from 'lucide-react';
+import { useLang } from '../../../contexts/LanguageContext';
 
 interface CreateOrgModalProps {
   isOpen: boolean;
@@ -15,6 +16,8 @@ export const CreateOrgModal: React.FC<CreateOrgModalProps> = ({
   onSubmit,
   loading = false,
 }) => {
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [autoSlug, setAutoSlug] = useState(true);
@@ -80,8 +83,8 @@ export const CreateOrgModal: React.FC<CreateOrgModalProps> = ({
                   <Building2 size={18} className="text-[#22C55E]" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg text-white">Create Organization</h3>
-                  <p className="text-xs text-slate-500">Set up a new workspace for your team</p>
+                  <h3 className="font-bold text-lg text-white">{isVi ? 'Tạo tổ chức' : 'Create Organization'}</h3>
+                  <p className="text-xs text-slate-500">{isVi ? 'Thiết lập không gian làm việc mới cho nhóm' : 'Set up a new workspace for your team'}</p>
                 </div>
               </div>
               <button
@@ -96,13 +99,13 @@ export const CreateOrgModal: React.FC<CreateOrgModalProps> = ({
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-300">
-                  Organization Name <span className="text-red-400">*</span>
+                  {isVi ? 'Tên tổ chức' : 'Organization Name'} <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="e.g. Design Studio"
+                  placeholder={isVi ? 'Ví dụ: Nhóm thiết kế' : 'e.g. Design Studio'}
                   autoFocus
                   className="w-full rounded-xl border border-[#22C55E]/10 bg-[#162032] px-4 py-2.5 text-sm text-white outline-none focus:border-[#22C55E]/35 focus:ring-1 focus:ring-[#22C55E]/30 placeholder-slate-500"
                 />
@@ -110,7 +113,7 @@ export const CreateOrgModal: React.FC<CreateOrgModalProps> = ({
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-300">
-                  URL Slug <span className="text-red-400">*</span>
+                  {isVi ? 'Đường dẫn URL' : 'URL Slug'} <span className="text-red-400">*</span>
                 </label>
                 <div className="flex rounded-xl overflow-hidden border border-[#22C55E]/10 focus-within:border-[#22C55E]/35 focus-within:ring-1 focus-within:ring-[#22C55E]/30">
                   <span className="bg-[#0F1A2A] px-4 py-2.5 text-sm text-slate-500 border-r border-[#22C55E]/10 flex-shrink-0">
@@ -125,7 +128,7 @@ export const CreateOrgModal: React.FC<CreateOrgModalProps> = ({
                   />
                 </div>
                 <p className="text-xs text-slate-500">
-                  Only lowercase letters, numbers, and hyphens.
+                  {isVi ? 'Chỉ dùng chữ thường không dấu, số và dấu gạch ngang.' : 'Only lowercase letters, numbers, and hyphens.'}
                 </p>
               </div>
 
@@ -136,14 +139,14 @@ export const CreateOrgModal: React.FC<CreateOrgModalProps> = ({
                   onClick={handleClose}
                   className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-[#162032] transition-colors"
                 >
-                  Cancel
+                  {isVi ? 'Hủy' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={!name.trim() || !slug.trim() || loading}
                   className="px-5 py-2 rounded-lg bg-gradient-to-r from-[#22C55E] to-[#16A34A] text-white text-sm font-semibold shadow-lg shadow-green-500/20 hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Creating...' : 'Create Organization'}
+                  {loading ? (isVi ? 'Đang tạo...' : 'Creating...') : (isVi ? 'Tạo tổ chức' : 'Create Organization')}
                 </button>
               </div>
             </form>

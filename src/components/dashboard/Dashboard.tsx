@@ -52,6 +52,8 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { showToast } = useToast();
+  const { t, lang } = useLang();
+  const isVi = lang === 'vi';
   const [projects, setProjects] = useState<Project[]>([]);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const [storedUserPlan] = useState<OrgPlan>(getStoredUserPlan);
@@ -75,15 +77,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [projectTab, setProjectTab] = useState<ProjectTab>('board');
   const [projectFiles, setProjectFiles] = useState<Record<string, ProjectFileItem[]>>({});
   const [plannerInput, setPlannerInput] = useState({
-    description: 'Poster campaign for environmental awareness',
-    projectGoal: 'Create an A1 poster for Tech Day 2026',
+    description: isVi ? 'Chiến dịch áp phích nâng cao nhận thức về môi trường' : 'Poster campaign for environmental awareness',
+    projectGoal: isVi ? 'Tạo áp phích A1 cho Tech Day 2026' : 'Create an A1 poster for Tech Day 2026',
     teamSize: 4,
     deadlineWeeks: 4,
     difficulty: 'Medium' as PlannerDifficulty,
     category: 'Auto detect' as PlannerCategory,
   });
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlanResponse | null>(null);
-  const { t } = useLang();
   const { user, logout: authLogout } = useAuth();
 
   // -- Skills state --
@@ -191,7 +192,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     await updateUserSkills(token, skills);
     setUserSkills(skills);
     setShowOnboardingSkills(false);
-    showToast('Kỹ năng của bạn đã được cập nhật thành công!');
+    showToast(isVi ? 'Kỹ năng của bạn đã được cập nhật thành công!' : 'Your skills were updated successfully!');
   };
 
   // -- Load org detail when activeOrgId changes --
@@ -243,7 +244,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       });
     } catch (err) {
       console.error('Error fetching projects:', err);
-      showToast('Không thể tải danh sách dự án từ server', 'error');
+      showToast(isVi ? 'Không thể tải danh sách dự án từ máy chủ' : 'Failed to load projects from the server.', 'error');
     }
   };
 
@@ -365,7 +366,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name)}`,
         email: user.email,
         role: user.role as Role,
-        title: user.role === 'admin' ? 'System Admin' : user.role === 'lecturer' ? 'Lecturer' : 'Contributor',
+        title: user.role === 'admin' ? (isVi ? 'Quản trị hệ thống' : 'System Admin') : user.role === 'lecturer' ? (isVi ? 'Giảng viên' : 'Lecturer') : (isVi ? 'Cộng tác viên' : 'Contributor'),
         bio: 'Vertex user profile.',
       },
       skills: userSkills,
@@ -378,7 +379,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const currentUserName = currentWorkspaceMember?.profile.name || user?.name || 'User';
   const currentUserAvatar = currentWorkspaceMember?.profile.avatar || (user ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name)}` : 'https://i.pravatar.cc/150?u=me');
-  const currentUserTitle = currentWorkspaceMember?.profile.title || (user?.role === 'admin' ? 'System Admin' : user?.role === 'lecturer' ? 'Lecturer' : 'Contributor');
+  const currentUserTitle = currentWorkspaceMember?.profile.title || (user?.role === 'admin' ? (isVi ? 'Quản trị hệ thống' : 'System Admin') : user?.role === 'lecturer' ? (isVi ? 'Giảng viên' : 'Lecturer') : (isVi ? 'Cộng tác viên' : 'Contributor'));
 
   const memberLookup = useMemo(() => {
     return new Map(workspaceUsers.map(user => [user.id, user]));
@@ -423,7 +424,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     return resolveProjectMembers(project, memberLookup);
   };
 
-  const fallbackProject: Project = { id: '', name: 'No projects', memberIds: [], tasks: [], deadline: '', progress: 0 };
+  const fallbackProject: Project = { id: '', name: isVi ? 'Chưa có dự án' : 'No projects', memberIds: [], tasks: [], deadline: '', progress: 0 };
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || fallbackProject;
   const activeProjectMembers = useMemo(() => {
     return activeProject ? getProjectMembers(activeProject) : [];
@@ -511,13 +512,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
         const value = skillFit * 0.55 + capacity * 0.25 + availabilityScore * 0.2;
 
-        let reason = 'Balanced current workload';
+        let reason = isVi ? 'Khối lượng hiện tại cân bằng' : 'Balanced current workload';
         if (skillFit >= 0.8 && taskSkills.length > 0) {
-          reason = `Strong fit for ${taskSkills.slice(0, 2).join(', ')}`;
+          reason = isVi ? `Phù hợp tốt với ${taskSkills.slice(0, 2).join(', ')}` : `Strong fit for ${taskSkills.slice(0, 2).join(', ')}`;
         } else if (capacity >= 0.85) {
-          reason = 'Lower current workload capacity';
+          reason = isVi ? 'Đang có khối lượng công việc thấp hơn' : 'Lower current workload capacity';
         } else if (member.availability === 'available') {
-          reason = 'Currently available for focused execution';
+          reason = isVi ? 'Hiện sẵn sàng tập trung thực hiện' : 'Currently available for focused execution';
         }
 
         return { value, reason };
@@ -599,7 +600,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const teamWorkload = useMemo(() => {
     const map = new Map<string, number>();
     activeProject.tasks.forEach(task => {
-      const key = task.assignee?.name || 'Unassigned';
+      const key = task.assignee?.name || (isVi ? 'Chưa phân công' : 'Unassigned');
       map.set(key, (map.get(key) || 0) + 1);
     });
     return Array.from(map.entries()).map(([name, tasks]) => ({ name, tasks })).sort((a, b) => b.tasks - a.tasks);
@@ -619,7 +620,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không đủ thông tin để kéo thẻ công việc', 'error');
+      showToast(isVi ? 'Không đủ thông tin để kéo thẻ công việc' : 'Not enough information to move this task', 'error');
       return;
     }
 
@@ -630,46 +631,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const isAssignee = task.assignee?.id === user?.id;
     const isLeader = (currentProjectMember?.role as string) === 'Leader';
     if (!isLeader && !isAssignee) {
-      showToast('Chỉ Leader hoặc người phụ trách mới có quyền cập nhật công việc', 'error');
+      showToast(isVi ? 'Chỉ trưởng nhóm hoặc người phụ trách mới có quyền cập nhật công việc' : 'Only the team leader or assignee can update this task.', 'error');
       return;
     }
 
     // Phân quyền kéo thẻ chi tiết theo yêu cầu
     if (task.status === 'done' && newStatus !== 'done') {
       if (!isLeader) {
-        showToast('Chỉ Leader mới có quyền chuyển công việc từ Done về trạng thái khác', 'error');
+        showToast(isVi ? 'Chỉ trưởng nhóm mới có quyền chuyển công việc đã hoàn thành về trạng thái khác' : 'Only the team leader can move a completed task to another status.', 'error');
         return;
       }
     }
 
     if (task.status === 'todo' && newStatus === 'in-progress') {
       if (!isAssignee) {
-        showToast('Chỉ người được giao công việc (Assignee) mới có thể chuyển sang In Progress', 'error');
+        showToast(isVi ? 'Chỉ người phụ trách mới có thể chuyển sang Đang thực hiện' : 'Only the assignee can move this task to In Progress.', 'error');
         return;
       }
     }
 
     if (task.status === 'in-progress' && newStatus === 'todo') {
       if (!isAssignee) {
-        showToast('Chỉ người được giao công việc (Assignee) mới có thể chuyển từ In Progress về Todo', 'error');
+        showToast(isVi ? 'Chỉ người phụ trách mới có thể chuyển từ Đang thực hiện về Cần làm' : 'Only the assignee can move this task from In Progress back to To Do.', 'error');
         return;
       }
     }
 
     if (newStatus === 'ready-for-review') {
       if (!isAssignee) {
-        showToast('Chỉ người được giao công việc (Assignee) mới có thể chuyển sang Ready for Review', 'error');
+        showToast(isVi ? 'Chỉ người phụ trách mới có thể chuyển sang Chờ duyệt' : 'Only the assignee can move this task to Ready for Review.', 'error');
         return;
       }
     }
 
     if (newStatus === 'done') {
       if (task.status !== 'ready-for-review') {
-        showToast('Chỉ có thể kéo sang Done từ cột Ready for Review', 'error');
+        showToast(isVi ? 'Chỉ có thể chuyển sang Hoàn thành từ cột Chờ duyệt' : 'A task can only move to Done from Ready for Review.', 'error');
         return;
       }
       if (!isLeader) {
-        showToast('Chỉ Leader mới có quyền duyệt task (chuyển sang Done)', 'error');
+        showToast(isVi ? 'Chỉ trưởng nhóm mới có quyền duyệt công việc' : 'Only the team leader can approve a task.', 'error');
         return;
       }
     }
@@ -698,7 +699,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
     let finalDescription = commentPrompt.taskDescription;
     if (comment.trim()) {
-      const today = new Date().toLocaleDateString('vi-VN');
+      const today = new Date().toLocaleDateString(isVi ? 'vi-VN' : 'en-US');
       finalDescription = `**[Leader's Feedback - ${today}]:** ${comment.trim()}\n\n${finalDescription}`;
     }
 
@@ -735,7 +736,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       await refreshProjectsList();
     } catch (err) {
       console.error('Error in executeTaskDrop:', err);
-      showToast('Không thể lưu trạng thái kéo thẻ công việc', 'error');
+      showToast(isVi ? 'Không thể lưu trạng thái kéo thẻ công việc' : 'Failed to save the task status.', 'error');
       await refreshProjectsList();
     }
   };
@@ -750,7 +751,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không đủ thông tin để tạo công việc', 'error');
+      showToast(isVi ? 'Không đủ thông tin để tạo công việc' : 'Not enough information to create a task', 'error');
       return;
     }
 
@@ -767,12 +768,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         endDate,
       });
 
-      showToast('Task created successfully!');
+      showToast(isVi ? 'Đã tạo công việc thành công!' : 'Task created successfully!');
       setShowAddTask(false);
       await refreshProjectsList();
     } catch (err) {
       console.error('Error creating task:', err);
-      showToast('Không thể tạo công việc mới', 'error');
+      showToast(isVi ? 'Không thể tạo công việc mới' : 'Could not create the task', 'error');
     }
   };
 
@@ -781,7 +782,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không đủ thông tin để xóa công việc', 'error');
+      showToast(isVi ? 'Không đủ thông tin để xóa công việc' : 'Not enough information to delete the task', 'error');
       return;
     }
 
@@ -790,20 +791,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
     const currentProjectMember = activeProject.members?.find(m => m.id === user?.id);
     if ((currentProjectMember?.role as string) !== 'Leader') {
-      showToast('Chỉ Leader mới có quyền xóa công việc', 'error');
+      showToast(isVi ? 'Chỉ trưởng nhóm mới có quyền xóa công việc' : 'Only the team leader can delete tasks', 'error');
       return;
     }
 
     try {
       await deleteTask(token, orgId, projectId, taskId);
-      showToast(`Deleted task "${taskToDelete.title}"`);
+      showToast(isVi ? `Đã xóa công việc "${taskToDelete.title}"` : `Deleted task "${taskToDelete.title}"`);
       if (selectedTask?.id === taskId) {
         setSelectedTask(null);
       }
       await refreshProjectsList();
     } catch (err) {
       console.error('Error deleting task:', err);
-      showToast('Không thể xóa công việc', 'error');
+      showToast(isVi ? 'Không thể xóa công việc' : 'Could not delete the task', 'error');
     }
   };
 
@@ -812,7 +813,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không đủ thông tin để cập nhật công việc', 'error');
+      showToast(isVi ? 'Không đủ thông tin để cập nhật công việc' : 'Not enough information to update the task', 'error');
       return;
     }
 
@@ -821,7 +822,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const isAssignee = task?.assignee?.id === user?.id;
 
     if ((currentProjectMember?.role as string) !== 'Leader' && !isAssignee) {
-      showToast('Chỉ Leader hoặc người phụ trách mới có quyền cập nhật công việc', 'error');
+      showToast(isVi ? 'Chỉ trưởng nhóm hoặc người phụ trách mới có quyền cập nhật công việc' : 'Only the team leader or assignee can update this task', 'error');
       return;
     }
 
@@ -843,7 +844,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       await refreshProjectsList();
     } catch (err) {
       console.error('Error updating task:', err);
-      showToast('Không thể cập nhật công việc', 'error');
+      showToast(isVi ? 'Không thể cập nhật công việc' : 'Could not update the task', 'error');
     }
   };
 
@@ -860,17 +861,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const token = getAuthToken();
     const orgId = activeOrgId;
     if (!token || !orgId) {
-      showToast('Không đủ thông tin để xóa dự án', 'error');
+      showToast(isVi ? 'Không đủ thông tin để xóa dự án' : 'Not enough information to delete the project', 'error');
       return;
     }
 
     try {
       await deleteProject(token, orgId, projectToDelete.id);
-      showToast(`Deleted project "${projectToDelete.name}"`);
+      showToast(isVi ? `Đã xóa dự án "${projectToDelete.name}"` : `Deleted project "${projectToDelete.name}"`);
       await refreshProjectsList();
     } catch (err) {
       console.error('Error deleting project:', err);
-      showToast('Không thể xóa dự án', 'error');
+      showToast(isVi ? 'Không thể xóa dự án' : 'Could not delete the project', 'error');
     } finally {
       setShowDeleteConfirm(false);
       setProjectToDelete(null);
@@ -882,16 +883,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không đủ thông tin để thêm thành viên', 'error');
+      showToast(isVi ? 'Không đủ thông tin để thêm thành viên' : 'Not enough information to add the member', 'error');
       return;
     }
     try {
       await addProjectMember(token, orgId, projectId, { emailOrUserId: user.id, role: 'Member' });
-      showToast(`Added ${user.name} to ${activeProject.name}`);
+      showToast(isVi ? `Đã thêm ${user.name} vào ${activeProject.name}` : `Added ${user.name} to ${activeProject.name}`);
       await refreshProjectsList();
     } catch (err) {
       console.error('Error adding project member:', err);
-      showToast('Không thể thêm thành viên vào dự án', 'error');
+      showToast(isVi ? 'Không thể thêm thành viên vào dự án' : 'Could not add the member to the project', 'error');
     }
   };
 
@@ -900,22 +901,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không đủ thông tin để mời thành viên', 'error');
+      showToast(isVi ? 'Không đủ thông tin để mời thành viên' : 'Not enough information to invite the member', 'error');
       return;
     }
 
     const currentProjectMember = activeProject.members?.find(m => m.id === user?.id);
     if ((currentProjectMember?.role as string) !== 'Leader') {
-      showToast('Chỉ Leader mới có quyền mời thành viên vào dự án', 'error');
+      showToast(isVi ? 'Chỉ trưởng nhóm mới có quyền mời thành viên vào dự án' : 'Only the team leader can invite project members', 'error');
       return;
     }
 
     try {
       await createInvitation({ email, role, targetType: 'Project', targetId: projectId });
-      showToast(`Đã gửi email mời tham gia dự án tới ${email}`);
+      showToast(isVi ? `Đã gửi email mời tham gia dự án tới ${email}` : `Project invitation sent to ${email}`);
     } catch (err: any) {
       console.error('Error inviting member by email:', err);
-      showToast(err.message || `Không thể gửi lời mời tới ${email}`, 'error');
+      showToast(err.message || (isVi ? `Không thể gửi lời mời tới ${email}` : `Could not send an invitation to ${email}`), 'error');
     }
   };
 
@@ -923,7 +924,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const member = activeProjectMembers.find(entry => entry.id === userId);
     if (!member) return;
     if (activeProjectMembers.length <= 1) {
-      showToast('Each project needs at least one member.', 'error');
+      showToast(isVi ? 'Mỗi dự án cần có ít nhất một thành viên.' : 'Each project needs at least one member.', 'error');
       return;
     }
 
@@ -931,17 +932,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Không đủ thông tin để xóa thành viên', 'error');
+      showToast(isVi ? 'Không đủ thông tin để xóa thành viên' : 'Not enough information to remove the member', 'error');
       return;
     }
 
     try {
       await removeProjectMember(token, orgId, projectId, userId);
-      showToast(`Removed ${member.name} from ${activeProject.name}`);
+      showToast(isVi ? `Đã xóa ${member.name} khỏi ${activeProject.name}` : `Removed ${member.name} from ${activeProject.name}`);
       await refreshProjectsList();
     } catch (err) {
       console.error('Error removing project member:', err);
-      showToast('Không thể xóa thành viên khỏi dự án', 'error');
+      showToast(isVi ? 'Không thể xóa thành viên khỏi dự án' : 'Failed to remove the project member.', 'error');
     }
   };
 
@@ -956,7 +957,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       await refreshProjectsList();
     } catch (err) {
       console.error('Error updating project member:', err);
-      showToast('Không thể cập nhật thông tin thành viên', 'error');
+      showToast(isVi ? 'Không thể cập nhật thông tin thành viên' : 'Could not update member information', 'error');
     }
   };
 
@@ -964,7 +965,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const token = getAuthToken();
     const orgId = activeOrgId;
     if (!token || !orgId) {
-      showToast('Bạn chưa đăng nhập hoặc chưa chọn tổ chức', 'error');
+      showToast(isVi ? 'Bạn chưa đăng nhập hoặc chưa chọn tổ chức' : 'You are not signed in or have not selected an organization', 'error');
       return;
     }
 
@@ -972,11 +973,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       const deadline = new Date(Date.now() + 30 * 86400000).toISOString();
       const newProjectSummary = await createProject(token, orgId, {
         name,
-        description: 'New project',
+        description: isVi ? 'Dự án mới' : 'New project',
         deadline,
       });
 
-      showToast('Project created successfully!');
+      showToast(isVi ? 'Đã tạo dự án thành công!' : 'Project created successfully!');
 
       await refreshProjectsList();
 
@@ -987,7 +988,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       setShowCreateProject(false);
     } catch (err: any) {
       console.error('Error creating project:', err);
-      showToast(err.message || 'Không thể tạo dự án mới', 'error');
+      showToast(err.message || (isVi ? 'Không thể tạo dự án mới' : 'Could not create the project'), 'error');
     }
   };
 
@@ -1007,13 +1008,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const generateAiPlan = async (descriptionOverride?: string) => {
     if (!isCurrentProjectLeader) {
-      showToast('Chỉ Leader mới có quyền tạo AI plan', 'error');
+      showToast(isVi ? 'Chỉ trưởng nhóm mới có quyền tạo kế hoạch AI' : 'Only the team leader can generate an AI plan.', 'error');
       return;
     }
 
     const token = getAuthToken();
     if (!token || !activeOrgId) {
-      showToast('Please select an organization before using AI.', 'error');
+      showToast(isVi ? 'Vui lòng chọn tổ chức trước khi sử dụng AI.' : 'Please select an organization before using AI.', 'error');
       return;
     }
 
@@ -1048,7 +1049,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       let jsonText = response?.planSummary;
       if (!jsonText || typeof jsonText !== 'string' || jsonText.trim().length === 0) {
         console.error('AI returned empty or invalid planSummary:', response);
-        showToast('AI returned an empty response. Please try again.', 'error');
+        showToast(isVi ? 'AI trả về nội dung trống. Vui lòng thử lại.' : 'AI returned an empty response. Please try again.', 'error');
         return;
       }
 
@@ -1057,7 +1058,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
       if (!jsonText.endsWith('}') && !jsonText.endsWith(']')) {
         console.error('AI response appears truncated:', jsonText);
-        showToast('AI response was cut off. Try fewer weeks or generate again.', 'error');
+        showToast(isVi ? 'Phản hồi AI bị gián đoạn. Hãy giảm số tuần hoặc tạo lại.' : 'AI response was cut off. Try fewer weeks or generate again.', 'error');
         return;
       }
       let parsedJson;
@@ -1066,7 +1067,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       } catch (parseError) {
         console.error('Failed to parse AI response as JSON:', parseError);
         console.error('Raw text was:', jsonText);
-        showToast('AI returned invalid JSON format. Please try again.', 'error');
+        showToast(isVi ? 'AI trả về dữ liệu không hợp lệ. Vui lòng thử lại.' : 'AI returned invalid JSON. Please try again.', 'error');
         return;
       }
 
@@ -1108,7 +1109,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         };
       } else {
         console.error('Invalid plan structure:', parsedJson);
-        showToast('AI returned plan in unexpected format. Please try again.', 'error');
+        showToast(isVi ? 'AI trả về kế hoạch sai định dạng. Vui lòng thử lại.' : 'AI returned a plan in an unexpected format. Please try again.', 'error');
         return;
       }
 
@@ -1116,10 +1117,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       if (descriptionOverride) {
         setPlannerInput(prev => ({ ...prev, description: planningDescription }));
       }
-      showToast('AI plan generated successfully from Gemini!');
+      showToast(isVi ? 'Đã tạo kế hoạch AI bằng Gemini!' : 'AI plan generated successfully with Gemini!');
     } catch (error) {
       console.error("AI Generation error:", error);
-      showToast(error instanceof Error ? error.message : 'Failed to connect to AI.', 'error');
+      showToast(error instanceof Error ? error.message : (isVi ? 'Không thể kết nối với AI.' : 'Failed to connect to AI.'), 'error');
     }
   };
 
@@ -1129,7 +1130,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const createProjectBoardFromPlan = async () => {
     if (!isCurrentProjectLeader) {
-      showToast('Chỉ Leader mới có quyền tạo task từ AI plan', 'error');
+      showToast(isVi ? 'Chỉ trưởng nhóm mới có quyền tạo công việc từ kế hoạch AI' : 'Only the team leader can create tasks from an AI plan.', 'error');
       return;
     }
 
@@ -1137,12 +1138,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const orgId = activeOrgId;
     const projectId = activeProjectId;
     if (!token || !orgId || !projectId) {
-      showToast('Missing required info to save project plan', 'error');
+      showToast(isVi ? 'Thiếu thông tin cần thiết để lưu kế hoạch dự án' : 'Missing required information to save the project plan.', 'error');
       return;
     }
     if (!generatedPlan || !generatedPlan.plan || generatedPlan.plan.length === 0) return;
 
-    showToast('Saving AI generated tasks to database...');
+    showToast(isVi ? 'Đang lưu các công việc do AI tạo...' : 'Saving AI-generated tasks...');
     
     try {
       const assigneesList = activeProjectMembers.length > 0 ? activeProjectMembers : workspaceUsers;
@@ -1182,16 +1183,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       setProjectTab('board');
       setProjectViewMode('kanban');
       setGeneratedPlan(null);
-      showToast(`Added ${tasksCreated} AI-generated tasks to ${activeProject.name}!`);
+      showToast(isVi ? `Đã thêm ${tasksCreated} công việc do AI tạo vào ${activeProject.name}!` : `Added ${tasksCreated} AI-generated tasks to ${activeProject.name}!`);
     } catch (err) {
       console.error('Failed to save AI plan', err);
-      showToast('Failed to save AI plan to database', 'error');
+      showToast(isVi ? 'Không thể lưu kế hoạch AI vào cơ sở dữ liệu' : 'Failed to save the AI plan to the database.', 'error');
     }
   };
 
   const handleGenerateTasksFromHeader = () => {
     if (!isCurrentProjectLeader) {
-      showToast('Chỉ Leader mới có quyền tạo AI plan', 'error');
+      showToast(isVi ? 'Chỉ trưởng nhóm mới có quyền tạo kế hoạch AI' : 'Only the team leader can generate an AI plan.', 'error');
       return;
     }
 
@@ -1233,9 +1234,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         }))
       }));
 
-      showToast(`${uploads.length} file${uploads.length > 1 ? 's' : ''} uploaded`);
+      showToast(isVi ? `Đã tải lên ${uploads.length} tệp` : `${uploads.length} file${uploads.length === 1 ? '' : 's'} uploaded`);
     } catch (err: any) {
-      showToast(err.message || 'Failed to upload file(s)', 'error');
+      showToast(err.message || (isVi ? 'Không thể tải tệp lên' : 'Failed to upload file(s).'), 'error');
     }
   };
 
@@ -1254,9 +1255,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         ...prev,
         [activeProjectId]: (prev[activeProjectId] || []).filter(file => file.id !== fileId),
       }));
-      showToast('File deleted successfully');
+      showToast(isVi ? 'Đã xóa tệp thành công' : 'File deleted successfully.');
     } catch (err: any) {
-      showToast(err.message || 'Failed to delete file', 'error');
+      showToast(err.message || (isVi ? 'Không thể xóa tệp' : 'Failed to delete file.'), 'error');
     }
   };
 
@@ -1289,9 +1290,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       setActiveOrgIdState(newOrg.id);
       setActiveOrgId(newOrg.id);
       setShowCreateOrg(false);
-      showToast(`Organization "${name}" created!`);
+      showToast(isVi ? `Đã tạo tổ chức "${name}"!` : `Organization "${name}" created!`);
     } catch (err: any) {
-      showToast(err.message || 'Failed to create organization', 'error');
+      showToast(err.message || (isVi ? 'Không thể tạo tổ chức' : 'Failed to create organization.'), 'error');
     } finally {
       setOrgActionLoading(false);
     }
@@ -1305,9 +1306,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     try {
       await createInvitation({ email, role, targetType: 'Organization', targetId: activeOrgId });
       setShowInviteOrgMember(false);
-      showToast(`Đã gửi email mời tham gia tổ chức tới ${email}`);
+      showToast(isVi ? `Đã gửi email mời tham gia tổ chức tới ${email}` : `Organization invitation sent to ${email}`);
     } catch (err: any) {
-      showToast(err.message || 'Failed to invite member', 'error');
+      showToast(err.message || (isVi ? 'Không thể mời thành viên' : 'Failed to invite member.'), 'error');
     } finally {
       setOrgActionLoading(false);
     }
@@ -1320,9 +1321,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     try {
       await updateMemberRole(token, activeOrgId, memberId, { role });
       refreshOrgDetail();
-      showToast(`Role updated to ${role}`);
+      showToast(isVi ? `Đã cập nhật vai trò thành ${role === 'admin' ? 'Quản trị viên' : role === 'lecturer' ? 'Giảng viên' : 'Thành viên'}` : `Role updated to ${role}`);
     } catch (err: any) {
-      showToast(err.message || 'Failed to update role', 'error');
+      showToast(err.message || (isVi ? 'Không thể cập nhật vai trò' : 'Failed to update role.'), 'error');
     }
   };
 
@@ -1334,9 +1335,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       await removeMember(token, activeOrgId, memberId);
       refreshOrgDetail();
       await refreshProjectsList();
-      showToast('Member removed');
+      showToast(isVi ? 'Đã xóa thành viên' : 'Member removed.');
     } catch (err: any) {
-      showToast(err.message || 'Failed to remove member', 'error');
+      showToast(err.message || (isVi ? 'Không thể xóa thành viên' : 'Failed to remove member.'), 'error');
     }
   };
 
@@ -1349,7 +1350,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const handleSignOut = async () => {
     await authLogout();
-    showToast('Signed out successfully');
+    showToast(isVi ? 'Đã đăng xuất' : 'Signed out successfully.');
     setTimeout(() => {
       onNavigate?.('login');
     }, 300);
@@ -1376,7 +1377,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const handleDashboardQuickPlan = () => {
     const prompt = plannerInput.description.trim();
     if (!prompt) {
-      showToast('Please enter a planning prompt first.', 'error');
+      showToast(isVi ? 'Vui lòng nhập yêu cầu lập kế hoạch trước.' : 'Please enter a planning prompt first.', 'error');
       return;
     }
     generateAiPlan(prompt);
@@ -1385,7 +1386,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
-  const planBadgeLabel = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
+  const planBadgeLabel = {
+    free: isVi ? 'Miễn phí' : 'Free',
+    pro: 'Pro',
+    business: isVi ? 'Doanh nghiệp' : 'Business',
+    enterprise: 'Enterprise',
+  }[currentPlan];
   const planBadgeClass = currentPlan === 'pro' || currentPlan === 'business' || currentPlan === 'enterprise'
     ? 'border-blue-500/35 bg-blue-500/10 text-blue-300'
     : 'border-[#22C55E]/35 bg-[#22C55E]/10 text-[#6EE7B7]';
@@ -1399,7 +1405,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const handleSaveProfile = async (member: WorkspaceMember) => {
     if (member.id === user?.id) {
       const token = getAuthToken();
-      if (!token) throw new Error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.');
+      if (!token) throw new Error(isVi ? 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.' : 'Your session expired. Please sign in again.');
       await updateUserSkills(token, member.skills);
       setUserSkills(member.skills);
     }
@@ -1516,13 +1522,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
             >
               <Avatar src={currentUserAvatar} fallback={currentUserName.charAt(0)} size="sm" />
-              <span className="text-sm font-medium text-slate-300 hidden sm:inline-block">{currentUserName} (You)</span>
+              <span className="text-sm font-medium text-slate-300 hidden sm:inline-block">{currentUserName} ({isVi ? 'Bạn' : 'You'})</span>
             </div>
 
             {showProfileMenu && (
               <div className="absolute right-4 top-14 bg-[#0F1A2A] border border-[#22C55E]/10 rounded-xl shadow-lg shadow-black/30 py-2 w-56 z-40 overflow-hidden">
                 <div className="px-4 py-3 border-b border-[#22C55E]/10 bg-[#162032]/60">
-                  <p className="text-sm font-semibold text-white">{currentUserName} (You)</p>
+                  <p className="text-sm font-semibold text-white">{currentUserName} ({isVi ? 'Bạn' : 'You'})</p>
                   <p className="text-xs text-slate-500 mt-0.5">{currentUserTitle}</p>
                 </div>
                 <button
@@ -1532,7 +1538,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   }}
                   className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-[#162032]"
                 >
-                  Profile & Skills
+                  {isVi ? 'Hồ sơ và kỹ năng' : 'Profile & Skills'}
                 </button>
                 <button
                   onClick={() => {
@@ -1541,7 +1547,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   }}
                   className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-[#162032]"
                 >
-                  Account Settings
+                  {isVi ? 'Cài đặt tài khoản' : 'Account Settings'}
                 </button>
                 <div className="h-px bg-[#22C55E]/10 my-1"></div>
                 <button
@@ -1551,7 +1557,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   }}
                   className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2"
                 >
-                  <LogOut size={14} /> Sign out
+                  <LogOut size={14} /> {isVi ? 'Đăng xuất' : 'Sign out'}
                 </button>
               </div>
             )}
@@ -1594,22 +1600,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <span className="text-slate-600">•</span>
                 <span className="text-[#22C55E] font-semibold">{activeProjectProgress}%</span>
                 <span className="text-slate-600">•</span>
-                <span className="text-slate-300 font-semibold">{activeProjectMembers[0]?.name || 'Unassigned'}</span>
+                <span className="text-slate-300 font-semibold">{activeProjectMembers[0]?.name || (isVi ? 'Chưa phân công' : 'Unassigned')}</span>
                 <span className="text-slate-600">•</span>
-                <span className="text-slate-400">{activeProjectMembers.length} members</span>
+                <span className="text-slate-400">{activeProjectMembers.length} {isVi ? 'thành viên' : 'members'}</span>
                 <span className="text-slate-600">•</span>
-                <span className="text-slate-400">{activeProject.tasks.length} tasks</span>
+                <span className="text-slate-400">{activeProject.tasks.length} {isVi ? 'công việc' : 'tasks'}</span>
                 <span className="text-slate-600">•</span>
-                <span className="text-slate-400">{new Date(activeProject.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                <span className="text-slate-400">{new Date(activeProject.deadline).toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric' })}</span>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1 bg-[#162032] p-1 rounded-lg">
                     {([
-                      { id: 'kanban', label: 'Board', icon: Kanban },
-                      { id: 'timeline', label: 'Timeline', icon: CalendarIcon },
-                      { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+                      { id: 'kanban', label: isVi ? 'Bảng' : 'Board', icon: Kanban },
+                      { id: 'timeline', label: isVi ? 'Dòng thời gian' : 'Timeline', icon: CalendarIcon },
+                      { id: 'calendar', label: isVi ? 'Lịch' : 'Calendar', icon: CalendarDays },
                     ] as const).map(tab => {
                       const Icon = tab.icon;
                       const isActive = projectTab === 'board' && projectViewMode === tab.id;
@@ -1631,10 +1637,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
                   <div className="flex items-center gap-1 bg-[#162032] p-1 rounded-lg">
                     {([
-                      ...(isCurrentProjectLeader ? [{ id: 'ai-planner', label: 'AI Planner' } as const] : []),
-                      { id: 'insights', label: 'Insights' },
-                      { id: 'members', label: 'Members' },
-                      { id: 'files', label: 'Files' },
+                      ...(isCurrentProjectLeader ? [{ id: 'ai-planner', label: isVi ? 'Lập kế hoạch AI' : 'AI Planner' } as const] : []),
+                      { id: 'insights', label: isVi ? 'Phân tích' : 'Insights' },
+                      { id: 'members', label: isVi ? 'Thành viên' : 'Members' },
+                      { id: 'files', label: isVi ? 'Tệp' : 'Files' },
                     ] as const).map(tab => (
                       <button
                         key={tab.id}
@@ -1657,10 +1663,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     onClick={() => setShowTeamModal(true)}
                     className="px-3 py-1.5 rounded-lg border border-[#22C55E]/20 text-xs font-semibold text-[#6EE7B7] hover:bg-[#162032] hover:border-[#22C55E]/35 transition-all"
                   >
-                    + Invite
+                    {isVi ? '+ Mời' : '+ Invite'}
                   </button>
                   {isCurrentProjectLeader && (
-                    <Button size="sm" icon={<WandSparkles size={14} />} onClick={handleGenerateTasksFromHeader}>AI Generate</Button>
+                    <Button size="sm" icon={<WandSparkles size={14} />} onClick={handleGenerateTasksFromHeader}>{isVi ? 'Tạo bằng AI' : 'AI Generate'}</Button>
                   )}
                 </div>
               </div>
@@ -1671,9 +1677,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           {activeTab === 'projects' && projectTab === 'board' && searchQuery.trim() && (
             <div className="px-6 py-2 bg-[#22C55E]/10 border-b border-[#22C55E]/20 flex items-center justify-between">
               <span className="text-sm text-[#22C55E]">
-                Found {displayProject.tasks.length} task{displayProject.tasks.length !== 1 ? 's' : ''} matching "{searchQuery}"
+                {isVi ? `Tìm thấy ${displayProject.tasks.length} công việc khớp với "${searchQuery}"` : `Found ${displayProject.tasks.length} task${displayProject.tasks.length === 1 ? '' : 's'} matching "${searchQuery}"`}
               </span>
-              <button onClick={() => setSearchQuery('')} className="text-xs text-slate-400 hover:text-white">Clear</button>
+              <button onClick={() => setSearchQuery('')} className="text-xs text-slate-400 hover:text-white">{isVi ? 'Xóa tìm kiếm' : 'Clear'}</button>
             </div>
           )}
 
@@ -1837,8 +1843,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       {/* Delete Project Confirmation */}
       <DeleteConfirmDialog
         isOpen={showDeleteConfirm}
-        title="Xóa dự án"
-        message={`Bạn có chắc chắn muốn xóa dự án "${projectToDelete?.name || ''}"? Mọi dữ liệu công việc và tệp đính kèm liên quan sẽ bị xóa vĩnh viễn và không thể hoàn tác.`}
+        title={isVi ? 'Xóa dự án' : 'Delete project'}
+        message={isVi ? `Bạn có chắc chắn muốn xóa dự án "${projectToDelete?.name || ''}"? Mọi dữ liệu công việc và tệp đính kèm liên quan sẽ bị xóa vĩnh viễn và không thể hoàn tác.` : `Are you sure you want to delete "${projectToDelete?.name || ''}"? All related tasks and attachments will be permanently deleted and cannot be restored.`}
         onClose={() => {
           setShowDeleteConfirm(false);
           setProjectToDelete(null);

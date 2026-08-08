@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Button } from '../../ui/Button';
 
 import { SKILL_SUGGESTIONS, SKILL_CATEGORIES } from '../../../data/skillSuggestions';
+import { useLang } from '../../../contexts/LanguageContext';
 
 interface OnboardingSkillsModalProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ export const OnboardingSkillsModal: React.FC<OnboardingSkillsModalProps> = ({
 }) => {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [customSkill, setCustomSkill] = useState('');
+  const { lang } = useLang();
+  const isVi = lang === 'vi';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -45,7 +48,7 @@ export const OnboardingSkillsModal: React.FC<OnboardingSkillsModalProps> = ({
 
   const handleSave = async () => {
     if (selectedSkills.length === 0) {
-      setError('Vui lòng chọn ít nhất 1 kỹ năng để tiếp tục.');
+      setError(isVi ? 'Vui lòng chọn ít nhất 1 kỹ năng để tiếp tục.' : 'Select at least one skill to continue.');
       return;
     }
     setError('');
@@ -55,7 +58,7 @@ export const OnboardingSkillsModal: React.FC<OnboardingSkillsModalProps> = ({
       if (onClose) onClose();
     } catch (err) {
       console.error(err);
-      setError('Có lỗi xảy ra khi lưu kỹ năng. Vui lòng thử lại.');
+      setError(isVi ? 'Có lỗi xảy ra khi lưu kỹ năng. Vui lòng thử lại.' : 'Could not save your skills. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -79,10 +82,10 @@ export const OnboardingSkillsModal: React.FC<OnboardingSkillsModalProps> = ({
           <div>
             <h3 className="text-xl font-bold text-white flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] animate-pulse"></span>
-              Chào mừng bạn đến với Vertex!
+              {isVi ? 'Chào mừng bạn đến với Vertex!' : 'Welcome to Vertex!'}
             </h3>
             <p className="text-xs text-slate-400 mt-1">
-              Hãy chọn các kỹ năng chuyên môn của bạn để AI có thể phân chia công việc chính xác nhất.
+              {isVi ? 'Hãy chọn các kỹ năng chuyên môn của bạn để AI có thể phân chia công việc chính xác nhất.' : 'Select your professional skills so AI can assign work more accurately.'}
             </p>
           </div>
           {isClosable && onClose && (
@@ -101,10 +104,10 @@ export const OnboardingSkillsModal: React.FC<OnboardingSkillsModalProps> = ({
         <div className="p-6 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
           {/* Selected Skills Chips */}
           <div>
-            <h4 className="text-sm font-semibold text-slate-300 mb-2">Kỹ năng đã chọn ({selectedSkills.length})</h4>
+            <h4 className="text-sm font-semibold text-slate-300 mb-2">{isVi ? 'Kỹ năng đã chọn' : 'Selected skills'} ({selectedSkills.length})</h4>
             {selectedSkills.length === 0 ? (
               <div className="text-sm text-slate-500 italic p-3 bg-[#162032]/30 rounded-xl border border-dashed border-slate-700/50 text-center">
-                Chưa có kỹ năng nào được chọn. Nhấp vào các gợi ý bên dưới hoặc tự thêm kỹ năng của bạn.
+                {isVi ? 'Chưa có kỹ năng nào được chọn. Nhấp vào các gợi ý bên dưới hoặc tự thêm kỹ năng của bạn.' : 'No skills selected. Choose a suggestion below or add your own.'}
               </div>
             ) : (
               <div className="flex flex-wrap gap-2 p-3 bg-[#162032]/50 rounded-xl border border-[#22C55E]/5 max-h-[120px] overflow-y-auto">
@@ -135,17 +138,17 @@ export const OnboardingSkillsModal: React.FC<OnboardingSkillsModalProps> = ({
               type="text"
               value={customSkill}
               onChange={(e) => setCustomSkill(e.target.value)}
-              placeholder="Nhập kỹ năng khác (ví dụ: Python, Docker, Next.js)..."
+              placeholder={isVi ? 'Nhập kỹ năng khác (ví dụ: Python, Docker, Next.js)...' : 'Enter another skill (for example: Python, Docker, Next.js)...'}
               className="flex-1 px-4 py-2.5 rounded-xl border border-slate-700 bg-[#162032] text-white placeholder-slate-500 focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all text-sm"
             />
             <Button type="submit" variant="secondary" size="sm" className="!py-2.5">
-              Thêm +
+              {isVi ? 'Thêm +' : 'Add +'}
             </Button>
           </form>
 
           {/* Suggestion Categories */}
           <div className="space-y-4 pt-2">
-            <h4 className="text-sm font-semibold text-slate-300">Gợi ý theo danh mục</h4>
+            <h4 className="text-sm font-semibold text-slate-300">{isVi ? 'Gợi ý theo danh mục' : 'Suggestions by category'}</h4>
             {[...SKILL_CATEGORIES, 'General'].map(category => (
               <div key={category} className="space-y-2">
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{category}</span>
@@ -181,7 +184,7 @@ export const OnboardingSkillsModal: React.FC<OnboardingSkillsModalProps> = ({
           <div className="flex gap-3 w-full sm:w-auto justify-end">
             {isClosable && onClose && (
               <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
-                Hủy
+                {isVi ? 'Hủy' : 'Cancel'}
               </Button>
             )}
             <Button 
@@ -192,7 +195,7 @@ export const OnboardingSkillsModal: React.FC<OnboardingSkillsModalProps> = ({
               disabled={selectedSkills.length === 0}
               className="w-full sm:w-auto"
             >
-              Lưu & Tiếp tục
+              {isVi ? 'Lưu & Tiếp tục' : 'Save & Continue'}
             </Button>
           </div>
         </div>

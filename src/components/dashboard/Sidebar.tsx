@@ -49,7 +49,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSwitchWorkspace,
   onCreateWorkspace,
 }) => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const isVi = lang === 'vi';
   const [collapsed, setCollapsed] = useState(false);
   const [wsDropdownOpen, setWsDropdownOpen] = useState(false);
   const wsDropdownRef = useRef<HTMLDivElement>(null);
@@ -104,9 +105,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       };
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} />, action: onOpenDashboard },
-    { id: 'projects', label: 'Projects', icon: <FolderOpen size={18} />, action: onOpenProjects },
-    { id: 'members', label: 'Members', icon: <Users size={18} />, action: onOpenMembers },
+    { id: 'dashboard', label: t.sidebar.dashboard, icon: <LayoutDashboard size={18} />, action: onOpenDashboard },
+    { id: 'projects', label: isVi ? 'Dự án' : 'Projects', icon: <FolderOpen size={18} />, action: onOpenProjects },
+    { id: 'members', label: isVi ? 'Thành viên' : 'Members', icon: <Users size={18} />, action: onOpenMembers },
     { id: 'settings', label: t.sidebar.settings, icon: <Settings size={18} />, action: onOpenSettings },
   ];
 
@@ -174,7 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="border-t border-[#22C55E]/10">
                         <button onClick={() => { onCreateWorkspace?.(); setWsDropdownOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-500 hover:bg-[#162032] hover:text-slate-300 transition-colors">
                           <Plus size={14} />
-                          New workspace
+                          {isVi ? 'Không gian làm việc mới' : 'New workspace'}
                         </button>
                       </div>
                     </motion.div>
@@ -227,7 +228,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {onDeleteProject && (
                       <button
                         onClick={() => onDeleteProject(project.id)}
-                        title="Delete project"
+                        title={isVi ? 'Xóa dự án' : 'Delete project'}
                         className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
                       >
                         <Trash2 size={13} />
