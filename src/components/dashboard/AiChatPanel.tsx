@@ -4,6 +4,7 @@ import { Send, Sparkles, Bot, User, CalendarClock, ListTodo, BarChart3, Zap } fr
 import { useLang } from '../../contexts/LanguageContext';
 import { chatWithAi } from '../../api/ai';
 import { getAccessToken } from '../../utils/authStorage';
+import { AiMarkdown } from '../ai/AiMarkdown';
 
 type ChatMessage = { role: 'user' | 'ai'; content: string; time: Date };
 
@@ -120,12 +121,14 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onSaveChat }) => {
                 {msg.role === 'ai' ? <Bot size={12} className="text-white" /> : <User size={12} className="text-slate-400" />}
               </div>
               <div className={`max-w-[80%] flex flex-col gap-0.5 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <div className={`px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed whitespace-pre-line ${
+                <div className={`px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-[#22C55E] text-white rounded-br-sm'
                     : 'bg-[#0F1A2A] border border-[#22C55E]/10 text-slate-300 rounded-bl-sm'
                 }`}>
-                  {msg.content}
+                  {msg.role === 'ai'
+                    ? <AiMarkdown content={msg.content} />
+                    : <span className="whitespace-pre-wrap">{msg.content}</span>}
                 </div>
                 <span className="text-[10px] text-slate-600 px-1">{formatTime(msg.time)}</span>
               </div>

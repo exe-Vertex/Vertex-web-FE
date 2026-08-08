@@ -3,6 +3,7 @@ import { MessageSquare, X, Send, Sparkles, Minimize2, Loader2 } from 'lucide-rea
 import { chatWithAi, getAiHistory, AiHistory } from '../../api/ai';
 import { getAccessToken } from '../../utils/authStorage';
 import { useLang } from '../../contexts/LanguageContext';
+import { AiMarkdown } from './AiMarkdown';
 
 export const FloatingAiChat: React.FC = () => {
   const { lang } = useLang();
@@ -142,8 +143,8 @@ export const FloatingAiChat: React.FC = () => {
             {/* AI Response */}
             {(msg.planSummary || msg.planData) && (
               <div className="flex justify-start">
-                <div className="max-w-[85%] bg-[#162032] text-slate-200 border border-slate-700/50 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm shadow-sm whitespace-pre-wrap">
-                  {msg.planSummary || msg.planData}
+                <div className="max-w-[85%] bg-[#162032] text-slate-200 border border-slate-700/50 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm shadow-sm">
+                  <AiMarkdown content={msg.planSummary || msg.planData || ''} />
                 </div>
               </div>
             )}

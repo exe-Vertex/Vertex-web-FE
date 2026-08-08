@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MessageSquare, Send, X, Sparkles, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useLang } from '../../contexts/LanguageContext';
+import { AiMarkdown } from '../ai/AiMarkdown';
 
 export const FloatingAssistant: React.FC = () => {
   const { t } = useLang();
@@ -104,7 +105,9 @@ export const FloatingAssistant: React.FC = () => {
                         : 'bg-[#162032] text-slate-300 shadow-sm border border-[#22C55E]/10 rounded-bl-none'
                     }`}
                   >
-                    {msg.content}
+                    {msg.role === 'ai'
+                      ? <AiMarkdown content={msg.content} />
+                      : <span className="whitespace-pre-wrap">{msg.content}</span>}
                   </div>
                 </div>
               ))}
