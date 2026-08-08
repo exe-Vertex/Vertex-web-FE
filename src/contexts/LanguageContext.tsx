@@ -1,30 +1,24 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { Lang, translations, Translations } from '../i18n';
 
 interface LanguageContextValue {
   lang: Lang;
   t: Translations;
-  setLang: (l: Lang) => void;
-  toggle: () => void;
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [lang, setLang] = useState<Lang>(() => {
-    const savedLanguage = localStorage.getItem('vertex.language');
-    return savedLanguage === 'en' || savedLanguage === 'vi' ? savedLanguage : 'vi';
-  });
-  const t = translations[lang] as Translations;
-  const toggle = () => setLang(current => current === 'vi' ? 'en' : 'vi');
+  const lang: Lang = 'en';
+  const t = translations.en as Translations;
 
   useEffect(() => {
-    localStorage.setItem('vertex.language', lang);
-    document.documentElement.lang = lang;
-  }, [lang]);
+    localStorage.removeItem('vertex.language');
+    document.documentElement.lang = 'en';
+  }, []);
 
   return (
-    <LanguageContext.Provider value={{ lang, t, setLang, toggle }}>
+    <LanguageContext.Provider value={{ lang, t }}>
       {children}
     </LanguageContext.Provider>
   );

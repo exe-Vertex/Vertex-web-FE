@@ -295,7 +295,7 @@ const TasksTab: React.FC<{
               <div className="space-y-3 border-b border-[#F59E0B]/15 pb-4">
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
-                    <p className="text-[10px] text-slate-500">Trạng thái</p>
+                    <p className="text-[10px] text-slate-500">Status</p>
                     <p className="mt-0.5 font-semibold text-[#6EE7B7]">{isVi ? statusConfig[selectedTask.status].labelVi : statusConfig[selectedTask.status].labelEn}</p>
                   </div>
                   <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">

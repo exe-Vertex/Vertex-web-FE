@@ -2244,14 +2244,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                                   <ListChecks size={28} className="text-[#22C55E]/60" />
                                 </div>
                                 <div className="text-center max-w-xs px-4">
-                                  <p className="text-sm font-semibold text-slate-300 mb-1.5">System Map chưa tải</p>
-                                  <p className="text-xs text-slate-500 leading-relaxed">Nhấn nút làm mới ở góc phải để vẽ sơ đồ hệ thống.</p>
+                                  <p className="text-sm font-semibold text-slate-300 mb-1.5">System map is not loaded</p>
+                                  <p className="text-xs text-slate-500 leading-relaxed">Select refresh in the top-right corner to render the system map.</p>
                                 </div>
                                 <button
                                   onClick={() => setSystemMapRefreshKey(k => k + 1)}
                                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#162032] border border-[#22C55E]/25 text-[#22C55E] text-xs font-semibold hover:bg-[#1E2D45] transition-colors"
                                 >
-                                  <RefreshCw size={13} /> Tải sơ đồ
+                                  <RefreshCw size={13} /> Load map
                                 </button>
                               </div>
                             )}

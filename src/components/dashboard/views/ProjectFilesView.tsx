@@ -273,7 +273,7 @@ export const ProjectFilesView: React.FC<{
                           <p className="text-sm font-semibold text-white truncate">{file.name}</p>
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-[#22C55E]/20 text-[#6EE7B7]">{getExt(file.name)}</span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5 truncate">{file.sizeLabel} • {file.uploadedBy} • {new Date(file.uploadedAt).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' })}</p>
+                        <p className="text-xs text-slate-500 mt-0.5 truncate">{file.sizeLabel} • {file.uploadedBy} • {new Date(file.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
                       </div>
                     </div>
 

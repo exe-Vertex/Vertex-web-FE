@@ -4,7 +4,6 @@ import { Button } from '../ui/Button';
 import { VertexLogo } from '../ui/VertexLogo';
 import { useLang } from '../../contexts/LanguageContext';
 import { Menu, X } from 'lucide-react';
-import { LanguageSwitcher } from '../ui/LanguageSwitcher';
 
 interface HeaderProps {
   onNavigate: (page: string) => void;
@@ -65,7 +64,6 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
 
         {/* Actions */}
         <div className="hidden md:flex items-center justify-end gap-3">
-          <LanguageSwitcher compact />
           <Button variant="ghost" size="sm" onClick={() => onNavigate('login')}>
             {t.nav.signIn}
           </Button>
@@ -107,7 +105,6 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
             </button>
           ))}
           <div className="h-px bg-[#22C55E]/10 my-2"></div>
-          <LanguageSwitcher className="mb-2 w-full justify-center" />
           <Button variant="ghost" size="sm" className="justify-start" onClick={() => { onNavigate('login'); setIsMobileMenuOpen(false); }}>
             {t.nav.signIn}
           </Button>

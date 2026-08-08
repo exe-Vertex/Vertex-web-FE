@@ -19,7 +19,6 @@ import {
 import { getAccessToken, getUserInfo } from '../../../utils/authStorage';
 
 import { useLang } from '../../../contexts/LanguageContext';
-import { LanguageSwitcher } from '../../ui/LanguageSwitcher';
 interface SettingsViewProps {
   userPlan: OrgPlan;
   orgName: string;
@@ -277,7 +276,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       {lang === 'vi' ? 'Chọn ngôn ngữ hiển thị cho Vertex.' : 'Choose the display language for Vertex.'}
                     </p>
                   </div>
-                  <LanguageSwitcher />
+                  <span className="text-sm font-semibold text-slate-200">English</span>
                 </div>
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-slate-300">{isVi ? 'Tích hợp' : 'Integrations'}</h3>
@@ -444,7 +443,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </span>
                   </div>
                   <h3 className="text-2xl font-bold text-white mt-4 flex items-baseline gap-1.5">
-                    {activePlan === 'free' ? '0 VNĐ' : activePlan === 'pro' ? '99.000 VNĐ' : activePlan === 'business' ? '249.000 VNĐ' : (isVi ? 'Tùy chỉnh' : 'Custom')}
+                    {activePlan === 'free' ? 'VND 0' : activePlan === 'pro' ? 'VND 99,000' : activePlan === 'business' ? 'VND 249,000' : (isVi ? 'Tùy chỉnh' : 'Custom')}
                     <span className="text-sm font-normal text-slate-400">/{isVi ? 'tháng' : 'month'}</span>
                   </h3>
                   <p className="text-sm text-slate-400 mt-2">{isVi ? 'Gói đang hoạt động cho' : 'Active plan for'} {orgName}.</p>
@@ -674,13 +673,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       >
                         <div>
                           <div className="flex justify-between items-center">
-                            <h5 className="font-bold text-white text-md">Gói PRO</h5>
+                            <h5 className="font-bold text-white text-md">PRO plan</h5>
                             {selectedPlan === 'pro' && <CheckCircle2 className="text-[#22C55E]" size={18} />}
                           </div>
                           <p className="text-slate-400 text-xs mt-1">{isVi ? 'Phù hợp cho cá nhân và nhóm sinh viên' : 'Best for individuals and student teams'}</p>
                           <div className="mt-4">
                             <span className="text-2xl font-bold text-white">
-                              {billingCycle === 'yearly' ? '79.000 VNĐ' : '99.000 VNĐ'}
+                              {billingCycle === 'yearly' ? 'VND 79,000' : 'VND 99,000'}
                             </span>
                             <span className="text-xs text-slate-500">{isVi ? '/tháng' : '/month'}</span>
                           </div>
@@ -707,13 +706,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       >
                         <div>
                           <div className="flex justify-between items-center">
-                            <h5 className="font-bold text-white text-md">Gói BUSINESS</h5>
+                            <h5 className="font-bold text-white text-md">BUSINESS plan</h5>
                             {selectedPlan === 'business' && <CheckCircle2 className="text-[#22C55E]" size={18} />}
                           </div>
                           <p className="text-slate-400 text-xs mt-1">{isVi ? 'Phù hợp cho lớp học hoặc doanh nghiệp' : 'Best for classes or businesses'}</p>
                           <div className="mt-4">
                             <span className="text-2xl font-bold text-white">
-                              {billingCycle === 'yearly' ? '199.000 VNĐ' : '249.000 VNĐ'}
+                              {billingCycle === 'yearly' ? 'VND 199,000' : 'VND 249,000'}
                             </span>
                             <span className="text-xs text-slate-500">{isVi ? '/tháng' : '/month'}</span>
                           </div>
@@ -771,7 +770,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <div>
                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{isVi ? 'Số tiền thanh toán' : 'Payment amount'}</p>
                               <p className="text-lg font-black text-yellow-400 mt-0.5">
-                                {checkoutResult.amount.toLocaleString('vi-VN')} VNĐ
+                                VND {checkoutResult.amount.toLocaleString('en-US')}
                               </p>
                             </div>
                             <span className="text-[10px] font-bold bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-md">

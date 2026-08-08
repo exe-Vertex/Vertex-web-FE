@@ -10,7 +10,6 @@ import { LecturerGroup } from '../../../data/lecturerTypes';
 import { useAuth } from '../../../contexts/AuthContext';
 import { GroupDetail } from './GroupDetail';
 import { useLang } from '../../../contexts/LanguageContext';
-import { LanguageSwitcher } from '../../ui/LanguageSwitcher';
 import { DeadlineCalendar } from './DeadlineCalendar';
 import { 
   getGroups, 
@@ -574,7 +573,6 @@ export const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ onNavigate
         </div>
 
         <div className="flex items-center gap-2">
-          <LanguageSwitcher compact />
           {/* AI Insights */}
           <button onClick={() => setShowAI(o => !o)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${showAI ? 'bg-[#22C55E]/20 text-[#6EE7B7] border border-[#F59E0B]/35 shadow-[0_10px_22px_rgba(34,197,94,0.16)]' : 'bg-[#162032] text-slate-400 border border-[#3A3317] hover:text-[#6EE7B7] hover:border-[#F59E0B]/35 hover:shadow-[0_12px_24px_rgba(10,15,26,0.5)]'}`}>

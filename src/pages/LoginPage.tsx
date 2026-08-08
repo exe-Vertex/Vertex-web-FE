@@ -15,11 +15,11 @@ const getPasswordStrength = (pwd: string) => {
   if (/[^a-zA-Z0-9]/.test(pwd)) score++;
 
   if (score <= 1) {
-    return { score, label: 'Yếu', color: 'bg-red-500', textClass: 'text-red-400' };
+    return { score, label: 'Weak', color: 'bg-red-500', textClass: 'text-red-400' };
   } else if (score === 2 || score === 3) {
-    return { score, label: 'Trung bình', color: 'bg-yellow-500', textClass: 'text-yellow-400' };
+    return { score, label: 'Average', color: 'bg-yellow-500', textClass: 'text-yellow-400' };
   } else {
-    return { score, label: 'Mạnh', color: 'bg-[#22C55E]', textClass: 'text-[#22C55E]' };
+    return { score, label: 'Strong', color: 'bg-[#22C55E]', textClass: 'text-[#22C55E]' };
   }
 };
 
@@ -176,7 +176,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const handleGoogleClick = () => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!googleClientId) {
-      setErrorMessage("Google Client ID chưa được cấu hình.");
+      setErrorMessage("Google Client ID is not configured.");
       return;
     }
     const redirectUri = window.location.origin + '/login';
@@ -188,7 +188,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const handleGitHubClick = () => {
     const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
     if (!githubClientId) {
-      setErrorMessage("GitHub Client ID chưa được cấu hình.");
+      setErrorMessage("GitHub Client ID is not configured.");
       return;
     }
     const redirectUri = window.location.origin + '/login';
@@ -219,32 +219,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      setErrorMessage("Vui lòng nhập đúng định dạng email (ví dụ: you@example.com).");
+      setErrorMessage("Please enter a valid email address (for example, you@example.com).");
       setIsSubmitting(false);
       return;
     }
 
     if (isSignUp) {
       if (name.trim().length < 2) {
-        setErrorMessage("Họ và tên phải dài ít nhất 2 ký tự.");
+        setErrorMessage("Full name must be at least 2 characters long.");
         setIsSubmitting(false);
         return;
       }
 
       if (password.length < 8) {
-        setErrorMessage("Mật khẩu phải chứa ít nhất 8 ký tự.");
+        setErrorMessage("Password must be at least 8 characters long.");
         setIsSubmitting(false);
         return;
       }
 
       if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-        setErrorMessage("Mật khẩu bắt buộc phải chứa cả chữ cái và chữ số.");
+        setErrorMessage("Password must contain both letters and numbers.");
         setIsSubmitting(false);
         return;
       }
     } else {
       if (!password) {
-        setErrorMessage("Vui lòng nhập mật khẩu.");
+        setErrorMessage("Please enter your password.");
         setIsSubmitting(false);
         return;
       }
@@ -448,7 +448,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 {isSignUp && password && (
                   <div className="mt-2.5 space-y-1.5">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-400">Độ mạnh mật khẩu:</span>
+                      <span className="text-slate-400">Password strength:</span>
                       <span className={`font-semibold ${getPasswordStrength(password).textClass} transition-colors duration-300`}>
                         {getPasswordStrength(password).label}
                       </span>
@@ -460,8 +460,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                       />
                     </div>
                     <ul className="text-[10px] text-slate-500 space-y-0.5 list-disc list-inside">
-                      <li className={password.length >= 8 ? "text-[#22C55E]" : ""}>Tối thiểu 8 ký tự</li>
-                      <li className={/[a-zA-Z]/.test(password) && /[0-9]/.test(password) ? "text-[#22C55E]" : ""}>Chứa cả chữ cái và chữ số</li>
+                      <li className={password.length >= 8 ? "text-[#22C55E]" : ""}>At least 8 characters</li>
+                      <li className={/[a-zA-Z]/.test(password) && /[0-9]/.test(password) ? "text-[#22C55E]" : ""}>Contains both letters and numbers</li>
                     </ul>
                   </div>
                 )}

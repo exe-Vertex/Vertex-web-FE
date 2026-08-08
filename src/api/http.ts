@@ -67,7 +67,7 @@ export async function apiRequest<T>(
         localStorage.removeItem('vertex.refreshToken');
         localStorage.removeItem('vertex.userInfo');
         window.location.href = '/login';
-        throw new Error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.');
+        throw new Error('Your session has expired. Please sign in again.');
       }
     } else {
       // No refresh token -> clear and redirect
@@ -75,7 +75,7 @@ export async function apiRequest<T>(
       localStorage.removeItem('vertex.refreshToken');
       localStorage.removeItem('vertex.userInfo');
       window.location.href = '/login';
-      throw new Error('Bạn chưa đăng nhập, vui lòng đăng nhập lại.');
+      throw new Error('You are not signed in. Please sign in again.');
     }
   }
 
