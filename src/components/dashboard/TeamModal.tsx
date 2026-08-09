@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { User } from '../../types';
-import { X, UserPlus, Star, User as UserIcon, Link as LinkIcon, Copy, Share2 } from 'lucide-react';
+import { X, UserPlus, Star, User as UserIcon, Link as LinkIcon, Copy, Share2, ChevronDown } from 'lucide-react';
 import { SKILL_SUGGESTIONS, SKILL_CATEGORIES } from '../../data/skillSuggestions';
 import { useLang } from '../../contexts/LanguageContext';
 
@@ -224,14 +224,19 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
           <div>
             <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Invite link</p>
             <div className="rounded-xl border border-[#22C55E]/15 bg-[#0A0F1A] p-3">
-              <div className="flex items-center gap-2 justify-between">
-                <div className="min-w-0">
-                  <p className={`text-xs font-medium break-all ${inviteLinkError ? 'text-red-400' : 'text-slate-300'}`}>
-                    {inviteLinkLoading ? 'Creating invitation link...' : inviteLinkError || joinLink}
-                  </p>
-                  <p className="text-[10px] text-slate-600 mt-1">Anyone with this link can join as a Member. The link expires after 7 days.</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border ${inviteLinkError ? 'border-red-500/20 bg-red-500/10 text-red-400' : 'border-[#22C55E]/20 bg-[#22C55E]/10 text-[#6EE7B7]'}`}>
+                    <LinkIcon size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-sm font-semibold ${inviteLinkError ? 'text-red-400' : 'text-slate-200'}`}>
+                      {inviteLinkLoading ? 'Creating invitation link...' : inviteLinkError || 'Invitation link ready'}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-slate-500">Anyone with the link joins as a Member. Expires after 7 days.</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-shrink-0 items-center gap-2 sm:justify-end">
                   <button
                     onClick={() => copyValue(joinLink, true)}
                     disabled={!joinLink || inviteLinkLoading}
@@ -260,8 +265,8 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
 
           <div className="text-center text-[10px] uppercase tracking-widest text-slate-600">{isVi ? 'hoặc' : 'or'}</div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-            <div className="sm:col-span-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_6.75rem]">
+            <div>
               <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">{isVi ? 'Mời bằng email' : 'Invite by email'}</p>
               <div className="relative">
                 <LinkIcon size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -274,18 +279,21 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
                 />
               </div>
             </div>
-            <div className="sm:col-span-1">
+            <div>
               <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">{isVi ? 'Vai trò' : 'Role'}</p>
-              <select
-                value={inviteRole}
-                onChange={e => setInviteRole(e.target.value as TeamRole)}
-                className="w-full px-3 py-2 rounded-lg bg-[#0A0F1A] border border-[#22C55E]/10 text-sm text-white outline-none focus:border-[#22C55E]"
-              >
-                <option value="Member">{roleLabels.Member}</option>
-                <option value="Guest">{roleLabels.Guest}</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={inviteRole}
+                  onChange={e => setInviteRole(e.target.value as TeamRole)}
+                  className="h-10 w-full appearance-none rounded-lg border border-[#22C55E]/10 bg-[#0A0F1A] py-2 pl-3 pr-9 text-sm text-white outline-none transition-colors focus:border-[#22C55E]"
+                >
+                  <option value="Member">{roleLabels.Member}</option>
+                  <option value="Guest">{roleLabels.Guest}</option>
+                </select>
+                <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
             </div>
-            <div className="sm:col-span-1 flex items-end">
+            <div className="flex items-end">
               <button
                 onClick={handleInviteEmail}
                 disabled={!inviteEmail.trim()}
