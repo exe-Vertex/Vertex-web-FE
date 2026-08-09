@@ -14,7 +14,7 @@ import { OrgPlan } from '../../types';
 import { useLang } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Search, Bell, Menu, LayoutGrid, List, Plus, Calendar as CalendarIcon, CalendarDays, Filter, X, LogOut, Kanban, Sparkles, Users as UsersIcon, TrendingUp, AlertTriangle, WandSparkles, FileText, Paperclip, MessageSquare, Trash2, Eye, Download, Grid3X3, ImageIcon, File, Video, FileImage, FileCode2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { StudentDashboardOverview } from './views/StudentDashboardOverview';
 import { AiPlannerView } from './views/AiPlannerView';
 import { AnalyticsView } from './views/AnalyticsView';
@@ -54,6 +54,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { showToast } = useToast();
   const { t, lang } = useLang();
   const isVi = lang === 'vi';
+  const shouldReduceMotion = useReducedMotion();
   const [projects, setProjects] = useState<Project[]>([]);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const [storedUserPlan] = useState<OrgPlan>(getStoredUserPlan);
@@ -1705,6 +1706,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
           {/* Active tab content */}
           <div className="flex-1 flex overflow-hidden min-h-0">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeTab === 'projects'
+                  ? `${activeTab}-${projectTab}-${projectTab === 'board' ? projectViewMode : ''}`
+                  : activeTab}
+                className="flex h-full w-full min-h-0 min-w-0 overflow-hidden"
+                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -4 }}
+                transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: 'easeOut' }}
+              >
             {activeTab === 'dashboard' && (
               <StudentDashboardOverview
                 projects={projectsWithMembers}
@@ -1802,6 +1814,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 onClearInitialCheckoutPlan={() => setInitialCheckoutPlan(null)}
               />
             )}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </main>
       </div>
