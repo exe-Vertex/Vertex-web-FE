@@ -54,7 +54,7 @@ export interface AdminUserEntry {
   email: string;
   avatar: string;
   status: UserStatus;
-  plan: OrgPlan | 'paid' | 'free-trial';
+  plan: OrgPlan | 'paid';
   createdAt: string;
 }
 

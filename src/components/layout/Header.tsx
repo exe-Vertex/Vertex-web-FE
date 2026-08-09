@@ -181,7 +181,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
                 {t.nav.signIn}
               </Button>
               <Button variant="primary" size="sm" onClick={() => onNavigate('dashboard')}>
-                {t.nav.freeTrial}
+                {t.nav.free}
               </Button>
             </>
           )}
@@ -281,7 +281,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
                   setIsMobileMenuOpen(false);
                 }}
               >
-                {t.nav.freeTrial}
+                {t.nav.free}
               </Button>
             </>
           )}

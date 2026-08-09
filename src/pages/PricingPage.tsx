@@ -27,7 +27,7 @@ const plans = [
     description: 'For growing teams & capstone projects',
     price: '$5',
     period: '/user/month',
-    cta: 'Start Free Trial',
+    cta: 'Upgrade to Pro',
     highlight: true,
   },
   {
@@ -113,7 +113,7 @@ const viPricingText: Record<string, string> = {
   'For schools and mid-sized companies': 'Dành cho trường học và doanh nghiệp vừa',
   'For large universities and enterprises': 'Dành cho trường đại học và doanh nghiệp lớn',
   'Get Started': 'Bắt đầu',
-  'Start Free Trial': 'Dùng thử miễn phí',
+  'Upgrade to Pro': 'Nâng cấp lên Pro',
   'Upgrade to Business': 'Nâng cấp Business',
   'Contact Sales': 'Liên hệ tư vấn',
   'Project Management': 'Quản lý dự án',
@@ -442,7 +442,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                 {isVi ? 'Bắt đầu với gói Free và nâng cấp bất cứ lúc nào. Không cần thẻ tín dụng.' : 'Start with the Free plan and upgrade anytime. No credit card required.'}
               </p>
               <Button size="lg" onClick={() => onNavigate('dashboard')} icon={<ArrowRight size={20} />}>
-                {isVi ? 'Dùng thử miễn phí' : 'Start Free Trial'}
+                {isVi ? 'Bắt đầu miễn phí' : 'Start for free'}
               </Button>
             </div>
           </motion.div>

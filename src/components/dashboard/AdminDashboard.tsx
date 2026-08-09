@@ -20,7 +20,6 @@ const normalizeAdminPlan = (plan?: string): AdminUserEntry['plan'] => {
     || normalized === 'business'
     || normalized === 'enterprise'
     || normalized === 'paid'
-    || normalized === 'free-trial'
   ) {
     return normalized;
   }
@@ -28,7 +27,7 @@ const normalizeAdminPlan = (plan?: string): AdminUserEntry['plan'] => {
 };
 
 const isPaidAdminPlan = (plan: AdminUserEntry['plan']) =>
-  plan !== 'free' && plan !== 'free-trial';
+  plan !== 'free';
 
 import { AdminUserEntry, AuditLogEntry, AdminNotification } from '../../types';
 import { Avatar } from '../ui/Avatar';
@@ -130,7 +129,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const { t } = useLang();
   const { logout: authLogout } = useAuth();
   const [activeTab, setActiveTab] = useState<'users' | 'ai' | 'analytics' | 'auditlog' | 'config' | 'sitemap'>('users');
-  const [userSegment, setUserSegment] = useState<'all' | 'active' | 'banned' | 'paid' | 'free-trial'>('all');
+  const [userSegment, setUserSegment] = useState<'all' | 'active' | 'banned' | 'paid' | 'free'>('all');
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -265,9 +264,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     const freeCount = managedUsers.filter(u => !isPaidAdminPlan(u.plan)).length;
     return [
       { label: t.admin.paid, value: paidCount },
-      { label: t.admin.freeTrial, value: freeCount }
+      { label: t.admin.free, value: freeCount }
     ];
-  }, [managedUsers, t.admin.paid, t.admin.freeTrial]);
+  }, [managedUsers, t.admin.paid, t.admin.free]);
 
   const todayMetrics = useMemo(() => {
     const now = new Date();
@@ -1312,7 +1311,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     totalUsers: managedUsers.length,
     activeUsers: managedUsers.filter(u => u.status === 'active').length,
     paidUsers: managedUsers.filter(u => isPaidAdminPlan(u.plan)).length,
-    freeTrialUsers: managedUsers.filter(u => !isPaidAdminPlan(u.plan)).length,
+    freeUsers: managedUsers.filter(u => !isPaidAdminPlan(u.plan)).length,
   }), [managedUsers]);
 
   // ── Audit log helper ──
@@ -1401,7 +1400,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     const rows = [
       [t.admin.totalUsers, String(stats.totalUsers)],
       [t.admin.paidUsers, String(stats.paidUsers)],
-      [t.admin.freeTrial, String(stats.freeTrialUsers)],
+      [t.admin.free, String(stats.freeUsers)],
       [t.admin.apiCostToday, String(todayMetrics.aiRequestsToday)],
       [t.admin.monthlyApiCost, String(todayMetrics.aiRequestsThisMonth)],
       [t.admin.totalTokensToday, String(todayMetrics.totalQuotaUsed)],
@@ -1636,7 +1635,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                     { label: t.admin.totalUsers, value: stats.totalUsers, icon: <Users size={18} />, color: 'from-cyan-500/20 to-cyan-600/12', iconColor: 'text-cyan-300' },
                     { label: t.admin.active, value: stats.activeUsers, icon: <CheckCircle size={18} />, color: 'from-green-500/20 to-green-600/20', iconColor: 'text-green-400' },
                     { label: t.admin.paidUsers, value: stats.paidUsers, icon: <DollarSign size={18} />, color: 'from-[#06B6D4]/20 to-[#22C55E]/10', iconColor: 'text-cyan-300' },
-                    { label: t.admin.freeTrial, value: stats.freeTrialUsers, icon: <Sparkles size={18} />, color: 'from-yellow-500/20 to-yellow-600/20', iconColor: 'text-yellow-300' },
+                    { label: t.admin.free, value: stats.freeUsers, icon: <Sparkles size={18} />, color: 'from-yellow-500/20 to-yellow-600/20', iconColor: 'text-yellow-300' },
                   ].map((stat, i) => (
                     <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
                       className={`bg-gradient-to-br ${stat.color} backdrop-blur-xl rounded-xl border border-white/5 p-4`}>
@@ -1689,7 +1688,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                     { id: 'active' as const, label: t.admin.active },
                     { id: 'banned' as const, label: t.admin.banned },
                     { id: 'paid' as const, label: t.admin.paid },
-                    { id: 'free-trial' as const, label: t.admin.freeTrial },
+                    { id: 'free' as const, label: t.admin.free },
                   ].map(filter => (
                     <button
                       key={filter.id}
@@ -1769,7 +1768,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                               }`}>
                                 {isPaidAdminPlan(user.plan)
                                   ? (user.plan === 'paid' ? t.admin.paid : user.plan.toUpperCase())
-                                  : t.admin.freeTrial}
+                                  : t.admin.free}
                               </span>
                             </td>
                             <td className="px-4 py-4 text-sm text-slate-300 font-mono">
@@ -1854,7 +1853,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                                 <td className="px-4 py-3">
                                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                                     isPaid ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/25' : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
-                                  }`}>{isPaid ? workspace.plan : t.admin.freeTrial}</span>
+                                  }`}>{isPaid ? workspace.plan : t.admin.free}</span>
                                 </td>
                                 {/* Used */}
                                 <td className="px-4 py-3 text-sm text-slate-300 font-mono">{workspace.aiUsed}</td>
