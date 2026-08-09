@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '../ui/Button';
 import { VertexLogo } from '../ui/VertexLogo';
 import { useLang } from '../../contexts/LanguageContext';
-import { Menu, X } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { Avatar } from '../ui/Avatar';
+import { ChevronDown, LayoutDashboard, LogOut, Menu, X } from 'lucide-react';
 
 interface HeaderProps {
   onNavigate: (page: string) => void;
@@ -13,7 +15,11 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   const { t } = useLang();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,6 +28,41 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, []);
+
+  const dashboardDestination = user?.role.toLowerCase() === 'admin'
+    ? 'admin'
+    : user?.role.toLowerCase() === 'lecturer'
+      ? 'lecturer'
+      : 'dashboard';
+
+  const navigateToDashboard = () => {
+    setIsAccountMenuOpen(false);
+    setIsMobileMenuOpen(false);
+    onNavigate(dashboardDestination);
+  };
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await logout();
+      setIsAccountMenuOpen(false);
+      setIsMobileMenuOpen(false);
+      onNavigate('landing');
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   const navItems = [
     { label: t.nav.features,  id: 'features'   },
@@ -64,12 +105,86 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
 
         {/* Actions */}
         <div className="hidden md:flex items-center justify-end gap-3">
-          <Button variant="ghost" size="sm" onClick={() => onNavigate('login')}>
-            {t.nav.signIn}
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => onNavigate('dashboard')}>
-            {t.nav.freeTrial}
-          </Button>
+          {isLoading ? (
+            <div className="flex items-center gap-3" aria-label="Checking session">
+              <span className="h-8 w-28 animate-pulse rounded-xl bg-[#162032]" />
+              <span className="h-8 w-8 animate-pulse rounded-full bg-[#162032]" />
+            </div>
+          ) : isAuthenticated && user ? (
+            <>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<LayoutDashboard size={15} />}
+                onClick={navigateToDashboard}
+              >
+                {t.nav.dashboard}
+              </Button>
+              <div ref={accountMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsAccountMenuOpen((open) => !open)}
+                  className="flex items-center gap-1 rounded-full p-0.5 text-slate-400 transition-colors hover:text-white focus:outline-none focus:ring-2 focus:ring-[#34D399]/60"
+                  aria-label="Open account menu"
+                  aria-expanded={isAccountMenuOpen}
+                >
+                  <Avatar
+                    src={user.avatarUrl}
+                    alt={user.name}
+                    fallback={user.name.charAt(0).toUpperCase() || 'U'}
+                    size="sm"
+                  />
+                  <ChevronDown
+                    size={15}
+                    className={`transition-transform ${isAccountMenuOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                <AnimatePresence>
+                  {isAccountMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                      transition={{ duration: 0.16 }}
+                      className="absolute right-0 top-[calc(100%+0.75rem)] w-64 overflow-hidden rounded-lg border border-[#22C55E]/15 bg-[#0F1A2A]/98 p-2 shadow-2xl shadow-black/40 backdrop-blur-xl"
+                    >
+                      <div className="px-3 py-2">
+                        <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+                        <p className="truncate text-xs text-slate-500">{user.email}</p>
+                      </div>
+                      <div className="my-1 h-px bg-[#22C55E]/10" />
+                      <button
+                        type="button"
+                        onClick={navigateToDashboard}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-slate-300 transition-colors hover:bg-[#162032] hover:text-white"
+                      >
+                        <LayoutDashboard size={16} />
+                        <span>{t.nav.dashboard}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        disabled={isSigningOut}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-red-300 transition-colors hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <LogOut size={16} />
+                        <span>{t.nav.signOut}</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => onNavigate('login')}>
+                {t.nav.signIn}
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => onNavigate('dashboard')}>
+                {t.nav.freeTrial}
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -104,13 +219,72 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
               {item.label}
             </button>
           ))}
-          <div className="h-px bg-[#22C55E]/10 my-2"></div>
-          <Button variant="ghost" size="sm" className="justify-start" onClick={() => { onNavigate('login'); setIsMobileMenuOpen(false); }}>
-            {t.nav.signIn}
-          </Button>
-          <Button variant="primary" size="sm" className="w-full justify-center" onClick={() => { onNavigate('dashboard'); setIsMobileMenuOpen(false); }}>
-            {t.nav.freeTrial}
-          </Button>
+          <div className="my-2 h-px bg-[#22C55E]/10"></div>
+          {isLoading ? (
+            <div className="space-y-2 px-1 py-1" aria-label="Checking session">
+              <div className="h-12 animate-pulse rounded-lg bg-[#162032]" />
+              <div className="h-9 animate-pulse rounded-xl bg-[#162032]" />
+            </div>
+          ) : isAuthenticated && user ? (
+            <>
+              <div className="flex items-center gap-3 rounded-lg bg-[#162032]/60 px-3 py-2.5">
+                <Avatar
+                  src={user.avatarUrl}
+                  alt={user.name}
+                  fallback={user.name.charAt(0).toUpperCase() || 'U'}
+                  size="sm"
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+                  <p className="truncate text-xs text-slate-500">{user.email}</p>
+                </div>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                className="w-full justify-center"
+                icon={<LayoutDashboard size={15} />}
+                onClick={navigateToDashboard}
+              >
+                {t.nav.dashboard}
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                className="w-full justify-center"
+                icon={<LogOut size={15} />}
+                isLoading={isSigningOut}
+                onClick={handleSignOut}
+              >
+                {t.nav.signOut}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start"
+                onClick={() => {
+                  onNavigate('login');
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                {t.nav.signIn}
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                className="w-full justify-center"
+                onClick={() => {
+                  onNavigate('dashboard');
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                {t.nav.freeTrial}
+              </Button>
+            </>
+          )}
         </motion.div>
       )}
     </header>

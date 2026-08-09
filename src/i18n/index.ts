@@ -10,6 +10,8 @@ export const translations = {
       demo: 'Demo',
       signIn: 'Sign In',
       freeTrial: 'Free Trial',
+      dashboard: 'Open Dashboard',
+      signOut: 'Sign out',
     },
     // Hero
     hero: {
@@ -378,6 +380,8 @@ export const translations = {
       demo: 'Demo',
       signIn: 'Đăng nhập',
       freeTrial: 'Dùng miễn phí',
+      dashboard: 'Mở Dashboard',
+      signOut: 'Đăng xuất',
     },
     hero: {
       heading1: 'Một prompt.',
