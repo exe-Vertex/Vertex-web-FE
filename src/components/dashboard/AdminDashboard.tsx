@@ -298,18 +298,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
     }, new Map<string, number>());
   }, [aiHistory]);
   const userSignupChart = useMemo(() => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const counts = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 } as Record<string, number>;
-    
-    managedUsers.forEach(u => {
-      try {
-        const dayName = days[new Date(u.createdAt).getDay()];
-        if (counts[dayName] !== undefined) counts[dayName]++;
-      } catch (e) {}
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - (6 - index));
+      return date;
     });
 
-    const orderedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return orderedDays.map(d => ({ label: d, value: counts[d] || 0 }));
+    return days.map(date => ({
+      label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      value: managedUsers.filter(user => new Date(user.createdAt).toDateString() === date.toDateString()).length
+    }));
   }, [managedUsers]);
 
   const aiUsageChart = useMemo(() => {

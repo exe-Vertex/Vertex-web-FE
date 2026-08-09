@@ -307,7 +307,7 @@ export const translations = {
       // Analytics
       executiveOverview: 'Executive Overview',
       executiveOverviewSubtitle: 'Real account and AI usage from the database',
-      userSignupTrend: 'User Signup Trend (Weekly)',
+      userSignupTrend: 'New Users (Last 7 Days)',
       apiCostDaily: 'AI Requests (Last 7 Days)',
       planBreakdown: 'Free vs Paid Users',
       weekLabel: 'Week',
@@ -668,7 +668,7 @@ export const translations = {
       // Analytics
       executiveOverview: 'Tổng quan điều hành',
       executiveOverviewSubtitle: 'Dữ liệu tài khoản và mức dùng AI thực tế từ database',
-      userSignupTrend: 'Xu hướng đăng ký User (Tuần)',
+      userSignupTrend: 'User mới (7 ngày gần nhất)',
       apiCostDaily: 'Lượt AI (7 ngày gần nhất)',
       planBreakdown: 'Tỷ lệ Free vs Paid',
       weekLabel: 'Tuần',

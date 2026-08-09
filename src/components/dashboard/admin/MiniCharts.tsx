@@ -7,20 +7,22 @@ export const MiniBarChart: React.FC<{ data: { label: string; value: number }[]; 
   const barW = Math.min(32, Math.floor(280 / data.length));
   const gap = 4;
   const totalW = data.length * (barW + gap);
+  const topPadding = 16;
+  const chartBottom = topPadding + height;
   return (
     <div className="w-full overflow-x-auto">
-      <svg width={totalW + 40} height={height + 36} className="mx-auto">
+      <svg width={totalW + 40} height={chartBottom + 30} className="mx-auto">
         {data.map((d, i) => {
           const barH = (d.value / max) * height;
           const x = 20 + i * (barW + gap);
-          const y = height - barH;
+          const y = chartBottom - barH;
           return (
             <g key={i}>
               <motion.rect x={x} rx={3}
-                initial={{ y: height, height: 0 }} animate={{ y, height: barH }}
+                initial={{ y: chartBottom, height: 0 }} animate={{ y, height: barH }}
                 transition={{ duration: 0.6, delay: i * 0.05 }}
                 width={barW} fill={color} opacity={0.85} />
-              <text x={x + barW / 2} y={height + 14} textAnchor="middle" className="fill-slate-500" fontSize={9}>{d.label}</text>
+              <text x={x + barW / 2} y={chartBottom + 14} textAnchor="middle" className="fill-slate-500" fontSize={9}>{d.label}</text>
               <text x={x + barW / 2} y={y - 4} textAnchor="middle" className="fill-slate-400" fontSize={9} fontWeight={600}>{d.value}</text>
             </g>
           );
