@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { OrgPlan } from '../../../types';
 import { useToast } from '../../ui/Toast';
 import { 
-  Moon, Sun, Bell, Palette, HardDrive, Sparkles, CalendarDays, 
+  Bell, Palette, HardDrive, Sparkles, CalendarDays,
   Users, Shield, Zap, Trash2, ShieldCheck, MoreHorizontal, 
   UserPlus, GraduationCap, Loader2, Check, X, ArrowRight, 
   QrCode, ShieldAlert, BadgeCheck, CheckCircle2
@@ -16,7 +16,9 @@ import {
   createCheckoutSession, 
   getBillingTransaction 
 } from '../../../api/org';
-import { getAccessToken, getUserInfo } from '../../../utils/authStorage';
+import { uploadAvatar, removeAvatar } from '../../../api/auth';
+import { useAuth } from '../../../contexts/AuthContext';
+import { getAccessToken } from '../../../utils/authStorage';
 
 import { useLang } from '../../../contexts/LanguageContext';
 interface SettingsViewProps {
@@ -42,28 +44,17 @@ const ROLE_LABELS: Record<string, { vi: string; en: string }> = {
 };
 
 
-const ToggleRow: React.FC<{ title: string; description?: string; enabled: boolean; onToggle: () => void; }> = ({ title, description, enabled, onToggle }) => (
-  <div className="flex items-start justify-between gap-4 rounded-xl border border-[#22C55E]/10 bg-[#162032]/50 px-4 py-3">
-    <div className="pr-2">
-      <p className="text-sm font-medium text-slate-200">{title}</p>
-      {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
-    </div>
-    <button onClick={onToggle} className={`relative mt-0.5 h-6 w-11 flex-shrink-0 rounded-full transition-colors ${enabled ? 'bg-[#22C55E]' : 'bg-slate-700'}`}>
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${enabled ? 'left-[22px]' : 'left-0.5'}`} />
-    </button>
-  </div>
-);
-
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
   userPlan, orgName, orgDetail, orgLoading, 
   onInviteMember, onUpdateMemberRole, onRemoveMember, onUpgradeSuccess,
   initialCheckoutPlan, initialCheckoutCycle = 'monthly', onClearInitialCheckoutPlan
 }) => {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'notifications' | 'org-general' | 'org-members' | 'org-billing'>('profile');
-  const [isDark, setIsDark] = useState(localStorage.getItem('theme') === 'dark');
-  const [notifs, setNotifs] = useState({ assigned: true, overdue: true, comments: true });
+  const { user: currentUser, refreshUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'org-general' | 'org-members' | 'org-billing'>('profile');
   const [roleMenuOpen, setRoleMenuOpen] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarSaving, setAvatarSaving] = useState(false);
 
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<1 | 2 | 3 | 4>(1);
@@ -89,7 +80,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     : 100;
   const membersPercent = Math.min(100, Math.round((membersCount / maxMembers) * 100));
 
-  const currentUser = getUserInfo();
   const currentMemberInOrg = orgDetail?.members?.find(m => m.userId === currentUser?.id);
   const hasAdminAccess = currentMemberInOrg?.role === 'owner' || currentMemberInOrg?.role === 'admin';
 
@@ -109,18 +99,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   }, [initialCheckoutPlan, initialCheckoutCycle, hasAdminAccess]);
 
-  const toggleTheme = () => {
-    const next = !isDark;
-    setIsDark(next);
-    if (next) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
-    localStorage.setItem('theme', next ? 'dark' : 'light');
-  };
-
   const navItems = [
     { id: 'profile', label: isVi ? 'Hồ sơ của tôi' : 'My profile', category: 'Account' },
     { id: 'preferences', label: isVi ? 'Tùy chọn' : 'Preferences', category: 'Account' },
-    { id: 'notifications', label: isVi ? 'Thông báo' : 'Notifications', category: 'Account' },
     { id: 'org-general', label: isVi ? 'Thông tin chung' : 'General', category: 'Organization' },
     { id: 'org-members', label: isVi ? 'Thành viên' : 'Members', category: 'Organization' },
     { id: 'org-billing', label: isVi ? 'Gói dịch vụ' : 'Billing & plan', category: 'Organization' },
@@ -208,6 +189,59 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }, 3000);
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+      showToast(isVi ? 'Chỉ hỗ trợ ảnh JPG, PNG hoặc GIF.' : 'Only JPG, PNG, or GIF images are supported.', 'error');
+      return;
+    }
+
+    if (file.size > 800 * 1024) {
+      showToast(isVi ? 'Ảnh đại diện không được vượt quá 800 KB.' : 'The profile picture must not exceed 800 KB.', 'error');
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      showToast(isVi ? 'Phiên đăng nhập đã hết hạn.' : 'Your session has expired.', 'error');
+      return;
+    }
+
+    setAvatarSaving(true);
+    try {
+      await uploadAvatar(token, file);
+      await refreshUser();
+      showToast(isVi ? 'Đã cập nhật ảnh đại diện.' : 'Profile picture updated.', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : (isVi ? 'Không thể tải ảnh lên.' : 'Could not upload the image.'), 'error');
+    } finally {
+      setAvatarSaving(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    const token = getAccessToken();
+    if (!token) {
+      showToast(isVi ? 'Phiên đăng nhập đã hết hạn.' : 'Your session has expired.', 'error');
+      return;
+    }
+
+    setAvatarSaving(true);
+    try {
+      await removeAvatar(token);
+      await refreshUser();
+      showToast(isVi ? 'Đã xóa ảnh đại diện.' : 'Profile picture removed.', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : (isVi ? 'Không thể xóa ảnh.' : 'Could not remove the image.'), 'error');
+    } finally {
+      setAvatarSaving(false);
+    }
+  };
+
+
   const renderContent = () => {
     switch (activeTab) {
       case 'profile':
@@ -219,18 +253,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
             <div className="bg-[#162032]/40 rounded-2xl border border-[#22C55E]/10 p-6 space-y-6">
               <div className="flex items-center gap-6">
-                <div className="w-20 h-20 rounded-2xl bg-[#22C55E]/10 border border-[#22C55E]/20 flex items-center justify-center overflow-hidden relative group cursor-pointer">
-                  <Avatar src={currentUser?.avatarUrl || "https://i.pravatar.cc/150?u=me"} fallback={currentUser?.name?.charAt(0) || "U"} size="lg" className="w-full h-full rounded-none" />
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarSaving}
+                  className="w-20 h-20 rounded-2xl bg-[#22C55E]/10 border border-[#22C55E]/20 flex items-center justify-center overflow-hidden relative group cursor-pointer disabled:cursor-wait"
+                >
+                  <Avatar src={currentUser?.avatarUrl} fallback={currentUser?.name?.charAt(0) || "U"} size="lg" className="w-full h-full rounded-none" />
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <span className="text-xs font-semibold text-white">{isVi ? 'Tải lên' : 'Upload'}</span>
+                    <span className="text-xs font-semibold text-white">{avatarSaving ? (isVi ? 'Đang tải...' : 'Uploading...') : (isVi ? 'Tải lên' : 'Upload')}</span>
                   </div>
-                </div>
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
                 <div>
                   <h3 className="text-white font-medium">{isVi ? 'Ảnh đại diện' : 'Profile picture'}</h3>
                   <p className="text-xs text-slate-400 mt-1">{isVi ? 'Định dạng JPG, GIF hoặc PNG. Tối đa 800 KB.' : 'JPG, GIF, or PNG. Maximum 800 KB.'}</p>
                   <div className="mt-3 flex gap-2">
-                    <Button size="sm" variant="outline">{isVi ? 'Tải lên' : 'Upload'}</Button>
-                    <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10">{isVi ? 'Xóa' : 'Remove'}</Button>
+                    <Button size="sm" variant="outline" onClick={() => avatarInputRef.current?.click()} disabled={avatarSaving}>
+                      {avatarSaving && <Loader2 size={14} className="animate-spin" />}
+                      {isVi ? 'Tải lên' : 'Upload'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleRemoveAvatar}
+                      disabled={avatarSaving || !currentUser?.avatarUrl}
+                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    >
+                      {isVi ? 'Xóa' : 'Remove'}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -256,47 +313,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <h2 className="text-xl font-bold text-white">{isVi ? 'Tùy chọn' : 'Preferences'}</h2>
               <p className="text-sm text-slate-400 mt-1">{isVi ? 'Tùy chỉnh trải nghiệm không gian làm việc.' : 'Customize your workspace experience.'}</p>
             </div>
-            <div className="bg-[#162032]/40 rounded-2xl border border-[#22C55E]/10 p-6 space-y-6">
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-slate-300">{isVi ? 'Giao diện' : 'Appearance'}</h3>
-                <div className="flex items-center justify-between rounded-xl border border-[#22C55E]/10 bg-[#0F1A2A] px-4 py-3">
-                  <div className="pr-2">
-                    <p className="text-sm font-medium text-slate-200">{isVi ? 'Chủ đề' : 'Theme'}</p>
-                    <p className="text-xs text-slate-500 mt-1">{isVi ? 'Chuyển đổi giữa chế độ tối và sáng.' : 'Switch between dark and light mode.'}</p>
-                  </div>
-                  <button onClick={toggleTheme} className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isDark ? 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/20' : 'bg-[#162032] text-slate-300 border border-[#22C55E]/10'}`}>
-                    {isDark ? <Moon size={14} /> : <Sun size={14} />} {isDark ? (isVi ? 'Tối' : 'Dark') : (isVi ? 'Sáng' : 'Light')}
-                  </button>
+            <div className="bg-[#162032]/40 rounded-2xl border border-[#22C55E]/10 p-6">
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-[#22C55E]/10 bg-[#0F1A2A] px-4 py-3">
+                <div className="pr-2">
+                  <p className="text-sm font-medium text-slate-200">{lang === 'vi' ? 'Ngôn ngữ' : 'Language'}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {lang === 'vi' ? 'Ngôn ngữ hiển thị hiện tại của Vertex.' : 'The current display language for Vertex.'}
+                  </p>
                 </div>
+                <span className="text-sm font-semibold text-slate-200">English</span>
               </div>
-                <div className="flex items-center justify-between gap-4 rounded-xl border border-[#22C55E]/10 bg-[#0F1A2A] px-4 py-3">
-                  <div className="pr-2">
-                    <p className="text-sm font-medium text-slate-200">{lang === 'vi' ? 'Ngôn ngữ' : 'Language'}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {lang === 'vi' ? 'Chọn ngôn ngữ hiển thị cho Vertex.' : 'Choose the display language for Vertex.'}
-                    </p>
-                  </div>
-                  <span className="text-sm font-semibold text-slate-200">English</span>
-                </div>
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-slate-300">{isVi ? 'Tích hợp' : 'Integrations'}</h3>
-                <ToggleRow title={isVi ? 'Lịch Google' : 'Google Calendar'} description={isVi ? 'Đồng bộ thời hạn công việc với lịch của bạn.' : 'Sync task deadlines with your calendar.'} enabled={false} onToggle={() => {}} />
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'notifications':
-        return (
-          <div className="space-y-6 max-w-2xl">
-            <div>
-              <h2 className="text-xl font-bold text-white">{isVi ? 'Thông báo' : 'Notifications'}</h2>
-              <p className="text-sm text-slate-400 mt-1">{isVi ? 'Chọn những nội dung bạn muốn nhận thông báo.' : 'Choose which updates you want to receive.'}</p>
-            </div>
-            <div className="bg-[#162032]/40 rounded-2xl border border-[#22C55E]/10 p-6 space-y-4">
-              <ToggleRow title={isVi ? 'Được giao công việc' : 'Task assigned'} description={isVi ? 'Nhận thông báo khi có người giao công việc cho bạn.' : 'Receive a notification when someone assigns you a task.'} enabled={notifs.assigned} onToggle={() => setNotifs(p => ({ ...p, assigned: !p.assigned }))} />
-              <ToggleRow title={isVi ? 'Công việc quá hạn' : 'Overdue tasks'} description={isVi ? 'Nhận thông báo khi công việc đã quá thời hạn.' : 'Receive a notification when a task becomes overdue.'} enabled={notifs.overdue} onToggle={() => setNotifs(p => ({ ...p, overdue: !p.overdue }))} />
-              <ToggleRow title={isVi ? 'Bình luận và nhắc tên' : 'Comments and mentions'} description={isVi ? 'Nhận thông báo khi có người nhắc đến bạn trong bình luận.' : 'Receive a notification when someone mentions you in a comment.'} enabled={notifs.comments} onToggle={() => setNotifs(p => ({ ...p, comments: !p.comments }))} />
             </div>
           </div>
         );

@@ -8,7 +8,7 @@ export function mapMemberToUser(m: ProjectMemberDto): User {
   return {
     id: m.userId,
     name: m.name,
-    avatar: m.avatarUrl || `https://i.pravatar.cc/150?u=${m.userId}`,
+    avatar: m.avatarUrl || '',
     email: m.email,
     role: m.role as Role,
     projectSkills: m.projectSkills,

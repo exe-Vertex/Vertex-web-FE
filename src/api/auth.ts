@@ -54,6 +54,28 @@ export async function getMe(accessToken: string) {
     },
   });
 }
+export async function uploadAvatar(accessToken: string, file: File) {
+  const body = new FormData();
+  body.append('file', file);
+
+  return apiRequest<{ avatarUrl: string }>('/api/auth/avatar', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body,
+  });
+}
+
+export async function removeAvatar(accessToken: string) {
+  return apiRequest<void>('/api/auth/avatar', {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
 
 export async function refresh(refreshToken: string) {
   return apiRequest<AuthTokens>('/api/auth/refresh', {

@@ -340,7 +340,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         userMap.set(m.userId, {
           id: m.userId,
           name: m.name,
-          avatar: m.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(m.name)}`,
+          avatar: m.avatarUrl || '',
           email: m.email,
           role: m.role as Role,
         });
@@ -363,7 +363,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       id: user.id,
       profile: {
         name: user.name,
-        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name)}`,
+        avatar: user.avatarUrl || '',
         email: user.email,
         role: user.role as Role,
         title: user.role === 'admin' ? (isVi ? 'Quản trị hệ thống' : 'System Admin') : user.role === 'lecturer' ? (isVi ? 'Giảng viên' : 'Lecturer') : (isVi ? 'Cộng tác viên' : 'Contributor'),
@@ -378,7 +378,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   }, [user, userSkills]);
 
   const currentUserName = currentWorkspaceMember?.profile.name || user?.name || 'User';
-  const currentUserAvatar = currentWorkspaceMember?.profile.avatar || (user ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name)}` : 'https://i.pravatar.cc/150?u=me');
+  const currentUserAvatar = currentWorkspaceMember?.profile.avatar || user?.avatarUrl || '';
   const currentUserTitle = currentWorkspaceMember?.profile.title || (user?.role === 'admin' ? (isVi ? 'Quản trị hệ thống' : 'System Admin') : user?.role === 'lecturer' ? (isVi ? 'Giảng viên' : 'Lecturer') : (isVi ? 'Cộng tác viên' : 'Contributor'));
 
   const memberLookup = useMemo(() => {
@@ -1509,6 +1509,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     )}
                   </div>
                   <div className="max-h-72 overflow-y-auto">
+                    {notifications.length === 0 && (
+                      <p className="py-6 text-center text-xs text-slate-500">
+                        {isVi ? 'Không có thông báo' : 'No notifications'}
+                      </p>
+                    )}
                     {notifications.map(n => (
                       <div
                         key={n.id}

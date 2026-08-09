@@ -11,6 +11,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<MeResponse>;
   externalLogin: (provider: string, token: string) => Promise<MeResponse>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<MeResponse>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -87,6 +88,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return me;
   }, []);
 
+  const refreshUser = useCallback(async (): Promise<MeResponse> => {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      throw new Error('You are not signed in.');
+    }
+
+    const me = await getMe(accessToken);
+    setUser(me);
+    setUserInfo(me);
+    return me;
+  }, []);
+
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken();
     if (refreshToken) {
@@ -110,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         externalLogin,
+        refreshUser,
       }}
     >
       {children}

@@ -3,6 +3,7 @@ import { User } from '../../types';
 import { X, UserPlus, Star, User as UserIcon, Link as LinkIcon, Copy, Share2, ChevronDown } from 'lucide-react';
 import { SKILL_SUGGESTIONS, SKILL_CATEGORIES } from '../../data/skillSuggestions';
 import { useLang } from '../../contexts/LanguageContext';
+import { Avatar } from '../ui/Avatar';
 
 const users: User[] = [];
 
@@ -313,7 +314,7 @@ export const TeamModal: React.FC<TeamModalProps> = ({ open, onClose, projectId, 
             return (
               <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#162032]/60 border border-[#22C55E]/5 hover:border-[#22C55E]/15 transition-colors group">
                 <div className="relative flex-shrink-0">
-                  <img src={m.avatar} className="w-10 h-10 rounded-full object-cover border-2 border-[#22C55E]/20" alt={m.name} />
+                  <Avatar src={m.avatar} fallback={m.name.charAt(0) || '?'} size="md" className="border-2 border-[#22C55E]/20" />
                   <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-400 border-2 border-[#162032]"></span>
                 </div>
                 <div className="flex-1 min-w-0">
