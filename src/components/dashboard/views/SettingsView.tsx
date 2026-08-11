@@ -5,17 +5,19 @@ import {
   Bell, Palette, HardDrive, Sparkles, CalendarDays,
   Users, Shield, Zap, Trash2, ShieldCheck, MoreHorizontal, 
   UserPlus, GraduationCap, Loader2, Check, X, ArrowRight, 
-  QrCode, ShieldAlert, BadgeCheck, CheckCircle2
+  QrCode, ShieldAlert, BadgeCheck, CheckCircle2, Download
 } from 'lucide-react';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
+  CheckoutResult,
   OrgDetail, 
   OrgMember, 
   createCheckoutSession, 
   getBillingTransaction 
 } from '../../../api/org';
+import { QRCodeCanvas } from 'qrcode.react';
 import { uploadAvatar, removeAvatar } from '../../../api/auth';
 import { useAuth } from '../../../contexts/AuthContext';
 import { getAccessToken } from '../../../utils/authStorage';
@@ -61,13 +63,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [organizationSaving, setOrganizationSaving] = useState(false);
 
   const [showCheckout, setShowCheckout] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState<1 | 2 | 3 | 4>(1);
+  const [checkoutStep, setCheckoutStep] = useState<1 | 2 | 4>(1);
   const { lang } = useLang();
   const isVi = lang === 'vi';
   const [selectedPlan, setSelectedPlan] = useState<'pro' | 'business'>('pro');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [checkoutResult, setCheckoutResult] = useState<any>(null);
+  const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const [simulatedProgressText, setSimulatedProgressText] = useState(isVi ? 'Đang khởi tạo kết nối bảo mật...' : 'Initializing secure connection...');
 
   const membersCount = orgDetail?.members.length ?? 0;
@@ -172,53 +175,83 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleOpenPayOSCheckout = () => {
+    if (!checkoutResult?.checkoutUrl) return;
+    window.open(checkoutResult.checkoutUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDownloadQr = () => {
+    if (!qrCanvasRef.current || !checkoutResult) return;
+
+    const link = document.createElement('a');
+    link.download = `vertex-payos-${checkoutResult.orderCode}.png`;
+    link.href = qrCanvasRef.current.toDataURL('image/png');
+    link.click();
+  };
+
+  useEffect(() => {
+    if (!showCheckout || checkoutStep !== 2 || !checkoutResult) return;
+
     const token = getAccessToken();
     const orgId = orgDetail?.id;
-    if (!token || !orgId || !checkoutResult) {
-      showToast(isVi ? 'Không thể mở thanh toán, vui lòng thử lại.' : 'Could not open checkout. Please try again.', 'error');
-      return;
-    }
-
-    if (checkoutResult.checkoutUrl) {
-      window.open(checkoutResult.checkoutUrl, '_blank', 'noopener,noreferrer');
-    }
-
-    setCheckoutStep(3);
-    setSimulatedProgressText(isVi ? 'Đang chờ PayOS xác nhận thanh toán...' : 'Waiting for PayOS payment confirmation...');
+    if (!token || !orgId) return;
 
     let attempts = 0;
-    const poller = window.setInterval(async () => {
+    let checking = false;
+    let poller: number | undefined;
+
+    const stopPolling = () => {
+      if (poller !== undefined) window.clearInterval(poller);
+    };
+
+    const checkPayment = async () => {
+      if (checking) return;
+      checking = true;
       attempts += 1;
+
       try {
-        const status = await getBillingTransaction(token, orgId, checkoutResult.transactionId);
-        if (status.status === 'paid') {
-          window.clearInterval(poller);
+        const result = await getBillingTransaction(token, orgId, checkoutResult.transactionId);
+        const status = result.status.toLowerCase();
+
+        if (status === 'paid') {
+          stopPolling();
           setSimulatedProgressText(isVi ? 'Thanh toán thành công, đang cập nhật gói...' : 'Payment successful. Updating your plan...');
-          await onUpgradeSuccess?.();
+          try {
+            await onUpgradeSuccess?.();
+          } catch (error) {
+            console.error('Payment succeeded but the organization refresh failed:', error);
+          }
           setCheckoutStep(4);
           return;
         }
 
-        if (status.status === 'failed' || status.status === 'expired' || status.status === 'cancelled') {
-          window.clearInterval(poller);
-          showToast(isVi ? `Thanh toán ${status.status}. Vui lòng tạo lại đơn thanh toán.` : `Payment ${status.status}. Please create a new payment order.`, 'error');
-          setCheckoutStep(2);
+        if (status === 'failed' || status === 'expired' || status === 'cancelled') {
+          stopPolling();
+          showToast(isVi ? `Thanh toán ${status}. Vui lòng tạo lại đơn thanh toán.` : `Payment ${status}. Please create a new payment order.`, 'error');
+          setCheckoutResult(null);
+          setCheckoutStep(1);
           return;
         }
 
-        setSimulatedProgressText(isVi ? 'Chưa nhận được webhook PayOS. Hệ thống sẽ tự cập nhật khi giao dịch hoàn tất...' : 'PayOS confirmation has not arrived yet. The system will update automatically when the transaction completes...');
-      } catch (err: any) {
-        console.error(err);
+        setSimulatedProgressText(isVi ? 'Đang chờ ngân hàng xác nhận giao dịch...' : 'Waiting for bank confirmation...');
+      } catch (error) {
+        console.error('Could not refresh PayOS payment status:', error);
+        setSimulatedProgressText(isVi ? 'Tạm thời chưa kiểm tra được giao dịch. Hệ thống sẽ tự thử lại...' : 'Could not check the transaction yet. Retrying automatically...');
+      } finally {
+        checking = false;
       }
 
       if (attempts >= 60) {
-        window.clearInterval(poller);
-        showToast(isVi ? 'Chưa thấy giao dịch hoàn tất. Bạn có thể quay lại kiểm tra sau.' : 'The transaction is not complete yet. You can check again later.', 'info');
-        setCheckoutStep(2);
+        stopPolling();
+        setSimulatedProgressText(isVi ? 'Chưa thấy giao dịch hoàn tất. Đơn vẫn còn hiệu lực; bạn có thể thử lại sau.' : 'Payment is not complete yet. The order remains valid; you can try again later.');
       }
-    }, 3000);
-  };
+    };
 
+    setSimulatedProgressText(isVi ? 'Đang chờ ngân hàng xác nhận giao dịch...' : 'Waiting for bank confirmation...');
+    void checkPayment();
+    poller = window.setInterval(() => void checkPayment(), 3000);
+
+    return stopPolling;
+  }, [showCheckout, checkoutStep, checkoutResult?.transactionId, orgDetail?.id, isVi]);
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -636,9 +669,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => {
-                if (checkoutStep !== 3) setShowCheckout(false);
-              }}
+              onClick={() => setShowCheckout(false)}
               className="absolute inset-0 bg-black/60 backdrop-blur-md" 
             />
 
@@ -661,14 +692,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <p className="text-xs text-slate-500">{isVi ? 'Thanh toán bảo mật qua PayOS' : 'Secure payment via PayOS'}</p>
                   </div>
                 </div>
-                {checkoutStep !== 3 && (
-                  <button 
-                    onClick={() => setShowCheckout(false)} 
-                    className="w-8 h-8 rounded-xl hover:bg-[#162032] flex items-center justify-center text-slate-400 hover:text-white transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
-                )}
+                <button
+                  onClick={() => setShowCheckout(false)}
+                  className="w-8 h-8 rounded-xl hover:bg-[#162032] flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                  aria-label={isVi ? 'Đóng thanh toán' : 'Close payment'}
+                >
+                  <X size={18} />
+                </button>
               </div>
 
               {/* Progress Steps Indicators */}
@@ -684,8 +714,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
                 <div className="w-12 h-0.5 bg-slate-700" />
                 <div className="flex items-center gap-1.5">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center ${checkoutStep >= 3 ? 'bg-[#22C55E] text-white' : 'bg-slate-700'}`}>3</span>
-                  <span className={checkoutStep >= 3 ? 'text-[#6EE7B7]' : ''}>{isVi ? 'Xác nhận' : 'Confirm'}</span>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center ${checkoutStep >= 4 ? 'bg-[#22C55E] text-white' : 'bg-slate-700'}`}>3</span>
+                  <span className={checkoutStep >= 4 ? 'text-[#6EE7B7]' : ''}>{isVi ? 'Xác nhận' : 'Confirm'}</span>
                 </div>
               </div>
 
@@ -802,122 +832,126 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 )}
 
-                {/* STEP 2: PayOS checkout */}
+                {/* STEP 2: Embedded PayOS QR checkout */}
                 {checkoutStep === 2 && checkoutResult && (
                   <div className="space-y-6">
-                    <div className="text-center space-y-1">
-                      <h4 className="text-lg font-bold text-white">{isVi ? 'Thanh toán qua PayOS' : 'Pay with PayOS'}</h4>
-                      <p className="text-sm text-slate-400">{isVi ? 'Mở trang checkout PayOS để quét QR và hoàn tất thanh toán.' : 'Open PayOS checkout to scan the QR code and complete payment.'}</p>
+                    <div className="space-y-1 text-center">
+                      <h4 className="text-lg font-bold text-white">{isVi ? 'Quét mã để thanh toán' : 'Scan to pay'}</h4>
+                      <p className="text-sm text-slate-400">
+                        {isVi ? 'Mở ứng dụng ngân hàng, quét mã VietQR và xác nhận chuyển khoản. Bạn không cần rời Vertex.' : 'Open your banking app, scan the VietQR code, and confirm the transfer without leaving Vertex.'}
+                      </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
-                      
-                      <div className="md:col-span-5 bg-[#0F1A2A] border border-[#22C55E]/15 rounded-2xl p-4 flex flex-col items-center justify-center space-y-3 relative group">
-                        <div className="w-48 h-48 rounded-xl flex flex-col items-center justify-center relative overflow-hidden border border-[#22C55E]/20 bg-[#162032] text-[#6EE7B7] shadow-lg shadow-black/10">
-                          <QrCode size={72} />
-                          <span className="mt-3 px-3 text-center text-xs font-semibold text-slate-300">{isVi ? 'QR nằm trong trang PayOS' : 'QR code is on the PayOS page'}</span>
+                    <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-12">
+                      <div className="flex flex-col items-center justify-center rounded-2xl border border-[#22C55E]/15 bg-[#0A0F1A] p-5 md:col-span-5">
+                        {checkoutResult.qrCode ? (
+                          <div className="rounded-xl bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.28)]">
+                            <QRCodeCanvas
+                              ref={qrCanvasRef}
+                              value={checkoutResult.qrCode}
+                              size={208}
+                              level="M"
+                              bgColor="#ffffff"
+                              fgColor="#07111f"
+                              includeMargin
+                              aria-label={isVi ? 'Mã QR thanh toán PayOS' : 'PayOS payment QR code'}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex h-56 w-56 flex-col items-center justify-center rounded-xl border border-red-400/25 bg-red-400/5 px-5 text-center text-red-300">
+                            <ShieldAlert size={36} />
+                            <p className="mt-3 text-xs font-semibold">{isVi ? 'Không nhận được mã QR từ PayOS.' : 'PayOS did not return a QR code.'}</p>
+                          </div>
+                        )}
+
+                        <div className="mt-4 flex items-center gap-2 rounded-full border border-[#22C55E]/20 bg-[#22C55E]/10 px-3 py-1.5 text-[11px] font-semibold text-[#6EE7B7]">
+                          <Loader2 size={12} className="animate-spin" />
+                          <span>{simulatedProgressText}</span>
                         </div>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#6EE7B7] bg-[#22C55E]/10 border border-[#22C55E]/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                          PAYOS SECURE CHECKOUT
-                        </span>
+
+                        {checkoutResult.qrCode && (
+                          <button
+                            type="button"
+                            onClick={handleDownloadQr}
+                            className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 transition-colors hover:text-white"
+                          >
+                            <Download size={13} />
+                            {isVi ? 'Tải QR về điện thoại' : 'Download QR to this device'}
+                          </button>
+                        )}
                       </div>
 
-                      {/* Billing detail information (Right) */}
-                      <div className="md:col-span-7 flex flex-col justify-between space-y-4">
+                      <div className="flex flex-col justify-between space-y-4 md:col-span-7">
                         <div className="space-y-3">
-                          <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/8 px-4 py-3 flex justify-between items-center">
+                          <div className="flex items-center justify-between rounded-xl border border-[#22C55E]/10 bg-[#162032]/45 px-4 py-3">
                             <div>
-                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{isVi ? 'Số tiền thanh toán' : 'Payment amount'}</p>
-                              <p className="text-lg font-black text-yellow-400 mt-0.5">
-                                VND {checkoutResult.amount.toLocaleString('en-US')}
+                              <p className="text-[10px] font-bold uppercase text-slate-500">{isVi ? 'Số tiền thanh toán' : 'Payment amount'}</p>
+                              <p className="mt-0.5 text-xl font-black text-yellow-400">
+                                {checkoutResult.amount.toLocaleString(isVi ? 'vi-VN' : 'en-US')} {checkoutResult.currency}
                               </p>
                             </div>
-                            <span className="text-[10px] font-bold bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-md">
+                            <span className="rounded-md bg-yellow-500/20 px-2 py-1 text-[10px] font-bold text-yellow-300">
                               {checkoutResult.billingCycle === 'yearly' ? (isVi ? 'Chu kỳ 1 năm' : '1-year cycle') : (isVi ? 'Chu kỳ 1 tháng' : '1-month cycle')}
                             </span>
                           </div>
 
-                          <div className="bg-[#162032]/40 rounded-xl border border-[#22C55E]/8 px-4 py-3">
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{isVi ? 'Mã đơn PayOS' : 'PayOS order code'}</p>
-                            <div className="flex items-center justify-between gap-2 mt-1">
-                              <code className="text-sm font-mono font-bold text-white select-all">
-                                {checkoutResult.orderCode}
-                              </code>
-                              <span className="text-[9px] text-slate-400">{isVi ? 'Dùng để đối soát webhook' : 'Used for webhook reconciliation'}</span>
+                          <div className="rounded-xl border border-[#22C55E]/10 bg-[#162032]/45 px-4 py-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-[10px] font-bold uppercase text-slate-500">{isVi ? 'Mã đơn hàng' : 'Order code'}</p>
+                                <code className="mt-1 block select-all font-mono text-sm font-bold text-white">{checkoutResult.orderCode}</code>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] font-bold uppercase text-slate-500">{isVi ? 'Hiệu lực đến' : 'Valid until'}</p>
+                                <p className="mt-1 text-xs font-semibold text-slate-300">
+                                  {new Date(checkoutResult.expiredAt).toLocaleTimeString(isVi ? 'vi-VN' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Info Alert Box */}
-                          <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-xs text-blue-200 flex gap-2.5 items-start">
-                            <Sparkles size={16} className="text-blue-400 flex-shrink-0 mt-0.5" />
+                          <div className="flex items-start gap-2.5 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-xs text-blue-200">
+                            <ShieldCheck size={16} className="mt-0.5 flex-shrink-0 text-blue-400" />
                             <div>
-                              <p className="font-semibold text-white">{isVi ? 'SAU KHI THANH TOÁN THÀNH CÔNG' : 'AFTER SUCCESSFUL PAYMENT'}</p>
-                              <p className="mt-1 text-slate-400 leading-relaxed">
-                                {isVi ? 'Hệ thống sẽ tự động nâng cấp tổ chức của bạn lên gói ' : 'The system will automatically upgrade your organization to the '}<strong>{checkoutResult.plan.toUpperCase()}</strong>{isVi ? ' ngay lập tức.' : ' plan immediately.'}
+                              <p className="font-semibold text-white">{isVi ? 'Xác nhận tự động và an toàn' : 'Automatic, secure confirmation'}</p>
+                              <p className="mt-1 leading-relaxed text-slate-400">
+                                {isVi ? 'Sau khi ngân hàng xác nhận, PayOS gửi webhook đã ký cho backend. Vertex chỉ nâng gói khi giao dịch được xác thực thành công.' : 'After bank confirmation, PayOS sends a signed webhook to the backend. Vertex upgrades the plan only after the transaction is verified.'}
                               </p>
                             </div>
                           </div>
                         </div>
 
-                        {/* Guide workflow */}
-                        <div className="text-[10px] text-slate-500 border-t border-[#22C55E]/10 pt-3 flex justify-around">
-                          <div className="text-center">
-                            <p className="font-bold text-slate-300">1. {isVi ? 'Mở PayOS' : 'Open PayOS'}</p>
-                              <p>{isVi ? 'Mở checkout PayOS' : 'Open PayOS checkout'}</p>
+                        <div className="grid grid-cols-3 gap-2 border-t border-[#22C55E]/10 pt-4 text-center text-[10px] text-slate-500">
+                          <div>
+                            <p className="font-bold text-slate-300">1. {isVi ? 'Mở ngân hàng' : 'Open bank app'}</p>
+                            <p>{isVi ? 'Chọn quét QR' : 'Choose QR scan'}</p>
                           </div>
-                          <span className="text-slate-700">→</span>
-                          <div className="text-center">
-                            <p className="font-bold text-slate-300">2. {isVi ? 'Quét QR' : 'Scan QR'}</p>
-                            <p>{isVi ? 'Quét QR trong PayOS' : 'Scan the QR in PayOS'}</p>
+                          <div>
+                            <p className="font-bold text-slate-300">2. {isVi ? 'Quét mã' : 'Scan code'}</p>
+                            <p>{isVi ? 'Kiểm tra số tiền' : 'Review amount'}</p>
                           </div>
-                          <span className="text-slate-700">→</span>
-                          <div className="text-center">
-                            <p className="font-bold text-slate-300">3. {isVi ? 'Hoàn tất' : 'Complete'}</p>
-                            <p>{isVi ? 'Webhook tự nâng gói' : 'Webhook applies upgrade'}</p>
+                          <div>
+                            <p className="font-bold text-slate-300">3. {isVi ? 'Xác nhận' : 'Confirm'}</p>
+                            <p>{isVi ? 'Vertex tự nâng gói' : 'Vertex upgrades plan'}</p>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Step 2 Action Buttons */}
-                    <div className="flex justify-between items-center pt-3 border-t border-[#22C55E]/10">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#22C55E]/10 pt-4">
                       <Button variant="ghost" onClick={() => setCheckoutStep(1)}>{isVi ? 'Quay lại' : 'Back'}</Button>
-                      
-                      <div className="flex gap-2">
-                        <Button 
+                      {checkoutResult.checkoutUrl && (
+                        <button
+                          type="button"
                           onClick={handleOpenPayOSCheckout}
-                          className="bg-gradient-to-r from-[#22C55E] to-[#16A34A] text-white hover:brightness-110 font-bold"
-                          icon={<Check size={16} />}
+                          className="text-xs text-slate-500 underline decoration-slate-700 underline-offset-4 transition-colors hover:text-slate-300"
                         >
-                          {isVi ? 'Mở trang thanh toán PayOS' : 'Open PayOS checkout'}
-                        </Button>
-                      </div>
+                          {isVi ? 'Không quét được QR? Mở trang PayOS dự phòng' : 'Cannot scan the QR? Open PayOS as a fallback'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
-
-                {/* STEP 3: PayOS webhook waiting state */}
-                {checkoutStep === 3 && (
-                  <div className="py-12 flex flex-col items-center justify-center space-y-6">
-                    <div className="relative">
-                      {/* Pulsing visual circles */}
-                      <div className="absolute inset-0 rounded-full bg-[#22C55E]/20 animate-ping" />
-                      <div className="w-16 h-16 rounded-full border-4 border-slate-700 border-t-[#22C55E] flex items-center justify-center animate-spin" />
-                    </div>
-
-                    <div className="text-center space-y-2">
-                      <h4 className="text-md font-bold text-white">{isVi ? 'Đang xác thực giao dịch...' : 'Verifying transaction...'}</h4>
-                      <p className="text-xs text-[#22C55E] font-mono h-5 animate-pulse">
-                        {simulatedProgressText}
-                      </p>
-                    </div>
-
-                    <div className="bg-[#162032]/30 px-4 py-3 rounded-xl border border-[#22C55E]/5 text-[11px] text-slate-500 max-w-sm text-center leading-relaxed">
-                      {isVi ? 'Hệ thống đang chờ webhook PayOS. Khi PayOS xác nhận thanh toán hợp lệ, backend sẽ tự động nâng gói cho tổ chức.' : 'The system is waiting for the PayOS webhook. Once payment is confirmed, the backend will automatically upgrade the organization.'}
-                    </div>
-                  </div>
-                )}
-
                 {/* STEP 4: Success Upgrade Screen */}
                 {checkoutStep === 4 && (
                   <div className="py-6 flex flex-col items-center text-center space-y-6">
