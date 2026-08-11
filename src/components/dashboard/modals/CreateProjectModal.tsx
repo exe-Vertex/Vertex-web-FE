@@ -7,19 +7,23 @@ import { useLang } from '../../../contexts/LanguageContext';
 export const CreateProjectModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (name: string) => void;
+  onSubmit: (name: string, deadline: string) => void;
 }> = ({ isOpen, onClose, onSubmit }) => {
   const { lang } = useLang();
   const isVi = lang === 'vi';
   const [name, setName] = useState('');
+  const [deadline, setDeadline] = useState('');
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    onSubmit(name.trim());
+    if (!name.trim() || !deadline || deadline < today) return;
+    onSubmit(name.trim(), deadline);
     setName('');
+    setDeadline('');
   };
 
   return (
@@ -44,6 +48,17 @@ export const CreateProjectModal: React.FC<{
               onChange={(e) => setName(e.target.value)}
               placeholder={isVi ? 'Nhập tên dự án...' : 'Enter project name...'}
               className="w-full px-4 py-2 rounded-lg border border-[#22C55E]/10 bg-[#162032] text-white placeholder-slate-500 focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">{isVi ? 'Hạn hoàn thành' : 'Deadline'}</label>
+            <input
+              type="date"
+              required
+              min={today}
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-[#22C55E]/10 bg-[#162032] text-white focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20 outline-none transition-all"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">

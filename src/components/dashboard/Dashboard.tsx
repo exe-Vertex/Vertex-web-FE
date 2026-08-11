@@ -987,7 +987,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, initialOrgSlug
     }
   };
 
-  const handleAddProject = async (name: string) => {
+  const handleAddProject = async (name: string, deadlineDate: string) => {
     const token = getAuthToken();
     const orgId = activeOrgId;
     if (!token || !orgId) {
@@ -996,7 +996,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, initialOrgSlug
     }
 
     try {
-      const deadline = new Date(Date.now() + 30 * 86400000).toISOString();
+      const deadline = new Date(`${deadlineDate}T00:00:00.000Z`).toISOString();
       const newProjectSummary = await createProject(token, orgId, {
         name,
         description: isVi ? 'Dự án mới' : 'New project',
