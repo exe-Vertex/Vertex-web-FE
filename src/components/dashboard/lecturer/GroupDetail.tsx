@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Users, Calendar, CheckCircle, Clock, AlertTriangle,
   MessageSquare, GitBranch, LayoutGrid, Send, CheckCheck, RotateCcw, BarChart3,
-  Eye,
+  X,
 } from 'lucide-react';
 import { GroupComment, LecturerGroup, LecturerTask, TaskStatus } from '../../../data/lecturerTypes';
 import { approveTask, requestChanges, addComment } from '../../../api/lecturer';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useLang } from '../../../contexts/LanguageContext';
 
-type Tab = 'overview' | 'tasks' | 'contributions' | 'timeline';
+type Tab = 'overview' | 'tasks' | 'contributions';
 
 interface GroupDetailProps {
   group: LecturerGroup;
@@ -130,7 +130,7 @@ const KanbanColumn: React.FC<{
   onApprove: (id: string) => void;
   onRequestChanges: (id: string) => void;
 }> = ({ status, tasks, isVi, selectedTaskId, onOpenTask, onApprove, onRequestChanges }) => (
-  <div className="flex flex-col min-w-[200px] flex-1">
+  <div className="flex min-w-[240px] flex-1 flex-col">
     <div className="flex items-center gap-2 mb-3">
       <div className={`w-2 h-2 rounded-full ${statusConfig[status].dot}`} />
       <span className="text-xs font-semibold text-slate-300">{isVi ? statusConfig[status].labelVi : statusConfig[status].labelEn}</span>
@@ -245,151 +245,183 @@ const TasksTab: React.FC<{
   taskComments: GroupComment[];
   reviewHint: string;
   onSelectTask: (task: LecturerTask) => void;
+  onCloseTask: () => void;
   onAddComment: (taskId: string, text: string) => void;
   onApprove: (id: string) => void;
   onRequestChanges: (id: string) => void;
-}> = ({ tasks, selectedTask, selectedTaskId, taskComments, reviewHint, onSelectTask, onAddComment, onApprove, onRequestChanges }) => {
+}> = ({ tasks, selectedTask, selectedTaskId, taskComments, reviewHint, onSelectTask, onCloseTask, onAddComment, onApprove, onRequestChanges }) => {
   const [newComment, setNewComment] = useState('');
-
   const { lang } = useLang();
   const isVi = lang === 'vi';
+
   const handleSend = () => {
     if (!selectedTask || !newComment.trim()) return;
     onAddComment(selectedTask.id, newComment.trim());
     setNewComment('');
   };
 
+  useEffect(() => {
+    if (!selectedTask) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseTask();
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onCloseTask, selectedTask]);
+
   const columns: TaskStatus[] = ['todo', 'in-progress', 'ready-for-review', 'approved'];
 
   return (
     <div className="p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-xs text-slate-500 bg-[#22C55E]/10 border border-[#F59E0B]/30 px-2 py-1 rounded-lg text-[#22C55E] font-medium">{isVi ? 'Chọn công việc để xem chi tiết, trạng thái và phản hồi' : 'Select a task to view details, status, and feedback'}</span>
+      <div className="mb-4 flex items-center gap-2">
+        <span className="rounded-lg border border-[#F59E0B]/30 bg-[#22C55E]/10 px-2 py-1 text-xs font-medium text-[#22C55E]">
+          {isVi ? 'Chọn công việc để xem chi tiết, trạng thái và phản hồi' : 'Select a task to view details, status, and feedback'}
+        </span>
       </div>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4">
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {columns.map(status => (
-            <KanbanColumn key={status} status={status} isVi={isVi}
-              tasks={tasks.filter(t => t.status === status)}
-              selectedTaskId={selectedTaskId}
-              onOpenTask={onSelectTask}
-              onApprove={onApprove}
-              onRequestChanges={onRequestChanges}
-            />
-          ))}
-        </div>
 
-        <div className="rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-4">
-          {selectedTask ? (
-            <>
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-slate-500">{isVi ? 'Công việc đã chọn' : 'Selected task'}</p>
-                  <h3 className="mt-1 text-sm font-bold text-white leading-snug">{selectedTask.title}</h3>
+      <div className="flex gap-4 overflow-x-auto pb-4">
+        {columns.map(status => (
+          <KanbanColumn
+            key={status}
+            status={status}
+            isVi={isVi}
+            tasks={tasks.filter(task => task.status === status)}
+            selectedTaskId={selectedTaskId}
+            onOpenTask={onSelectTask}
+            onApprove={onApprove}
+            onRequestChanges={onRequestChanges}
+          />
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {selectedTask && (
+          <>
+            <motion.button
+              type="button"
+              aria-label={isVi ? 'Đóng chi tiết công việc' : 'Close task details'}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onCloseTask}
+              className="fixed inset-0 z-40 cursor-default bg-black/40 backdrop-blur-[1px]"
+            />
+            <motion.aside
+              role="dialog"
+              aria-modal="true"
+              aria-label={isVi ? 'Chi tiết công việc' : 'Task details'}
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 240 }}
+              className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-[#F59E0B]/20 bg-[#0F1A2A]/98 shadow-2xl shadow-black/50 sm:w-[460px]"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-[#F59E0B]/15 bg-[#0B1220] px-6 py-5">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{isVi ? 'Chi tiết công việc' : 'Task details'}</p>
+                  <h3 className="mt-1 text-lg font-bold leading-snug text-white">{selectedTask.title}</h3>
                 </div>
-                <span className={`text-[9px] font-semibold px-2 py-1 rounded-full border flex-shrink-0 ${priorityColors[selectedTask.priority]}`}>
-                  {selectedTask.priority}
-                </span>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${priorityColors[selectedTask.priority]}`}>
+                    {selectedTask.priority === 'high' ? (isVi ? 'Cao' : 'High') : selectedTask.priority === 'medium' ? (isVi ? 'Trung bình' : 'Medium') : (isVi ? 'Thấp' : 'Low')}
+                  </span>
+                  <button type="button" onClick={onCloseTask} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-[#162032] hover:text-white" aria-label={isVi ? 'Đóng' : 'Close'}>
+                    <X size={19} />
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-3 border-b border-[#F59E0B]/15 pb-4">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
-                    <p className="text-[10px] text-slate-500">Status</p>
-                    <p className="mt-0.5 font-semibold text-[#6EE7B7]">{isVi ? statusConfig[selectedTask.status].labelVi : statusConfig[selectedTask.status].labelEn}</p>
+              <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-lg border border-slate-800 bg-[#162032] p-3">
+                    <p className="text-xs text-slate-500">{isVi ? 'Trạng thái' : 'Status'}</p>
+                    <p className="mt-1 font-semibold text-[#6EE7B7]">{isVi ? statusConfig[selectedTask.status].labelVi : statusConfig[selectedTask.status].labelEn}</p>
                   </div>
-                  <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
-                    <p className="text-[10px] text-slate-500">{isVi ? 'Người phụ trách' : 'Assignee'}</p>
-                    <p className="mt-0.5 font-semibold text-white">{selectedTask.assignee}</p>
+                  <div className="rounded-lg border border-slate-800 bg-[#162032] p-3">
+                    <p className="text-xs text-slate-500">{isVi ? 'Người phụ trách' : 'Assignee'}</p>
+                    <p className="mt-1 truncate font-semibold text-white">{selectedTask.assignee}</p>
                   </div>
-                  <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
-                    <p className="text-[10px] text-slate-500">{isVi ? 'Bắt đầu' : 'Start'}</p>
-                    <p className="mt-0.5 font-semibold text-white">{selectedTask.startDate || '-'}</p>
+                  <div className="rounded-lg border border-slate-800 bg-[#162032] p-3">
+                    <p className="text-xs text-slate-500">{isVi ? 'Bắt đầu' : 'Start'}</p>
+                    <p className="mt-1 font-semibold text-white">{selectedTask.startDate || '-'}</p>
                   </div>
-                  <div className="rounded-lg bg-[#162032] border border-slate-800 p-2">
-                    <p className="text-[10px] text-slate-500">{isVi ? 'Hạn hoàn thành' : 'Due date'}</p>
-                    <p className="mt-0.5 font-semibold text-white">{selectedTask.deadline}</p>
+                  <div className="rounded-lg border border-slate-800 bg-[#162032] p-3">
+                    <p className="text-xs text-slate-500">{isVi ? 'Hạn hoàn thành' : 'Due date'}</p>
+                    <p className="mt-1 font-semibold text-white">{selectedTask.deadline}</p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{isVi ? 'Mô tả' : 'Description'}</p>
-                  <p className="text-xs leading-relaxed text-slate-300">
-                    {selectedTask.description || (isVi ? 'Chưa có mô tả.' : 'No description.')}
-                  </p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">{isVi ? 'Mô tả' : 'Description'}</p>
+                  <p className="text-sm leading-6 text-slate-300">{selectedTask.description || (isVi ? 'Chưa có mô tả.' : 'No description.')}</p>
                 </div>
 
-                <div className="rounded-lg border border-[#22C55E]/10 bg-[#162032]/70 p-2 text-xs text-slate-400">
+                <div className="rounded-lg border border-[#22C55E]/10 bg-[#162032]/70 p-3 text-sm text-slate-400">
                   <p className="font-semibold text-slate-200">{isVi ? 'Quy trình duyệt' : 'Review workflow'}</p>
-                  <p className="mt-1">{reviewHint}</p>
+                  <p className="mt-1 leading-5">{reviewHint}</p>
                 </div>
 
                 {selectedTask.status === 'ready-for-review' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button type="button" onClick={() => onApprove(selectedTask.id)}
-                      className="flex items-center justify-center gap-1.5 py-2 bg-green-500/10 hover:bg-green-500/20 text-green-300 text-xs font-semibold rounded-lg border border-amber-500/30 transition-all duration-200">
-                      <CheckCheck size={12} />{isVi ? 'Phê duyệt' : 'Approve'}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button type="button" onClick={() => onApprove(selectedTask.id)} className="flex items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-green-500/10 py-2.5 text-sm font-semibold text-green-300 transition-colors hover:bg-green-500/20">
+                      <CheckCheck size={15} />{isVi ? 'Phê duyệt' : 'Approve'}
                     </button>
-                    <button type="button" onClick={() => onRequestChanges(selectedTask.id)}
-                      className="flex items-center justify-center gap-1.5 py-2 bg-[#22C55E]/10 hover:bg-[#22C55E]/20 text-[#6EE7B7] text-xs font-semibold rounded-lg border border-[#F59E0B]/30 transition-all duration-200">
-                      <RotateCcw size={12} />{isVi ? 'Yêu cầu sửa' : 'Request changes'}
+                    <button type="button" onClick={() => onRequestChanges(selectedTask.id)} className="flex items-center justify-center gap-2 rounded-lg border border-[#F59E0B]/30 bg-[#22C55E]/10 py-2.5 text-sm font-semibold text-[#6EE7B7] transition-colors hover:bg-[#22C55E]/20">
+                      <RotateCcw size={15} />{isVi ? 'Yêu cầu sửa' : 'Request changes'}
                     </button>
                   </div>
                 )}
-              </div>
 
-              <div className="mb-3 mt-4 flex items-center justify-between gap-2">
-                <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  <MessageSquare size={13} className="text-[#22C55E]" />{isVi ? 'Lịch sử phản hồi' : 'Feedback history'}
-                </h4>
-                <span className="text-[11px] text-slate-500">{taskComments.length} {isVi ? 'phản hồi' : 'comments'}</span>
-              </div>
-
-              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                {taskComments.length === 0 && (
-                  <div className="rounded-lg border border-dashed border-slate-700 p-3 text-center">
-                    <p className="text-[11px] text-slate-500">{isVi ? 'Chưa có phản hồi. Hãy để lại hướng dẫn hoặc chờ sinh viên nộp bài.' : 'No feedback yet. Leave guidance or wait for the student to submit.'}</p>
+                <div className="border-t border-[#F59E0B]/15 pt-5">
+                  <div className="mb-4 flex items-center justify-between gap-2">
+                    <h4 className="flex items-center gap-2 text-base font-bold text-white">
+                      <MessageSquare size={15} className="text-[#22C55E]" />{isVi ? 'Lịch sử phản hồi' : 'Feedback history'}
+                    </h4>
+                    <span className="text-xs text-slate-500">{taskComments.length} {isVi ? 'phản hồi' : 'comments'}</span>
                   </div>
-                )}
-                {taskComments.map(c => (
-                  <div key={c.id} className={`flex gap-2 ${c.role === 'lecturer' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold ${c.role === 'lecturer' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#F59E0B]/35' : 'bg-[#162032] text-slate-400 border border-slate-700'}`}>
-                      {c.author[0]}
-                    </div>
-                    <div className={`max-w-xl ${c.role === 'lecturer' ? 'items-end' : ''} flex flex-col`}>
-                      <div className={`px-3 py-2 rounded-xl text-xs leading-relaxed ${c.role === 'lecturer' ? 'bg-[#22C55E]/10 border border-[#F59E0B]/30 text-emerald-100 rounded-tr-sm' : 'bg-[#162032] border border-slate-700 text-slate-300 rounded-tl-sm'}`}>
-                        {c.taskRef && <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1"><GitBranch size={8} />{c.taskRef}</p>}
-                        {c.text}
+
+                  <div className="space-y-3">
+                    {taskComments.length === 0 && (
+                      <div className="rounded-lg border border-dashed border-slate-700 p-4 text-center">
+                        <p className="text-sm leading-5 text-slate-500">{isVi ? 'Chưa có phản hồi. Hãy để lại hướng dẫn hoặc chờ sinh viên nộp bài.' : 'No feedback yet. Leave guidance or wait for the student to submit.'}</p>
                       </div>
-                      <p className="text-[10px] text-slate-600 mt-1 px-1">{c.author} - {c.time}</p>
-                    </div>
+                    )}
+                    {taskComments.map(comment => (
+                      <div key={comment.id} className={`flex gap-2 ${comment.role === 'lecturer' ? 'flex-row-reverse' : ''}`}>
+                        <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${comment.role === 'lecturer' ? 'border border-[#F59E0B]/35 bg-[#22C55E]/20 text-[#22C55E]' : 'border border-slate-700 bg-[#162032] text-slate-400'}`}>
+                          {comment.author[0]}
+                        </div>
+                        <div className={`flex max-w-[85%] flex-col ${comment.role === 'lecturer' ? 'items-end' : ''}`}>
+                          <div className={`rounded-xl px-3 py-2 text-sm leading-5 ${comment.role === 'lecturer' ? 'rounded-tr-sm border border-[#F59E0B]/30 bg-[#22C55E]/10 text-emerald-100' : 'rounded-tl-sm border border-slate-700 bg-[#162032] text-slate-300'}`}>
+                            {comment.taskRef && <p className="mb-1 flex items-center gap-1 text-xs text-slate-500"><GitBranch size={9} />{comment.taskRef}</p>}
+                            {comment.text}
+                          </div>
+                          <p className="mt-1 px-1 text-[11px] text-slate-600">{comment.author} - {comment.time}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
 
-              <div className="mt-3 flex gap-2 border-t border-[#F59E0B]/15 pt-3">
+              <div className="flex gap-2 border-t border-[#F59E0B]/15 bg-[#0B1220] p-4">
                 <input
                   value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                  onChange={event => setNewComment(event.target.value)}
+                  onKeyDown={event => event.key === 'Enter' && !event.shiftKey && handleSend()}
                   placeholder={isVi ? 'Nhập phản hồi hoặc yêu cầu chỉnh sửa...' : 'Enter feedback or request changes...'}
-                  className="flex-1 px-3 py-2 bg-[#162032] border border-[#3A3317] rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#F59E0B]/45"
+                  className="min-w-0 flex-1 rounded-lg border border-[#3A3317] bg-[#162032] px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#F59E0B]/45 focus:outline-none"
                 />
-                <button onClick={handleSend}
-                  className="px-3 py-2 bg-gradient-to-r from-[#22C55E] to-[#EAB308] text-white rounded-lg border border-[#F59E0B]/40 hover:border-[#FDE68A]/70 transition-all duration-200 flex items-center gap-1.5 text-xs font-semibold flex-shrink-0">
-                  <Send size={12} />{isVi ? 'Gửi' : 'Send'}
+                <button type="button" onClick={handleSend} disabled={!newComment.trim()} className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-[#F59E0B]/40 bg-gradient-to-r from-[#22C55E] to-[#EAB308] px-4 py-2.5 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40">
+                  <Send size={14} />{isVi ? 'Gửi' : 'Send'}
                 </button>
               </div>
-            </>
-          ) : (
-            <div className="flex min-h-72 flex-col items-center justify-center rounded-lg border border-dashed border-slate-700 text-center">
-              <Eye size={18} className="mb-2 text-slate-500" />
-              <p className="text-sm font-semibold text-white">{isVi ? 'Chọn công việc để duyệt' : 'Select a task to review'}</p>
-              <p className="mt-1 text-xs text-slate-500">{isVi ? 'Mở công việc để xem chi tiết, phê duyệt hoặc để lại phản hồi.' : 'Open a task to view details, approve it, or leave feedback.'}</p>
-            </div>
-          )}
-        </div>
-      </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -546,42 +578,6 @@ const ContributionsTab: React.FC<{ tasks: LecturerTask[] }> = ({ tasks }) => {
   );
 };
 
-// Timeline tab
-const TimelineTab: React.FC<{ group: LecturerGroup; isVi: boolean }> = ({ group, isVi }) => (
-  <div className="p-6">
-    <div className="mb-5 rounded-xl border border-[#3A3317] bg-[#0F1A2A] p-4">
-      <h3 className="text-sm font-bold text-white">{isVi ? 'Timeline dùng để làm gì?' : 'What is Timeline used for?'}</h3>
-      <p className="mt-2 text-xs leading-relaxed text-slate-400">
-        {isVi ? 'Timeline hiển thị các cột mốc theo tuần để bạn nhanh chóng theo dõi tiến độ, phát hiện chậm trễ và chuẩn bị mục tiêu rõ ràng cho buổi hướng dẫn.' : 'Timeline shows milestone checkpoints by week so you can quickly see if the group is on schedule, identify delays early, and prepare supervision meetings with clear next targets.'}
-      </p>
-    </div>
-
-    <div className="relative">
-      {/* vertical line */}
-      <div className="absolute left-4 top-0 bottom-0 w-px bg-[#22C55E]/10" />
-      <div className="space-y-6">
-        {group.timeline.map((item, i) => (
-          <div key={i} className="flex gap-5 relative">
-            <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center z-10 border-2 ${item.done ? 'bg-green-500/20 border-amber-500 text-green-400' : 'bg-[#162032] border-slate-600 text-slate-600'}`}>
-              {item.done ? <CheckCircle size={14} /> : <Clock size={14} />}
-            </div>
-            <div className="flex-1 pb-2">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.week}</span>
-                <span className="text-[11px] text-slate-600 flex items-center gap-1"><Calendar size={9} />{item.date}</span>
-              </div>
-              <p className={`text-sm font-semibold ${item.done ? 'text-white' : 'text-slate-400'}`}>{item.milestone}</p>
-              <span className={`mt-1 inline-block text-[10px] px-2 py-0.5 rounded-full font-medium ${item.done ? 'bg-green-500/10 text-green-400' : 'bg-slate-700 text-slate-500'}`}>
-                {item.done ? (isVi ? 'Hoàn thành' : 'Completed') : (isVi ? 'Đang chờ' : 'Pending')}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-);
-
 // GroupDetail
 export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
   const { user } = useAuth();
@@ -590,9 +586,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [tasks, setTasks] = useState<LecturerTask[]>(group.tasks);
   const [comments, setComments] = useState<GroupComment[]>(group.comments);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(
-    group.tasks.find(task => task.status === 'ready-for-review')?.id ?? group.tasks[0]?.id ?? null
-  );
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const handleApprove = async (id: string) => {
     try {
@@ -651,7 +645,6 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
     { id: 'overview', label: isVi ? 'Tổng quan' : 'Overview', icon: <LayoutGrid size={13} /> },
     { id: 'tasks', label: isVi ? 'Công việc' : 'Tasks', icon: <CheckCircle size={13} /> },
     { id: 'contributions', label: isVi ? 'Đóng góp' : 'Contributions', icon: <BarChart3 size={13} /> },
-    { id: 'timeline', label: isVi ? 'Cột mốc' : 'Milestones', icon: <GitBranch size={13} /> },
   ];
 
   const reviewCount = tasks.filter(t => t.status === 'ready-for-review').length;
@@ -728,6 +721,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
                 taskComments={taskComments}
                 reviewHint={reviewHint}
                 onSelectTask={task => setSelectedTaskId(task.id)}
+                onCloseTask={() => setSelectedTaskId(null)}
                 onAddComment={handleAddComment}
                 onApprove={handleApprove}
                 onRequestChanges={handleRequestChanges}
@@ -739,11 +733,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
               <ContributionsTab tasks={tasks} />
             </motion.div>
           )}
-          {activeTab === 'timeline' && (
-            <motion.div key="timeline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <TimelineTab group={group} isVi={isVi} />
-            </motion.div>
-          )}
+
         </AnimatePresence>
       </div>
     </div>
