@@ -26,6 +26,7 @@ interface SettingsViewProps {
   orgName: string;
   orgDetail?: OrgDetail | null;
   orgLoading?: boolean;
+  onUpdateOrganization?: (name: string, slug: string) => Promise<void>;
   onInviteMember?: () => void;
   onUpdateMemberRole?: (memberId: string, role: string) => void;
   onRemoveMember?: (memberId: string) => void;
@@ -46,7 +47,7 @@ const ROLE_LABELS: Record<string, { vi: string; en: string }> = {
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
   userPlan, orgName, orgDetail, orgLoading, 
-  onInviteMember, onUpdateMemberRole, onRemoveMember, onUpgradeSuccess,
+  onUpdateOrganization, onInviteMember, onUpdateMemberRole, onRemoveMember, onUpgradeSuccess,
   initialCheckoutPlan, initialCheckoutCycle = 'monthly', onClearInitialCheckoutPlan
 }) => {
   const { showToast } = useToast();
@@ -55,6 +56,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [roleMenuOpen, setRoleMenuOpen] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarSaving, setAvatarSaving] = useState(false);
+  const [organizationName, setOrganizationName] = useState(orgDetail?.name ?? orgName);
+  const [organizationSlug, setOrganizationSlug] = useState(orgDetail?.slug ?? '');
+  const [organizationSaving, setOrganizationSaving] = useState(false);
 
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<1 | 2 | 3 | 4>(1);
@@ -82,6 +86,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const currentMemberInOrg = orgDetail?.members?.find(m => m.userId === currentUser?.id);
   const hasAdminAccess = currentMemberInOrg?.role === 'owner' || currentMemberInOrg?.role === 'admin';
+
+  useEffect(() => {
+    setOrganizationName(orgDetail?.name ?? orgName);
+    setOrganizationSlug(orgDetail?.slug ?? '');
+  }, [orgDetail?.id, orgDetail?.name, orgDetail?.slug, orgName]);
+
+  const handleOrganizationSlugChange = (value: string) => {
+    setOrganizationSlug(value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-'));
+  };
+
+  const handleSaveOrganization = async () => {
+    const name = organizationName.trim();
+    const slug = organizationSlug.replace(/^-+|-+$/g, '');
+    if (!name || !slug || !onUpdateOrganization) return;
+
+    setOrganizationSaving(true);
+    try {
+      await onUpdateOrganization(name, slug);
+      setOrganizationSlug(slug);
+      showToast(isVi ? 'Đã cập nhật thông tin tổ chức.' : 'Organization details updated.', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : (isVi ? 'Không thể cập nhật thông tin tổ chức.' : 'Could not update organization details.'), 'error');
+    } finally {
+      setOrganizationSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (initialCheckoutPlan) {
@@ -337,17 +367,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="bg-[#162032]/40 rounded-2xl border border-[#22C55E]/10 p-6 space-y-6">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-300">{isVi ? 'Tên tổ chức' : 'Organization name'}</label>
-                <input type="text" defaultValue={orgName} className="w-full rounded-xl border border-[#22C55E]/10 bg-[#0F1A2A] px-4 py-2.5 text-sm text-white outline-none focus:border-[#22C55E]/35 focus:ring-1 focus:ring-[#22C55E]/30" />
+                <input type="text" value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} disabled={!hasAdminAccess || organizationSaving} className="w-full rounded-xl border border-[#22C55E]/10 bg-[#0F1A2A] px-4 py-2.5 text-sm text-white outline-none focus:border-[#22C55E]/35 focus:ring-1 focus:ring-[#22C55E]/30 disabled:cursor-not-allowed disabled:opacity-60" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-300">{isVi ? 'Đường dẫn tổ chức' : 'Organization URL'}</label>
                 <div className="flex rounded-xl overflow-hidden border border-[#22C55E]/10 focus-within:border-[#22C55E]/35 focus-within:ring-1 focus-within:ring-[#22C55E]/30">
-                  <span className="bg-[#162032] px-4 py-2.5 text-sm text-slate-500 border-r border-[#22C55E]/10">vertex.app/org/</span>
-                  <input type="text" defaultValue={orgName.toLowerCase().replace(/\s+/g, '-')} className="w-full bg-[#0F1A2A] px-4 py-2.5 text-sm text-white outline-none" />
+                  <span className="bg-[#162032] px-4 py-2.5 text-sm text-slate-500 border-r border-[#22C55E]/10 whitespace-nowrap">vertex.io.vn/#/org/</span>
+                  <input type="text" value={organizationSlug} onChange={(event) => handleOrganizationSlugChange(event.target.value)} disabled={!hasAdminAccess || organizationSaving} className="w-full min-w-0 bg-[#0F1A2A] px-4 py-2.5 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60" />
                 </div>
                 <p className="text-xs text-slate-500 mt-1">{isVi ? 'Thay đổi đường dẫn sẽ làm các liên kết cũ của tổ chức không còn hoạt động.' : 'Changing this URL will make old organization links stop working.'}</p>
               </div>
-              <Button onClick={() => showToast(isVi ? 'Đã lưu thông tin tổ chức' : 'Organization details saved')}>{isVi ? 'Lưu thay đổi' : 'Save changes'}</Button>
+              <Button onClick={handleSaveOrganization} disabled={!hasAdminAccess || organizationSaving || !organizationName.trim() || !organizationSlug.replace(/^-+|-+$/g, '')}>
+                {organizationSaving && <Loader2 size={16} className="animate-spin" />}
+                {isVi ? 'Lưu thay đổi' : 'Save changes'}
+              </Button>
             </div>
           </div>
         );

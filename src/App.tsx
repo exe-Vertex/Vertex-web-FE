@@ -121,6 +121,14 @@ export default function App() {
         }
       />
       <Route
+        path="/org/:slug"
+        element={
+          <ProtectedRoute allowedRoles={['member']}>
+            <DashboardPage onNavigate={handleNavigate} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin"
         element={
           <ProtectedRoute allowedRoles={['admin']}>

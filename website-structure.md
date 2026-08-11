@@ -1,13 +1,13 @@
 # Website Structure
 
-Updated: 2026-08-09T06:43:30.171Z
+Updated: 2026-08-11T02:35:59.411Z
 
 ## Summary
 
 - Entry point: Landing → Login → Workspaces
 - Top-level sections: 6
 - Total nodes: 36
-- Total routes in App.tsx: 14
+- Total routes in App.tsx: 15
 
 ```text
 Landing

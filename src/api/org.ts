@@ -57,6 +57,19 @@ export async function createOrg(
   });
 }
 
+/** Update an organization's display name and URL slug. */
+export async function updateOrg(
+  token: string,
+  orgId: string,
+  body: { name: string; slug: string },
+) {
+  return apiRequest<OrgSummary>(`/api/orgs/${orgId}`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+}
+
 /** List organizations the current user belongs to. */
 export async function listMyOrgs(token: string) {
   return apiRequest<OrgSummary[]>('/api/orgs', {

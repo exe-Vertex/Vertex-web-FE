@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TaskPanel } from './TaskPanel';
 import { Task, Project, Status, Priority, User, WorkspaceMember, Role } from '../../types';
@@ -34,7 +35,7 @@ import { PromptCommentModal } from './modals/PromptCommentModal';
 import { DeleteConfirmDialog } from './modals/DeleteConfirmDialog';
 import { AppNotification, ProjectTab, PlannerDifficulty, PlannerCategory, GeneratedPlanStep, GeneratedPlanResponse, ProjectFileItem, MemberWorkloadLabel, MemberAssignmentSuggestion, MembersDatabaseRow, BaseMembersDatabaseRow, ProjectWithMembers, InviteRole } from './utils/dashboardTypes';
 import { getStoredUserPlan, computeProgressFromTasks, TASK_SKILL_KEYWORDS, OPEN_TASK_WEIGHTS, inferTaskSkillTags, getWorkloadLabel, getAuthToken, getActiveOrgId, setActiveOrgId } from './utils/dashboardUtils';
-import { listMyOrgs, getOrgDetail, createOrg, inviteMember, updateMemberRole, removeMember } from '../../api/org';
+import { listMyOrgs, getOrgDetail, createOrg, updateOrg, inviteMember, updateMemberRole, removeMember } from '../../api/org';
 import type { OrgSummary, OrgDetail } from '../../api/org';
 import { listProjects, getProjectDetail, createProject, updateProject, deleteProject, createTask, updateTask, deleteTask, addProjectMember, updateProjectMemberRole, removeProjectMember, listProjectFiles, uploadProjectFile, deleteProjectFile, TaskDto } from '../../api/project';
 import { mapProjectDetailToProject } from '../../utils/projectMapper';
@@ -48,9 +49,11 @@ import { OnboardingSkillsModal } from './modals/OnboardingSkillsModal';
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
+  initialOrgSlug?: string;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, initialOrgSlug }) => {
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const { t, lang } = useLang();
   const isVi = lang === 'vi';
@@ -164,12 +167,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       setOrgs(list);
       if (list.length > 0) {
         const savedId = getActiveOrgId();
-        const targetId = savedId && list.some(o => o.id === savedId) ? savedId : list[0].id;
-        setActiveOrgIdState(targetId);
-        setActiveOrgId(targetId);
+        const routeOrg = initialOrgSlug ? list.find(o => o.slug === initialOrgSlug) : undefined;
+        const targetOrg = routeOrg
+          ?? (savedId ? list.find(o => o.id === savedId) : undefined)
+          ?? list[0];
+        setActiveOrgIdState(targetOrg.id);
+        setActiveOrgId(targetOrg.id);
+        if (initialOrgSlug && !routeOrg) {
+          showToast(isVi ? 'Bạn không có quyền truy cập tổ chức từ đường dẫn này.' : 'You do not have access to the organization in this URL.', 'error');
+          navigate(`/org/${targetOrg.slug}`, { replace: true });
+        }
       }
     }).catch(() => { /* token expired or API down */ });
-  }, []);
+  }, [initialOrgSlug]);
 
   // -- Load user skills on mount --
   useEffect(() => {
@@ -1314,6 +1324,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleUpdateOrganization = async (name: string, slug: string) => {
+    if (!activeOrgId) return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    const updated = await updateOrg(token, activeOrgId, { name, slug });
+    setOrgs(prev => prev.map(org => org.id === updated.id ? updated : org));
+    setOrgDetail(prev => prev && prev.id === updated.id
+      ? { ...prev, name: updated.name, slug: updated.slug }
+      : prev);
+    setWorkspaceName(updated.name);
+    navigate(`/org/${updated.slug}`, { replace: true });
+  };
+
+
   const handleInviteOrgMember = async (email: string, role: string) => {
     if (!activeOrgId) return;
     const token = getAuthToken();
@@ -1361,7 +1386,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setActiveOrgIdState(orgId);
     setActiveOrgId(orgId);
     const org = orgs.find(o => o.id === orgId);
-    if (org) setWorkspaceName(org.name);
+    if (org) {
+      setWorkspaceName(org.name);
+      navigate(`/org/${org.slug}`);
+    }
   };
 
   const handleSignOut = async () => {
@@ -1805,6 +1833,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 orgName={orgDetail?.name || workspaceName}
                 orgDetail={orgDetail}
                 orgLoading={orgLoading}
+                onUpdateOrganization={handleUpdateOrganization}
                 onInviteMember={() => setShowInviteOrgMember(true)}
                 onUpdateMemberRole={handleUpdateOrgMemberRole}
                 onRemoveMember={handleRemoveOrgMember}

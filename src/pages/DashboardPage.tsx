@@ -1,4 +1,5 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import { Dashboard } from '../components/dashboard/Dashboard';
 
 interface DashboardPageProps {
@@ -6,5 +7,6 @@ interface DashboardPageProps {
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
-  return <Dashboard onNavigate={onNavigate} />;
+  const { slug } = useParams<{ slug?: string }>();
+  return <Dashboard onNavigate={onNavigate} initialOrgSlug={slug} />;
 };
