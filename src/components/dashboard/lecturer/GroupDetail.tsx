@@ -31,6 +31,19 @@ const priorityColors: Record<string, string> = {
   low:    'text-slate-400 bg-slate-700    border-slate-600',
 };
 
+const sortTasksByDeadline = (tasks: LecturerTask[]) => [...tasks].sort((left, right) => {
+  const leftDeadline = new Date(left.deadline).getTime();
+  const rightDeadline = new Date(right.deadline).getTime();
+  const leftHasDeadline = Number.isFinite(leftDeadline);
+  const rightHasDeadline = Number.isFinite(rightDeadline);
+
+  if (!leftHasDeadline && !rightHasDeadline) return left.title.localeCompare(right.title);
+  if (!leftHasDeadline) return 1;
+  if (!rightHasDeadline) return -1;
+
+  return leftDeadline - rightDeadline || left.title.localeCompare(right.title);
+});
+
 type MemberContribution = {
   memberName: string;
   assigned: number;
@@ -287,7 +300,7 @@ const TasksTab: React.FC<{
             key={status}
             status={status}
             isVi={isVi}
-            tasks={tasks.filter(task => task.status === status)}
+            tasks={sortTasksByDeadline(tasks.filter(task => task.status === status))}
             selectedTaskId={selectedTaskId}
             onOpenTask={onSelectTask}
             onApprove={onApprove}
