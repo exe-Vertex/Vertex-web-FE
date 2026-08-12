@@ -1,4 +1,4 @@
-﻿export type TaskStatus = 'todo' | 'in-progress' | 'ready-for-review' | 'approved';
+export type TaskStatus = 'todo' | 'in-progress' | 'ready-for-review' | 'approved';
 export type TaskPriority = 'high' | 'medium' | 'low';
 export type ReviewStatus = 'on-track' | 'at-risk' | 'overdue';
 
@@ -11,6 +11,7 @@ export interface LecturerTask {
   deadline: string;
   priority: TaskPriority;
   status: TaskStatus;
+  submissionLink?: string;
 }
 
 export interface TimelineMilestone {
@@ -32,6 +33,7 @@ export interface GroupComment {
 
 export interface LecturerGroup {
   id: string;
+  orgId: string;
   name: string;
   className: string;
   progress: number;

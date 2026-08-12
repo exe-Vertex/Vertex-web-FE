@@ -1,6 +1,7 @@
 import { apiRequest } from './http';
 import { getAccessToken } from '../utils/authStorage';
 import type { LecturerGroup } from '../data/lecturerTypes';
+import type { TaskAttachmentDto } from './project';
 
 function getHeaders() {
   const token = getAccessToken();
@@ -18,6 +19,7 @@ export async function getGroups(): Promise<LecturerGroup[]> {
 
   return backendGroups.map(g => ({
     id: g.projectId,
+    orgId: g.orgId,
     name: g.projectName,
     className: g.orgName || 'FPT University',
     progress: g.progress,
@@ -35,6 +37,7 @@ export async function getGroups(): Promise<LecturerGroup[]> {
       deadline: t.endDate || g.deadline,
       priority: (t.priority || 'medium').toLowerCase(),
       status: t.status === 'done' ? 'approved' : t.status,
+      submissionLink: t.submissionLink,
     })),
     timeline: [],
     comments: [],
@@ -57,6 +60,7 @@ export async function getGroupDetail(projectId: string): Promise<LecturerGroup> 
     deadline: t.endDate,
     priority: t.priority || 'medium',
     status: t.status === 'done' ? 'approved' : t.status,
+    submissionLink: t.submissionLink,
   }));
 
   // Map the backend comments
@@ -78,6 +82,7 @@ export async function getGroupDetail(projectId: string): Promise<LecturerGroup> 
 
   return {
     id: d.projectId,
+    orgId: d.orgId,
     name: d.projectName,
     className: d.orgName || 'FPT University',
     progress: d.progress,
@@ -90,6 +95,12 @@ export async function getGroupDetail(projectId: string): Promise<LecturerGroup> 
     timeline,
     comments,
   };
+}
+
+export async function getTaskAttachments(orgId: string, projectId: string, taskId: string): Promise<TaskAttachmentDto[]> {
+  return apiRequest<TaskAttachmentDto[]>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/attachments`, {
+    headers: getHeaders(),
+  });
 }
 
 // Approve task

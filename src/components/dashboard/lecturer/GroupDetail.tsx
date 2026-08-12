@@ -3,10 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, Users, Calendar, CheckCircle, Clock, AlertTriangle,
   MessageSquare, GitBranch, LayoutGrid, Send, CheckCheck, RotateCcw, BarChart3,
-  X,
+  X, Paperclip, Link as LinkIcon, FileText, ExternalLink, Loader2,
 } from 'lucide-react';
 import { GroupComment, LecturerGroup, LecturerTask, TaskStatus } from '../../../data/lecturerTypes';
-import { approveTask, requestChanges, addComment } from '../../../api/lecturer';
+import { approveTask, requestChanges, addComment, getTaskAttachments } from '../../../api/lecturer';
+import type { TaskAttachmentDto } from '../../../api/project';
+import { API_BASE_URL } from '../../../api/http';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useLang } from '../../../contexts/LanguageContext';
 
@@ -252,6 +254,8 @@ const OverviewTab: React.FC<{ group: LecturerGroup; isVi: boolean }> = ({ group,
 
 // Tasks tab
 const TasksTab: React.FC<{
+  orgId: string;
+  projectId: string;
   tasks: LecturerTask[];
   selectedTask: LecturerTask | null;
   selectedTaskId: string | null;
@@ -262,8 +266,11 @@ const TasksTab: React.FC<{
   onAddComment: (taskId: string, text: string) => void;
   onApprove: (id: string) => void;
   onRequestChanges: (id: string) => void;
-}> = ({ tasks, selectedTask, selectedTaskId, taskComments, reviewHint, onSelectTask, onCloseTask, onAddComment, onApprove, onRequestChanges }) => {
+}> = ({ orgId, projectId, tasks, selectedTask, selectedTaskId, taskComments, reviewHint, onSelectTask, onCloseTask, onAddComment, onApprove, onRequestChanges }) => {
   const [newComment, setNewComment] = useState('');
+  const [attachments, setAttachments] = useState<TaskAttachmentDto[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [attachmentsError, setAttachmentsError] = useState('');
   const { lang } = useLang();
   const isVi = lang === 'vi';
 
@@ -283,6 +290,30 @@ const TasksTab: React.FC<{
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, [onCloseTask, selectedTask]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setAttachments([]);
+    setAttachmentsError('');
+    if (!selectedTask) return;
+
+    setAttachmentsLoading(true);
+    getTaskAttachments(orgId, projectId, selectedTask.id)
+      .then(data => {
+        if (!cancelled) setAttachments(data);
+      })
+      .catch(error => {
+        if (!cancelled) setAttachmentsError(error instanceof Error ? error.message : 'Could not load submitted work.');
+      })
+      .finally(() => {
+        if (!cancelled) setAttachmentsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId, projectId, selectedTask]);
 
   const columns: TaskStatus[] = ['todo', 'in-progress', 'ready-for-review', 'approved'];
 
@@ -371,6 +402,71 @@ const TasksTab: React.FC<{
                   <p className="text-sm leading-6 text-slate-300">{selectedTask.description || (isVi ? 'Chưa có mô tả.' : 'No description.')}</p>
                 </div>
 
+                <div>
+                  <div className="mb-2 flex items-center gap-2">
+                    <Paperclip size={14} className="text-[#22C55E]" />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{isVi ? 'Bài đã nộp' : 'Submitted work'}</p>
+                  </div>
+
+                  {attachmentsLoading ? (
+                    <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-800 bg-[#162032]/70 p-4 text-sm text-slate-400">
+                      <Loader2 size={15} className="animate-spin" />{isVi ? 'Đang tải bài nộp...' : 'Loading submitted work...'}
+                    </div>
+                  ) : attachmentsError ? (
+                    <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-300">
+                      {isVi ? 'Không thể tải bài nộp: ' : 'Could not load submitted work: '}{attachmentsError}
+                    </div>
+                  ) : !selectedTask.submissionLink && attachments.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-slate-700 p-4 text-center text-sm text-slate-500">
+                      {isVi ? 'Sinh viên chưa đính kèm tệp hoặc liên kết.' : 'The student has not attached a file or link.'}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {selectedTask.submissionLink && (
+                        <a
+                          href={selectedTask.submissionLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 rounded-lg border border-slate-800 bg-[#162032] p-3 transition-colors hover:border-[#22C55E]/35 hover:bg-[#1A263A]"
+                        >
+                          <span className="rounded-lg bg-[#0B1220] p-2 text-[#6EE7B7]"><LinkIcon size={16} /></span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-200">{isVi ? 'Liên kết bài nộp' : 'Submission link'}</span>
+                          <ExternalLink size={14} className="flex-shrink-0 text-slate-500" />
+                        </a>
+                      )}
+                      {attachments.map(attachment => {
+                        const attachmentUrl = attachment.url?.startsWith('http')
+                          ? attachment.url
+                          : attachment.url
+                            ? API_BASE_URL + '/' + attachment.url.replace(/^\/+/, '')
+                            : undefined;
+
+                        const content = (
+                          <>
+                            <span className="rounded-lg bg-[#0B1220] p-2 text-[#6EE7B7]">
+                              {attachment.type === 'link' ? <LinkIcon size={16} /> : <FileText size={16} />}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium text-slate-200">{attachment.title || attachment.url || (isVi ? 'Tệp bài nộp' : 'Submitted file')}</span>
+                              <span className="mt-0.5 block text-xs text-slate-500">
+                                {attachment.uploadedBy}{attachment.sizeLabel ? ' · ' + attachment.sizeLabel : ''}
+                              </span>
+                            </span>
+                            {attachmentUrl && <ExternalLink size={14} className="flex-shrink-0 text-slate-500" />}
+                          </>
+                        );
+
+                        return attachmentUrl ? (
+                          <a key={attachment.id} href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-lg border border-slate-800 bg-[#162032] p-3 transition-colors hover:border-[#22C55E]/35 hover:bg-[#1A263A]">
+                            {content}
+                          </a>
+                        ) : (
+                          <div key={attachment.id} className="flex items-center gap-3 rounded-lg border border-slate-800 bg-[#162032] p-3">{content}</div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 <div className="rounded-lg border border-[#22C55E]/10 bg-[#162032]/70 p-3 text-sm text-slate-400">
                   <p className="font-semibold text-slate-200">{isVi ? 'Quy trình duyệt' : 'Review workflow'}</p>
                   <p className="mt-1 leading-5">{reviewHint}</p>
@@ -728,6 +824,8 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ group, onBack }) => {
           {activeTab === 'tasks' && (
             <motion.div key="tasks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <TasksTab
+                orgId={group.orgId}
+                projectId={group.id}
                 tasks={tasks}
                 selectedTask={selectedTask}
                 selectedTaskId={selectedTaskId}
