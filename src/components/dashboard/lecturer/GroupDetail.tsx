@@ -6,9 +6,8 @@ import {
   X, Paperclip, Link as LinkIcon, FileText, ExternalLink, Loader2,
 } from 'lucide-react';
 import { GroupComment, LecturerGroup, LecturerTask, TaskStatus } from '../../../data/lecturerTypes';
-import { approveTask, requestChanges, addComment, getTaskAttachments } from '../../../api/lecturer';
+import { approveTask, requestChanges, addComment, getTaskAttachments, getLecturerTaskAttachmentDownloadUrl } from '../../../api/lecturer';
 import type { TaskAttachmentDto } from '../../../api/project';
-import { API_BASE_URL } from '../../../api/http';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useLang } from '../../../contexts/LanguageContext';
 
@@ -315,6 +314,21 @@ const TasksTab: React.FC<{
     };
   }, [orgId, projectId, selectedTask]);
 
+  const handleOpenAttachment = async (attachment: TaskAttachmentDto) => {
+    if (!selectedTask) return;
+
+    const newTab = window.open('about:blank', '_blank');
+    if (newTab) newTab.opener = null;
+
+    try {
+      const url = await getLecturerTaskAttachmentDownloadUrl(orgId, projectId, selectedTask.id, attachment.id);
+      if (newTab) newTab.location.replace(url);
+      else window.location.assign(url);
+    } catch (error) {
+      newTab?.close();
+      setAttachmentsError(error instanceof Error ? error.message : 'Could not open submitted work.');
+    }
+  };
   const columns: TaskStatus[] = ['todo', 'in-progress', 'ready-for-review', 'approved'];
 
   return (
@@ -435,31 +449,25 @@ const TasksTab: React.FC<{
                         </a>
                       )}
                       {attachments.map(attachment => {
-                        const attachmentUrl = attachment.url?.startsWith('http')
-                          ? attachment.url
-                          : attachment.url
-                            ? API_BASE_URL + '/' + attachment.url.replace(/^\/+/, '')
-                            : undefined;
-
                         const content = (
                           <>
                             <span className="rounded-lg bg-[#0B1220] p-2 text-[#6EE7B7]">
                               {attachment.type === 'link' ? <LinkIcon size={16} /> : <FileText size={16} />}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-medium text-slate-200">{attachment.title || attachment.url || (isVi ? 'Tệp bài nộp' : 'Submitted file')}</span>
+                              <span className="block truncate text-sm font-medium text-slate-200">{attachment.title || (isVi ? 'Tệp bài nộp' : 'Submitted file')}</span>
                               <span className="mt-0.5 block text-xs text-slate-500">
                                 {attachment.uploadedBy}{attachment.sizeLabel ? ' · ' + attachment.sizeLabel : ''}
                               </span>
                             </span>
-                            {attachmentUrl && <ExternalLink size={14} className="flex-shrink-0 text-slate-500" />}
+                            {(attachment.type === 'file' || attachment.url) && <ExternalLink size={14} className="flex-shrink-0 text-slate-500" />}
                           </>
                         );
 
-                        return attachmentUrl ? (
-                          <a key={attachment.id} href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-lg border border-slate-800 bg-[#162032] p-3 transition-colors hover:border-[#22C55E]/35 hover:bg-[#1A263A]">
+                        return attachment.type === 'file' || attachment.url ? (
+                          <button key={attachment.id} type="button" onClick={() => handleOpenAttachment(attachment)} className="flex w-full items-center gap-3 rounded-lg border border-slate-800 bg-[#162032] p-3 text-left transition-colors hover:border-[#22C55E]/35 hover:bg-[#1A263A]">
                             {content}
-                          </a>
+                          </button>
                         ) : (
                           <div key={attachment.id} className="flex items-center gap-3 rounded-lg border border-slate-800 bg-[#162032] p-3">{content}</div>
                         );

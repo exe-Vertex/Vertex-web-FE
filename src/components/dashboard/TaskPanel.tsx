@@ -5,8 +5,7 @@ import { Task, User, Priority } from '../../types';
 import { Avatar } from '../ui/Avatar';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { listTaskAttachments, uploadTaskFile, addTaskLink, deleteTaskAttachment, promoteTaskAttachment, TaskAttachmentDto, listTaskComments, addTaskComment, TaskCommentDto, listSubtasks, createSubtask, updateSubtask, deleteSubtask, SubtaskDto } from '../../api/project';
-import { API_BASE_URL } from '../../api/http';
+import { listTaskAttachments, getTaskAttachmentDownloadUrl, uploadTaskFile, addTaskLink, deleteTaskAttachment, promoteTaskAttachment, TaskAttachmentDto, listTaskComments, addTaskComment, TaskCommentDto, listSubtasks, createSubtask, updateSubtask, deleteSubtask, SubtaskDto } from '../../api/project';
 import { generateSubtasks } from '../../api/ai';
 import { getAuthToken } from './utils/dashboardUtils';
 import { useToast } from '../ui/Toast';
@@ -166,6 +165,23 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
     }
   };
 
+  const handleOpenAttachment = async (attachment: TaskAttachmentDto) => {
+    if (!task || !orgId || !projectId) return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    const newTab = window.open('about:blank', '_blank');
+    if (newTab) newTab.opener = null;
+
+    try {
+      const url = await getTaskAttachmentDownloadUrl(token, orgId, projectId, task.id, attachment.id);
+      if (newTab) newTab.location.replace(url);
+      else window.location.assign(url);
+    } catch (err: any) {
+      newTab?.close();
+      showToast(err.message || (isVi ? 'Không thể mở tệp đính kèm' : 'Could not open attachment'), 'error');
+    }
+  };
   const handleDeleteAttachment = async (attachmentId: string) => {
     if (!task || !orgId || !projectId) return;
     const token = getAuthToken();
@@ -622,19 +638,14 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
                           {att.type === 'link' ? <LinkIcon size={16} /> : <FileIcon size={16} />}
                         </div>
                         <div className="flex flex-col min-w-0">
-                          {att.type === 'link' ? (
-                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-200 hover:text-[#6EE7B7] hover:underline truncate inline-flex items-center gap-1">
-                              {att.title || att.url} <ExternalLink size={12} />
-                            </a>
-                          ) : att.url ? (
-                            <a
-                              href={att.url.startsWith('http') ? att.url : `${API_BASE_URL}/${att.url.replace(/^\/+/, '')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm font-medium text-slate-200 hover:text-[#6EE7B7] hover:underline truncate inline-flex items-center gap-1"
+                          {att.type === 'file' || att.url ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAttachment(att)}
+                              className="inline-flex max-w-full items-center gap-1 truncate text-left text-sm font-medium text-slate-200 hover:text-[#6EE7B7] hover:underline"
                             >
-                              {att.title} <ExternalLink size={12} />
-                            </a>
+                              <span className="truncate">{att.title || att.url}</span> <ExternalLink size={12} className="flex-shrink-0" />
+                            </button>
                           ) : (
                             <span className="text-sm font-medium text-slate-200 truncate">{att.title}</span>
                           )}

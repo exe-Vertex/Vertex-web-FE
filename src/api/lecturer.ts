@@ -1,4 +1,4 @@
-import { apiRequest } from './http';
+import { apiRequest, API_BASE_URL } from './http';
 import { getAccessToken } from '../utils/authStorage';
 import type { LecturerGroup } from '../data/lecturerTypes';
 import type { TaskAttachmentDto } from './project';
@@ -103,6 +103,12 @@ export async function getTaskAttachments(orgId: string, projectId: string, taskI
   });
 }
 
+export async function getLecturerTaskAttachmentDownloadUrl(orgId: string, projectId: string, taskId: string, attachmentId: string): Promise<string> {
+  const result = await apiRequest<{ url: string }>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/attachments/${attachmentId}/download-url`, {
+    headers: getHeaders(),
+  });
+  return result.url.startsWith('/') ? `${API_BASE_URL}${result.url}` : result.url;
+}
 // Approve task
 export async function approveTask(taskId: string): Promise<void> {
   await apiRequest<void>(`/api/lecturer/tasks/${taskId}/approve`, {

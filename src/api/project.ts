@@ -346,6 +346,18 @@ export async function listTaskAttachments(token: string, orgId: string, projectI
   });
 }
 
+export async function getTaskAttachmentDownloadUrl(
+  token: string,
+  orgId: string,
+  projectId: string,
+  taskId: string,
+  attachmentId: string,
+) {
+  const result = await apiRequest<{ url: string }>(`/api/orgs/${orgId}/projects/${projectId}/tasks/${taskId}/attachments/${attachmentId}/download-url`, {
+    headers: authHeaders(token),
+  });
+  return result.url.startsWith('/') ? `${API_BASE_URL}${result.url}` : result.url;
+}
 export async function uploadTaskFile(
   token: string,
   orgId: string,
